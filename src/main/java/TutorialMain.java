@@ -31,5 +31,8 @@ public class TutorialMain {
 		
 		//launch the server, here we choose stand I/O. Note later don't use System.out to print text messages to console, it will block the channel.  
 		server.launchOnStdio();
+	
+		//for debugging 
+		//server.launchOnSocketPort(5007);
 	}
 }
