@@ -161,3 +161,6 @@ public void analyze(Collection<? extends Module> files, MagpieServer server, boo
         - vsce package (this will create vscode extension under vscode directory)
 - Start TutorialMain at first with argument "vscode/preparedResults.json". 
 - Debug and run the extension in vscode. This will open a new vs code instance with the extension installed. In this instance, open the DemoProject. Open the Example.java file.  
+**Watch this video to see the demonstration**
+
+  [![Tutorial2](https://img.youtube.com/vi/GZ0VfA7WvTs/0.jpg)](https://youtu.be/GZ0VfA7WvTs)
