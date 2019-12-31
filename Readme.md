@@ -10,6 +10,7 @@ Please check out the following projects:
     This is the implementation of the desired language server.
 
 - DemoProject: https://github.com/MagpieBridge/DemoProject 
+    
     This is the demo project for testing the language server of Tutorial2. 
 
 ## Do it by yourself
