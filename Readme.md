@@ -30,7 +30,7 @@ Please check out the following projects:
 		</dependency>
 </dependencies>
 ~~~
-3. Create a mainClass called [TutorialMain.java](https://github.com/MagpieBridge/Tutorial2/blob/master/src/main/java/TutorialMain.java) in your project and add maven-shade-plugin to the pom.xml and speicify the mainClass under configuration (see [here](https://github.com/MagpieBridge/Tutorial2/blob/master/pom.xml)). This is used to create a JAR file containing every dependency you need for running your language server. 
+3. Create a mainClass called [TutorialMain.java](https://github.com/MagpieBridge/Tutorial2/blob/master/src/main/java/TutorialMain.java) in your project and add `maven-shade-plugin` to the pom.xml and speicify the mainClass under configuration (see [here](https://github.com/MagpieBridge/Tutorial2/blob/master/pom.xml)). This is used to create a JAR file containing every dependency you need for running your language server. 
 ~~~
 <plugin>
 	<groupId>org.apache.maven.plugins</groupId>
@@ -80,7 +80,7 @@ Please check out the following projects:
 		//server.launchOnSocketPort(5007);
 ~~~
 
-5. Create MyDummyAnalysis.java which implements the ServerAnalysis interface.
+5. Create [MyDummyAnalysis.java](https://github.com/MagpieBridge/Tutorial2/blob/master/src/main/java/MyDummyAnalysis.java) which implements the ServerAnalysis interface.
 ~~~
 public class MyDummyAnalysis implements ServerAnalysis{
 
@@ -102,7 +102,7 @@ Meaning of the parameters:
  - `server`: the MagpieServer which calls this method, you can get project scope (source code path, library path, class path etc.) by calling `server.getProjectService(language)`
  - `rerun`: the flag to indicate if the analysis should be reran. 
 
-6. Create a method `runAnalysisOnSelectedFiles` which returns a set of `AnalysisResult`. This method should look every opened source file and check if there is a result reading from a prepared JSON file available for this source file. In this project, the prepared JSON file contains the following result for Example.java:
+6. In [MyDummyAnalysis.java](https://github.com/MagpieBridge/Tutorial2/blob/master/src/main/java/MyDummyAnalysis.java), create a method `runAnalysisOnSelectedFiles` which returns a set of `AnalysisResult`. This method should look every opened source file and check if there is a result reading from a prepared JSON file available for this source file. In this project, the [prepared JSON file](https://github.com/MagpieBridge/Tutorial2/blob/master/vscode/preparedResults.json) contains the following result for Example.java:
 ~~~
 {   
     "results":[
@@ -120,7 +120,7 @@ Meaning of the parameters:
  ~~~
 All above information can be used for implementing the `ÀnalysisResult` interface. 
 
-7. Call `runAnalysisOnSelectedFiles` and consumes the results in the method `analyze`
+7. Call `runAnalysisOnSelectedFiles` and consumes the results in the method `analyze` in [MyDummyAnalysis.java](https://github.com/MagpieBridge/Tutorial2/blob/master/src/main/java/MyDummyAnalysis.java)
 ~~~
 @Override
 public void analyze(Collection<? extends Module> files, MagpieServer server, boolean rerun) {
@@ -131,12 +131,12 @@ public void analyze(Collection<? extends Module> files, MagpieServer server, boo
 }
 ~~~
 
-8. In the project root, run `mvn install` to build a JAR file `tutorial2-1.0-SNAPSHOT.jar` of your project. This JAR file can be used as a language server in IDEs (see Tutorial1).
+8. In the project root, run `mvn install` to build a JAR file `tutorial2-1.0-SNAPSHOT.jar` of your project. This JAR file can be used as a language server in IDEs with `java -jar tutorial2-1.0-SNAPSHOT.jar PATH\TO\preparedResults.json`(see step 10 upwards in [Tutorial1](https://github.com/MagpieBridge/MagpieBridge/wiki/Tutorial-1.-Create-your-first-project-with-MagpieBridge-for-soot-based-analysis)).
 
 9. After configuring this JAR file as a language server, try it with the DemoProject by opening the Example.java file in an editor. 
 
 ## Debugging it in VS Code. 
-- Copy the vscode folder into the project root.
+- Copy the [vscode](https://github.com/MagpieBridge/Tutorial2/tree/master/vscode) folder into the project root.
 - Server configuration:  Instead of calling `server.launchOnStdio()` in the main method, calling `server.launchOnSocketPort>(5007)`
 - Client configuration(VS Code): Define communication via socket in `extension.ts` with the same port 5007
 ~~~
@@ -155,12 +155,23 @@ public void analyze(Collection<? extends Module> files, MagpieServer server, boo
 		})
 ~~~
 - build jar file with `mvn install`
+- make sure you can call the command `cp` (copy) in your machine, since in [package.json](https://github.com/MagpieBridge/Tutorial2/blob/master/vscode/package.json), the following script is used before compile the vscode extension: 
+~~~
+"vscode:prepublish": "cp ../target/tutorial2-1.0-SNAPSHOT.jar  tutorial2-1.0-SNAPSHOT.jar && npm run compile"
+~~~
+If you don't have `cp`, simply copy the Jar file into the vscode folder and change the script to:
+~~~
+"vscode:prepublish": "npm run compile"
+~~~
 - in vscode folder run:
+~~~
         - npm install (if the first time)
         - npm install -g vsce (if the first time)
         - vsce package (this will create vscode extension under vscode directory)
-- Start TutorialMain at first with argument "vscode/preparedResults.json". 
-- Debug and run the extension in vscode. This will open a new vs code instance with the extension installed. In this instance, open the DemoProject. Open the Example.java file.  
+~~~
+- Start TutorialMain at first with argument "vscode/preparedResults.json" in your preferred editor. 
+- Debug and run the extension in VS Code. This will open a new vs code instance with the extension installed. In this instance, open the DemoProject. Open the Example.java file.  
+
 **Watch this video to see the demonstration**
 
   [![Tutorial2](https://img.youtube.com/vi/GZ0VfA7WvTs/0.jpg)](https://youtu.be/GZ0VfA7WvTs)
