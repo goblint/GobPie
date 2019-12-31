@@ -15,3 +15,7 @@ vscode/out/
 package-lock.json
 
 vscode/node_modules
+
+vscode/Tutorial2-0.0.1.vsix
+
+vscode/tutorial2-1.0-SNAPSHOT.jar
