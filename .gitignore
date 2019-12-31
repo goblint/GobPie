@@ -9,3 +9,9 @@
 dependency-reduced-pom.xml
 
 .classpath
+
+vscode/out/
+
+package-lock.json
+
+vscode/node_modules
