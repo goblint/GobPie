@@ -9,7 +9,7 @@
 		<dependency>
 			<groupId>magpiebridge</groupId>
 			<artifactId>magpiebridge</artifactId>
-			<version>0.0.3-SNAPSHOT</version>
+			<version>0.0.6</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
 		<dependency>
