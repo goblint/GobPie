@@ -106,8 +106,9 @@ public class MyDummyAnalysis implements ServerAnalysis {
 				for (MyDummyResult res : this.myResults) {
 					String className = sourceFile.getClassName();
 					if (res.fileName.equals(className + ".java")) {
-
 						final MyDummyResult result = res;
+						//Note: the URL getting from files is at the server side, 
+						//you need to get client (the code editor) side URL for client to consume the results. 
 						final URL clientURL = new URL(server.getClientUri(sourceFile.getURL().toString()));
 						final Position pos = new Position() {
 

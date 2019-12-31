@@ -9,7 +9,7 @@ export function activate(context: ExtensionContext) {
     let script = 'java';
     let args = ['-jar',context.asAbsolutePath('tutorial2-1.0-SNAPSHOT.jar'), context.asAbsolutePath('preparedResults.json')];
     
-    
+    // Use this for communicating on stdio 
     let serverOptions: ServerOptions = {
         run : { command: script, args: args },
         debug: { command: script, args: args} ,
