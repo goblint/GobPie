@@ -136,7 +136,8 @@ public void analyze(Collection<? extends Module> files, MagpieServer server, boo
 9. After configuring this JAR file as a language server, try it with the DemoProject by opening the Example.java file in an editor. 
 
 10. Try it on the [DemoProject with Gitpod](https://gitpod.io/#https://github.com/MagpieBridge/DemoProject) in your browser, you should see the following result when you open Example.java under tutorial2 project
-https://github.com/MagpieBridge/Tutorial2/blob/master/gitpod.png
+<img src="https://github.com/MagpieBridge/Tutorial2/blob/master/gitpod.png" width="800">
+
 ## Debugging it in VS Code. 
 - Copy the [vscode](https://github.com/MagpieBridge/Tutorial2/tree/master/vscode) folder into the project root.
 - Server configuration:  Instead of calling `server.launchOnStdio()` in the main method, calling `server.launchOnSocketPort>(5007)`
