@@ -1,6 +1,6 @@
 In this tutorial, you will learn how you can use MagpieBridge to present any results in IDEs. VS Code is used for this tutorial, please install it in advance.
 
-The **goal** of this tutorial is to use MagpieBridge to write a language server which displays results read from a JSON file in a code editor when the DemoProject is opened. Of course, you can provide the results in any other file formats or computed at run time.
+The **goal** of this tutorial is to use MagpieBridge to write a language server which displays results read from a JSON file in a code editor when the DemoProject is opened. The DemoProject is a Java project and it contains an insecure API usage. The prepared JSON file contains the description of the insecure usage, the source code position and how to repair the code. You can image such JSON file is computed by a program analysis tool. Of course, you can provide the results in any other file formats or compute them at run time.
 
 Please check out the following projects:
 
