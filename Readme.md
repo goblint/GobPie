@@ -1,7 +1,6 @@
 In this tutorial, you will learn how you can use MagpieBridge to present any results in IDEs. VS Code is used for this tutorial, please install it in advance.
 
-The goal of this tutorial is to use MagpieBridge to write a language server which displays results read from a JSON file in a code editor when the DemoProject is opened.  
-
+The **goal** of this tutorial is to use MagpieBridge to write a language server which displays results read from a JSON file in a code editor when the DemoProject is opened. Of course, you can provide the results in any other file formats or computed at run time.
 
 Please check out the following projects:
 
@@ -10,7 +9,7 @@ Please check out the following projects:
     This is the implementation of the desired language server.
 
 - DemoProject: https://github.com/MagpieBridge/DemoProject 
-    
+
     This is the demo project for testing the language server of Tutorial2. 
 
 ## Do it by yourself
@@ -132,7 +131,7 @@ public void analyze(Collection<? extends Module> files, MagpieServer server, boo
 }
 ~~~
 
-8. In the project root, run `mvn install` to build a JAR file `tutorial2-1.0-SNAPSHOT.jar` of your project. This JAR file can be used as a language server in IDEs with `java -jar tutorial2-1.0-SNAPSHOT.jar PATH\TO\preparedResults.json`(see step 10 upwards in [Tutorial1](https://github.com/MagpieBridge/MagpieBridge/wiki/Tutorial-1.-Create-your-first-project-with-MagpieBridge-for-soot-based-analysis)).
+8. In the project root, run `mvn install` to build a JAR file `tutorial2-0.0.1-SNAPSHOT.jar` of your project. This JAR file can be used as a language server in IDEs with `java -jar tutorial2-0.0.1-SNAPSHOT.jar PATH\TO\preparedResults.json`(see step 10 upwards in [Tutorial1](https://github.com/MagpieBridge/MagpieBridge/wiki/Tutorial-1.-Create-your-first-project-with-MagpieBridge-for-soot-based-analysis)).
 
 9. After configuring this JAR file as a language server, try it with the DemoProject by opening the Example.java file in an editor. 
 
