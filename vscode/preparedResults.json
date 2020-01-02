@@ -5,8 +5,8 @@
             "msg": "Insecure parameter! The first parameter with the value AES/ECB/PKCS5Padding containts ECB should be replaced by any of CBC, GCM, PCBC, CTR, CTS, CFB or OFB.",
             "startLine": 11,
             "startColumn": 43,
-			"endLine":11,
-			"endColumn":63,
+            "endLine":11,
+            "endColumn":63,
             "repair":"AES/CBC/PKCS5Padding"
         }
     ]
