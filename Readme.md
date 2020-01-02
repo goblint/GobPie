@@ -161,7 +161,7 @@ public void analyze(Collection<? extends Module> files, MagpieServer server, boo
 - build jar file with `mvn install`
 - make sure you can call the command `cp` (copy) in your machine, since in [package.json](https://github.com/MagpieBridge/Tutorial2/blob/master/vscode/package.json), the following script is used before compile the vscode extension: 
 ~~~
-"vscode:prepublish": "cp ../target/tutorial2-1.0-SNAPSHOT.jar  tutorial2-1.0-SNAPSHOT.jar && npm run compile"
+"vscode:prepublish": "cp ../target/tutorial2-0.0.1-SNAPSHOT.jar  tutorial2-0.0.1-SNAPSHOT.jar && npm run compile"
 ~~~
 If you don't have `cp`, simply copy the Jar file into the vscode folder and change the script to:
 ~~~
