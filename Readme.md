@@ -46,27 +46,26 @@ Please check out the following projects:
 ~~~
         // initialize a MagpieServer with default configuration. 
         ServerConfiguration defaultConfig = new ServerConfiguration();
-		MagpieServer server = new MagpieServer(defaultConfig);
+	MagpieServer server = new MagpieServer(defaultConfig);
 		
-		//define which language you consider and add a project service for this language
-		String language =  "java";
-		IProjectService javaProjecctService=new JavaProjectService();
-		server.addProjectService(language, javaProjecctService);
-		
-		
-		//add your customized analysis to the MagpieServer 
-		String preparedFile=args[0];
-		ServerAnalysis myAnalysis=new MyDummyAnalysis(preparedFile);
-
-		Either<ServerAnalysis, ToolAnalysis> analysis=Either.forLeft(myAnalysis);
-		server.addAnalysis(analysis,language);
-		
-		//launch the server, here we choose stand I/O. 
-        //Note later don't use System.out to print text messages to console, it will block the channel.  
-		server.launchOnStdio();
+	//define which language you consider and add a project service for this language
+	String language =  "java";
+	IProjectService javaProjecctService=new JavaProjectService();
+	server.addProjectService(language, javaProjecctService);
 	
-		//for debugging 
-		//server.launchOnSocketPort(5007);
+		
+	//add your customized analysis to the MagpieServer 
+	String preparedFile=args[0];
+	ServerAnalysis myAnalysis=new MyDummyAnalysis(preparedFile);
+	Either<ServerAnalysis, ToolAnalysis> analysis=Either.forLeft(myAnalysis);
+	server.addAnalysis(analysis,language);
+		
+	//launch the server, here we choose stand I/O. 
+        //Note later don't use System.out to print text messages to console, it will block the channel.  
+	server.launchOnStdio();
+
+	//for debugging 
+	//server.launchOnSocketPort(5007);
 ~~~
 
 5. Create [MyDummyAnalysis.java](https://github.com/MagpieBridge/Tutorial2/blob/master/src/main/java/MyDummyAnalysis.java) which implements the ServerAnalysis interface.
