@@ -18,20 +18,7 @@ Please check out the following projects:
 
 1. Create an empty maven project.  
 2. Add MagpieBridge and Gson into the pom.xml of your project (see [here](https://github.com/MagpieBridge/Tutorial2/blob/master/pom.xml)).
-~~~
-<dependencies>
-		<dependency>
-			<groupId>magpiebridge</groupId>
-			<artifactId>magpiebridge</artifactId>
-			<version>0.0.6</version>
-		</dependency>
-		<dependency>
-			<groupId>com.google.code.gson</groupId>
-			<artifactId>gson</artifactId>
-			<version>2.8.6</version>
-		</dependency>
-</dependencies>
-~~~
+
 3. Create a mainClass called [TutorialMain.java](https://github.com/MagpieBridge/Tutorial2/blob/master/src/main/java/TutorialMain.java) in your project and add `maven-shade-plugin` to the pom.xml and speicify the mainClass under configuration (see [here](https://github.com/MagpieBridge/Tutorial2/blob/master/pom.xml)). This is used to create a JAR file containing every dependency you need for running your language server. 
 ~~~
 <plugin>
