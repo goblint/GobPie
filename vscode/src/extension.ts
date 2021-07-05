@@ -33,10 +33,10 @@ export function activate(context: ExtensionContext) {
     }*/
     
     let clientOptions: LanguageClientOptions = {
-        documentSelector: [{ scheme: 'file', language: 'java' }],
+        documentSelector: [{ scheme: 'file', language: 'c' }],
         synchronize: {
-            configurationSection: 'java',
-            fileEvents: [ workspace.createFileSystemWatcher('**/*.java') ]
+            configurationSection: 'c',
+            fileEvents: [ workspace.createFileSystemWatcher('**/*.c') ]
         }
     };
     

@@ -17,7 +17,7 @@
 		"vscode": "^1.30.0"
 	},
 	"activationEvents": [
-		"onLanguage:java"
+		"onLanguage:c"
 	],
 	"main": "./out/extension",
 	"contributes": {
@@ -37,7 +37,19 @@
 					"description": "Traces the communication between VS Code and the language server."
 				}
 			}
-		}
+		},
+		"languages": [
+			{
+				"id": "c",
+				"aliases": [
+					"C",
+					"c"
+				],
+				"extensions": [
+					".c"
+				]
+			}
+		]
 	},
 	"scripts": {
 		"vscode:prepublish": "cp ../target/tutorial2-0.0.1-SNAPSHOT.jar tutorial2-0.0.1-SNAPSHOT.jar && npm run compile",

@@ -9,6 +9,25 @@ import magpiebridge.core.ToolAnalysis;
 import magpiebridge.projectservice.java.JavaProjectService;
 
 public class TutorialMain {
+
+  /*
+   * public static void main(String... args) { createServer().launchOnStdio(); }
+   * 
+   * private static MagpieServer createServer() { // set up configuration for
+   * MagpieServer ServerConfiguration defaultConfig = new ServerConfiguration();
+   * MagpieServer server = new MagpieServer(defaultConfig); // define which
+   * language you consider and add a project service for this // language String
+   * language = "c"; //IProjectService javaProjectService = new
+   * JavaProjectService();
+   * 
+   * // add your customized analysis to the MagpieServer ServerAnalysis myAnalysis
+   * = new MyDummyAnalysis(); //server.addProjectService(language,
+   * javaProjectService);
+   * 
+   * Either<ServerAnalysis, ToolAnalysis> analysis = Either.forLeft(myAnalysis);
+   * server.addAnalysis(analysis, language); return server; }
+   */
+
   public static void main(String... args) {
 
     String preparedFile = args[0];
@@ -18,7 +37,7 @@ public class TutorialMain {
     createServer(preparedFile).launchOnStdio();
 
     // for debugging
-    //MagpieServer.launchOnSocketPort(5007, () -> createServer(preparedFile));
+    // MagpieServer.launchOnSocketPort(5007, () -> createServer(preparedFile));
   }
 
   private static MagpieServer createServer(String preparedFile) {
@@ -27,12 +46,12 @@ public class TutorialMain {
     MagpieServer server = new MagpieServer(defaultConfig);
     // define which language you consider and add a project service for this
     // language
-    String language = "java";
-    IProjectService javaProjectService = new JavaProjectService();
+    String language = "c";
+    // IProjectService javaProjectService = new JavaProjectService();
 
     // add your customized analysis to the MagpieServer
-    ServerAnalysis myAnalysis = new MyDummyAnalysis(preparedFile);
-    server.addProjectService(language, javaProjectService);
+    ServerAnalysis myAnalysis = new MyDummyAnalysis(preparedFile, server);
+    // server.addProjectService(language, javaProjectService);
 
     Either<ServerAnalysis, ToolAnalysis> analysis = Either.forLeft(myAnalysis);
     server.addAnalysis(analysis, language);

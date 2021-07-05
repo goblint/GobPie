@@ -1,4 +1,3 @@
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -26,20 +25,26 @@ import com.ibm.wala.classLoader.Module;
 import com.ibm.wala.classLoader.SourceFileModule;
 import com.ibm.wala.util.collections.Pair;
 
+import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.AnalysisResult;
+import magpiebridge.core.ServerAnalysis;
 import magpiebridge.core.Kind;
 import magpiebridge.core.MagpieServer;
-import magpiebridge.core.ServerAnalysis;
 import magpiebridge.projectservice.java.JavaProjectService;
 import magpiebridge.util.SourceCodeReader;
 
 public class MyDummyAnalysis implements ServerAnalysis {
 
 	private String pathToFindResults;
+	private MagpieServer magpieServer;
 	private Set<MyDummyResult> myResults;
 
-	public MyDummyAnalysis(String pathToFindResults) {
+	public MyDummyAnalysis() {
+	}
+
+	public MyDummyAnalysis(String pathToFindResults, MagpieServer server) {
 		this.pathToFindResults = pathToFindResults;
+		this.magpieServer = server;
 		this.myResults = new HashSet<>();
 		readResults();
 	}
@@ -72,10 +77,10 @@ public class MyDummyAnalysis implements ServerAnalysis {
 	}
 
 	@Override
-	public void analyze(Collection<? extends Module> files, MagpieServer server, boolean rerun) {
+	public void analyze(Collection<? extends Module> files, AnalysisConsumer server, boolean rerun) {
 		try {
 			if (rerun) {
-				Set<AnalysisResult> results = runAnalysisOnSelectedFiles(files, server);
+				Set<AnalysisResult> results = runAnalysisOnSelectedFiles(files);
 				server.consume(results, source());
 			}
 		} catch (MalformedURLException e) {
@@ -84,32 +89,18 @@ public class MyDummyAnalysis implements ServerAnalysis {
 
 	}
 
-	public Set<AnalysisResult> runWholeProgramAnalysis(MagpieServer server) {
-		Set<AnalysisResult> results = new HashSet<>();
-		JavaProjectService ps = (JavaProjectService) server.getProjectService("java").get();
-		Optional<Path> rootPath = ps.getRootPath();
-		Set<Path> classPath = ps.getClassPath();
-		Set<Path> libraryPath = ps.getLibraryPath();
-		Set<Path> sourcePath = ps.getSourcePath();
-		// TODO. run your analysis here with all the path information you get from
-		// server.
-		
-		return results;
-	}
-
-	public Set<AnalysisResult> runAnalysisOnSelectedFiles(Collection<? extends Module> files, MagpieServer server)
+	public Set<AnalysisResult> runAnalysisOnSelectedFiles(Collection<? extends Module> files)
 			throws MalformedURLException {
 		Set<AnalysisResult> results = new HashSet<>();
 		for (Module file : files) {
 			if (file instanceof SourceFileModule) {
 				SourceFileModule sourceFile = (SourceFileModule) file;
 				for (MyDummyResult res : this.myResults) {
-					String className = sourceFile.getClassName();
-					if (res.fileName.equals(className + ".java")) {
+					//if (res.fileName.equals(className + ".java")) {
 						final MyDummyResult result = res;
 						//Note: the URL getting from files is at the server side, 
 						//you need to get client (the code editor) side URL for client to consume the results. 
-						final URL clientURL = new URL(server.getClientUri(sourceFile.getURL().toString()));
+						final URL clientURL = new URL(this.magpieServer.getClientUri(sourceFile.getURL().toString()));
 						final Position pos = new Position() {
 
 							@Override
@@ -159,7 +150,7 @@ public class MyDummyAnalysis implements ServerAnalysis {
 						};
 						AnalysisResult r = convert(result, pos);
 						results.add(r);
-					}
+					//}
 				}
 			}
 		}
@@ -211,4 +202,5 @@ public class MyDummyAnalysis implements ServerAnalysis {
 			}
 		};
 	}
+
 }
