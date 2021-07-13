@@ -1,4 +1,4 @@
-The Integration of analyzer Goblint (Command Line Tool) into IDEs with MagpieBridge
+### The Integration of analyzer Goblint (Command Line Tool) into IDEs with MagpieBridge
 
 To install the tool into VSCode:
 
@@ -12,3 +12,8 @@ npm install -g vsce
 vsce package
 code --install-extension goblintanalyzer-0.0.1.vsix
 ~~~
+
+
+### To test the extension
+
+1. Demoproject: https://github.com/karoliineh/GoblintAnalyzer-DemoProject
