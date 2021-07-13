@@ -1,14 +1,14 @@
 {
-	"name": "tutorial2",
-	"description": "Another example with MagpieBridge",
-	"author": "Linghui Luo ",
+	"name": "goblintanalyzer",
+	"description": "The Goblint analyzer",
+	"author": "Karoliine Holter",
 	"license": "EPL-2.0",
 	"version": "0.0.1",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/MagpieBridge/Tutorial2.git"
 	},
-	"publisher": "linghui-luo",
+	"publisher": "karoliineh",
 	"categories": [],
 	"keywords": [
 		"multi-root ready"
@@ -23,9 +23,9 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "Tutorial2",
+			"title": "GoblintAnalyzer",
 			"properties": {
-				"Tutorial2.trace.server": {
+				"GoblintAnalyzer.trace.server": {
 					"scope": "window",
 					"type": "string",
 					"enum": [
@@ -52,7 +52,7 @@
 		]
 	},
 	"scripts": {
-		"vscode:prepublish": "cp ../target/tutorial2-0.0.1-SNAPSHOT.jar tutorial2-0.0.1-SNAPSHOT.jar && npm run compile",
+		"vscode:prepublish": "cp ../target/goblintanalyzer-0.0.1-SNAPSHOT.jar goblintanalyzer-0.0.1-SNAPSHOT.jar && npm run compile",
 		"compile": "tsc -b",
 		"watch": "tsc -b -w",
 		"postinstall": "node ./node_modules/vscode/bin/install"

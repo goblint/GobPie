@@ -23,11 +23,7 @@ public class GoblintAnalysis implements ToolAnalysis {
     final private MagpieServer magpieServer;
     private Map<Integer, String> lines;
     private SourceFileModule sourcefile;
-    final private String[] commands = { "./goblint", "../src/main/java/tutorial2/02-branch.c", "--enable",
-            "dbg.debug" };
-
-    String test;
-    String test1;
+    final private String[] commands = { "./goblint", "../src/main/java/tutorial2/02-branch.c", "--enable", "dbg.debug" };
 
     public GoblintAnalysis(MagpieServer server) {
         this.magpieServer = server;
@@ -68,6 +64,12 @@ public class GoblintAnalysis implements ToolAnalysis {
         }
     }
 
+    /**
+     * Runs the command(s) on CLI, reads in the output and converts it into a
+     * collection of AnalysisResults.
+     *
+     * @param files the files that have been opened in the editor.
+     */
     private Collection<AnalysisResult> runAnalysisOnSelectedFiles(Collection<? extends Module> files) {
 
         Collection<AnalysisResult> results = new ArrayList<>();
@@ -76,9 +78,6 @@ public class GoblintAnalysis implements ToolAnalysis {
             if (file instanceof SourceFileModule) {
                 this.sourcefile = (SourceFileModule) file;
                 try {
-                    // this.lines = this.runCommandAndReturnOutput(new File(projectRootPath));
-                    // this.lines = this.runCommandAndReturnOutput(new
-                    // File(System.getProperty("user.dir") + "/analyzer"));
                     Process process = this.runCommand(new File(System.getProperty("user.dir") + "/analyzer"));
                     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                     String[] clioutput = reader.lines().toArray(String[]::new);
@@ -94,6 +93,11 @@ public class GoblintAnalysis implements ToolAnalysis {
         return results;
     }
 
+    /**
+     * Filters out the necessary information from each CLI output line.
+     *
+     * @param lines An array of CLI output lines.
+     */
     private Map<Integer, String> convertLines(String[] lines) {
         Map<Integer, String> result = new HashMap<>();
         for (String line : lines) {
@@ -106,6 +110,14 @@ public class GoblintAnalysis implements ToolAnalysis {
         return result;
     }
 
+    /**
+     * A method that applies specified regex on given string and returns the result.
+     *
+     * @param regex The regex to be used on string.
+     * @param input The string the regex is used on.
+     * 
+     * @return The match from regex or empty string otherwise.
+     */
     private String match(String regex, String input) {
         Matcher matcher = Pattern.compile(regex).matcher(input);
         if (matcher.find()) {
@@ -140,108 +152,11 @@ public class GoblintAnalysis implements ToolAnalysis {
 
             DiagnosticSeverity severity = DiagnosticSeverity.Hint;
             if (message.contains("unknown")) {
-                //severity = DiagnosticSeverity.Error;
+                // severity = DiagnosticSeverity.Error;
             }
 
             results.add(new DbgResult(linenr, finalSourcefileURL, severity, message));
-
-            /*
-            // create Position object for each analysis result (where to be placed in code
-            // editor)
-            final Position pos = new Position() {
-
-                @Override
-                public int getFirstCol() {
-                    return 0;
-                }
-
-                @Override
-                public int getFirstLine() {
-                    return linenr;
-                }
-
-                @Override
-                public int getFirstOffset() {
-                    return 0;
-                }
-
-                @Override
-                public int getLastCol() {
-                    return 12;
-                }
-
-                @Override
-                public int getLastLine() {
-                    return linenr;
-                }
-
-                @Override
-                public int getLastOffset() {
-                    return 0;
-                }
-
-                @Override
-                public int compareTo(SourcePosition arg0) {
-                    return 0;
-                }
-
-                @Override
-                public Reader getReader() {
-                    return null;
-                }
-
-                @Override
-                public URL getURL() {
-                    return finalSourcefileURL;
-                }
-            };
-
-            result.add(new AnalysisResult() {
-                @Override
-                public String code() {
-                    String code;
-                    try {
-                        code = SourceCodeReader.getLinesInString(pos);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                    return code;
-                }
-
-                @Override
-                public Kind kind() {
-                    return Kind.Diagnostic;
-                }
-
-                @Override
-                public Position position() {
-                    return pos;
-                }
-
-                @Override
-                public Iterable<Pair<Position, String>> related() {
-                    return new ArrayList<>();
-                }
-
-                @Override
-                public Pair<Position, String> repair() {
-                    return Pair.make(pos, "Hardcoded text");
-                }
-
-                @Override
-                public DiagnosticSeverity severity() {
-                    return DiagnosticSeverity.Error;
-                }
-
-                @Override
-                public String toString(boolean arg0) {
-                    return lines.get(linenr);
-                }
-
-            });
-            */
         }
-
         return results;
     }
 
