@@ -7,6 +7,7 @@ import java.net.URL;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
@@ -22,8 +23,9 @@ public class GoblintAnalysis implements ToolAnalysis {
 
     final private MagpieServer magpieServer;
     private Map<Integer, String> lines;
-    private SourceFileModule sourcefile;
-    final private String[] commands = { "./goblint", "../src/main/java/tutorial2/02-branch.c", "--enable", "dbg.debug" };
+    private URL sourcefileURL;
+    private String[] debugCommand = { "./goblint", "--enable", "dbg.debug" };
+    private String[] commands;
 
     public GoblintAnalysis(MagpieServer server) {
         this.magpieServer = server;
@@ -76,14 +78,26 @@ public class GoblintAnalysis implements ToolAnalysis {
 
         for (Module file : files) {
             if (file instanceof SourceFileModule) {
-                this.sourcefile = (SourceFileModule) file;
+                SourceFileModule sourcefile = (SourceFileModule) file;
                 try {
+                    // find sourcefile URL
+                    this.sourcefileURL = new URL(magpieServer.getClientUri(sourcefile.getURL().toString()));
+                    String[] fileCommand = { sourcefileURL.toString().substring(5) };
+                    this.commands = Stream.concat(Arrays.stream(debugCommand), Arrays.stream(fileCommand)).toArray(String[]::new);
+                } catch (MalformedURLException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                try {
+                    // run command
                     Process process = this.runCommand(new File(System.getProperty("user.dir") + "/analyzer"));
                     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                     String[] clioutput = reader.lines().toArray(String[]::new);
                     reader.close();
+                    // extract info from cli output
                     this.lines = convertLines(clioutput);
-                    results = convertToolOutput();
+                    // convert info to AnalysisResult objects and add to results
+                    results.addAll(convertToolOutput());
                 } catch (IOException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
@@ -136,26 +150,16 @@ public class GoblintAnalysis implements ToolAnalysis {
     public Collection<AnalysisResult> convertToolOutput() {
         Set<AnalysisResult> results = new HashSet<>();
 
-        // find sourcefile URL
-        URL sourcefileURL = null;
-        try {
-            sourcefileURL = new URL(magpieServer.getClientUri(sourcefile.getURL().toString()));
-        } catch (MalformedURLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        URL finalSourcefileURL = sourcefileURL;
-
         for (int linenr : lines.keySet()) {
 
             String message = lines.get(linenr);
 
-            DiagnosticSeverity severity = DiagnosticSeverity.Hint;
+            DiagnosticSeverity severity = DiagnosticSeverity.Information;
             if (message.contains("unknown")) {
-                // severity = DiagnosticSeverity.Error;
+                severity = DiagnosticSeverity.Error;
             }
 
-            results.add(new DbgResult(linenr, finalSourcefileURL, severity, message));
+            results.add(new DbgResult(linenr, sourcefileURL, severity, message));
         }
         return results;
     }
