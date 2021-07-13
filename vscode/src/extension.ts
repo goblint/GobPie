@@ -7,7 +7,7 @@ import { LanguageClient, LanguageClientOptions, ServerOptions, StreamInfo } from
 
 export function activate(context: ExtensionContext) {
     let script = 'java';
-    let args = ['-jar',context.asAbsolutePath('tutorial2-0.0.1-SNAPSHOT.jar'), context.asAbsolutePath('preparedResults.json')];
+    let args = ['-jar',context.asAbsolutePath('tutorial2-0.0.1-SNAPSHOT.jar')];
     
     // Use this for communicating on stdio 
     let serverOptions: ServerOptions = {
