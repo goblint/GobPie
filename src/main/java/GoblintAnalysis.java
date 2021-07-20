@@ -156,6 +156,8 @@ public class GoblintAnalysis implements ToolAnalysis {
 
             DiagnosticSeverity severity = DiagnosticSeverity.Information;
             if (message.contains("unknown")) {
+                severity = DiagnosticSeverity.Warning;
+            } else if (message.contains("fail")) {
                 severity = DiagnosticSeverity.Error;
             }
 

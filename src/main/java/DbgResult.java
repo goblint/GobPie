@@ -1,13 +1,13 @@
 import com.ibm.wala.cast.tree.CAstSourcePositionMap;
-import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import magpiebridge.core.AnalysisResult;
 import magpiebridge.core.Kind;
+import magpiebridge.util.SourceCodePositionFinder;
 import magpiebridge.util.SourceCodeReader;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
-import java.io.Reader;
+import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
 
@@ -22,6 +22,10 @@ public class DbgResult implements AnalysisResult {
     public DbgResult(int linenumber, URL sourcefileUrl, DiagnosticSeverity severity, String message) {
         this.severity = severity;
         this.message = message;
+        // temporarily: display the message on the whole line
+        this.pos = SourceCodePositionFinder.findCode(new File(sourcefileUrl.getPath()), linenumber).toPosition();
+        // in future: specify the exact columns where the assertion starts and ends
+        /*
         this.pos = new Position() {
 
             @Override
@@ -69,6 +73,7 @@ public class DbgResult implements AnalysisResult {
                 return sourcefileUrl;
             }
         };
+        */
     }
 
     @Override
@@ -93,12 +98,13 @@ public class DbgResult implements AnalysisResult {
 
     @Override
     public DiagnosticSeverity severity() {
-        return DiagnosticSeverity.Error;
+        return severity;
     }
 
     @Override
     public Pair<CAstSourcePositionMap.Position, String> repair() {
-        return Pair.make(pos, "Hardcoded text");
+        // suggest a repair if available
+        return null;
     }
 
     @Override
