@@ -2,14 +2,13 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
-import org.eclipse.lsp4j.DiagnosticSeverity;
 
 import com.ibm.wala.classLoader.Module;
 import com.ibm.wala.classLoader.SourceFileModule;
@@ -22,7 +21,7 @@ import magpiebridge.core.MagpieServer;
 public class GoblintAnalysis implements ToolAnalysis {
 
     final private MagpieServer magpieServer;
-    private Map<Integer, String> lines;
+    private List<DbgResult> lines;
     private URL sourcefileURL;
     private String[] debugCommand = { "./goblint", "--enable", "dbg.debug" };
     private String[] commands;
@@ -112,14 +111,17 @@ public class GoblintAnalysis implements ToolAnalysis {
      *
      * @param lines An array of CLI output lines.
      */
-    private Map<Integer, String> convertLines(String[] lines) {
-        Map<Integer, String> result = new HashMap<>();
+    private List<DbgResult> convertLines(String[] lines) {
+        List<DbgResult> result = new ArrayList<>();
         for (String line : lines) {
             // extract message
             String message = match(".*(?= \\()", line);
             // extract line number
             int linenr = Integer.parseInt(match("(?<=c:)\\d*", line));
-            result.put(linenr, message);
+            // extract column number
+            int columnStart = Integer.parseInt(match("(?<=\\d:)\\d*", line)) - 1;
+            
+            result.add(new DbgResult(message, linenr, columnStart, columnStart +6));
         }
         return result;
     }
@@ -150,18 +152,9 @@ public class GoblintAnalysis implements ToolAnalysis {
     public Collection<AnalysisResult> convertToolOutput() {
         Set<AnalysisResult> results = new HashSet<>();
 
-        for (int linenr : lines.keySet()) {
+        for (DbgResult line : lines) {
 
-            String message = lines.get(linenr);
-
-            DiagnosticSeverity severity = DiagnosticSeverity.Information;
-            if (message.contains("unknown")) {
-                severity = DiagnosticSeverity.Warning;
-            } else if (message.contains("fail")) {
-                severity = DiagnosticSeverity.Error;
-            }
-
-            results.add(new DbgResult(linenr, sourcefileURL, severity, message));
+            results.add(new DbgAnalysisResult(line, sourcefileURL));
         }
         return results;
     }
