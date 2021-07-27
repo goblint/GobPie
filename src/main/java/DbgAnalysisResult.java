@@ -12,15 +12,15 @@ import java.io.Reader;
 import java.net.URL;
 import java.util.ArrayList;
 
-
 public class DbgAnalysisResult implements AnalysisResult {
 
     String message;
+    Kind kind;
     final Position pos;
 
-
-    public DbgAnalysisResult(DbgResult dbgresult,  URL sourcefileUrl) {
+    public DbgAnalysisResult(DbgResult dbgresult, URL sourcefileUrl) {
         this.message = dbgresult.message;
+        this.kind = dbgresult.kind;
         // specify the exact columns where the assertion starts and ends
         this.pos = new Position() {
 
@@ -31,7 +31,7 @@ public class DbgAnalysisResult implements AnalysisResult {
 
             @Override
             public int getFirstLine() {
-                return dbgresult.linenumber;
+                return dbgresult.lineStart;
             }
 
             @Override
@@ -46,7 +46,7 @@ public class DbgAnalysisResult implements AnalysisResult {
 
             @Override
             public int getLastLine() {
-                return dbgresult.linenumber;
+                return dbgresult.lineEnd;
             }
 
             @Override
@@ -73,7 +73,7 @@ public class DbgAnalysisResult implements AnalysisResult {
 
     @Override
     public Kind kind() {
-        return Kind.Diagnostic;
+        return this.kind;
     }
 
     @Override
@@ -93,12 +93,12 @@ public class DbgAnalysisResult implements AnalysisResult {
 
     @Override
     public DiagnosticSeverity severity() {
-            DiagnosticSeverity severity = DiagnosticSeverity.Information;
-            if (message.contains("unknown")) {
-                severity = DiagnosticSeverity.Warning;
-            } else if (message.contains("fail")) {
-                severity = DiagnosticSeverity.Error;
-            }
+        DiagnosticSeverity severity = DiagnosticSeverity.Information;
+        if (message.contains("unknown")) {
+            severity = DiagnosticSeverity.Warning;
+        } else if (message.contains("fail")) {
+            severity = DiagnosticSeverity.Error;
+        }
         return severity;
     }
 
