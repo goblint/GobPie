@@ -16,6 +16,8 @@ import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.AnalysisResult;
 import magpiebridge.core.ToolAnalysis;
 import magpiebridge.core.MagpieServer;
+import magpiebridge.util.SourceCodeInfo;
+import magpiebridge.util.SourceCodePositionFinder;
 
 public class GoblintAnalysis implements ToolAnalysis {
 
@@ -157,7 +159,16 @@ public class GoblintAnalysis implements ToolAnalysis {
             // extract column number
             int columnStart = Integer.parseInt(match("(?<=\\d:)\\d*", line)) - 1;
 
-            result.add(new DbgResult(message, linenr, columnStart, columnStart + 6));
+            // get source code of the specified line
+            SourceCodeInfo sourceCodeInfo = SourceCodePositionFinder.findCode(new File(sourcefileURL.getPath()), linenr);
+            // get the source code substring starting from the relevant assert statement.
+            // as the source code is given without the leading whitespace, but the column numbers take whitespace into account
+            // the offset must be subtracted from the original starting column which does include the leading whitespace
+            String sourceCode = sourceCodeInfo.code.substring(columnStart - sourceCodeInfo.range.getStart().getCharacter());
+            // find the index of the next semicolon
+            int indexOfNextSemicolon = sourceCode.indexOf(";") + 1;
+
+            result.add(new DbgResult(message, linenr, columnStart, columnStart + indexOfNextSemicolon));
         }
 
         return result;
