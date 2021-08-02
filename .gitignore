@@ -1,5 +1,7 @@
 /target/
 
+.vscode
+
 .project
 
 .settings/org.eclipse.jdt.core.prefs
