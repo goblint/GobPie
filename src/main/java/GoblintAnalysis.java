@@ -1,12 +1,10 @@
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import com.ibm.wala.classLoader.Module;
@@ -19,13 +17,20 @@ import magpiebridge.core.MagpieServer;
 import magpiebridge.util.SourceCodeInfo;
 import magpiebridge.util.SourceCodePositionFinder;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+
 public class GoblintAnalysis implements ToolAnalysis {
 
     final private MagpieServer magpieServer;
     private URL sourcefileURL;
-    private String[] debugCommand = { "./goblint", "--enable", "dbg.debug" };
-    private String[] deadcodeCommand = { "./goblint", "--enable", "dbg.print_dead_code" };
+    private String jsonName = "analysisResults.json";
+    private String[] command = { "./goblint", "--enable", "dbg.debug", "--set", "warnstyle", "legacy", "--set", "result", "json-messages", "-o", jsonName };
     private String[] commands;
+    private String pathToFindResults;
 
     public GoblintAnalysis(MagpieServer server) {
         this.magpieServer = server;
@@ -67,69 +72,123 @@ public class GoblintAnalysis implements ToolAnalysis {
     }
 
     /**
-     * Runs the command(s) on CLI, reads in the output and converts it into a
+     * Runs the command on CLI to generate the analysis results for opened files,
+     * reads in the output and converts it into a
      * collection of AnalysisResults.
      *
      * @param files the files that have been opened in the editor.
      */
     private Collection<AnalysisResult> runAnalysisOnSelectedFiles(Collection<? extends Module> files) {
 
-        Collection<AnalysisResult> results = new ArrayList<>();
+        Collection<AnalysisResult> analysisResults = new ArrayList<>();
 
         for (Module file : files) {
             if (file instanceof SourceFileModule) {
-                // -------------------------------------------------------------------
-                // Assertions:
-                // run command on cli and get the output
-                String[] debugclioutput = getCLIoutput(file, debugCommand);
-                // extract info from cli output
-                List<DbgResult> debugresults = convertDebugLines(debugclioutput);
-                // convert DbgResult to DbgAnalysisresults and add to (final) results
-                results.addAll(convertResults(debugresults));
-                // -------------------------------------------------------------------
-                // Dead code:
-                String[] deadcodeclioutput = getCLIoutput(file, deadcodeCommand);
-                List<DbgResult> deadcoderesults = convertDeadCodeLines(deadcodeclioutput);
-                results.addAll(convertResults(deadcoderesults));
+                generateJson(file);
+                List<DbgResult> dbgResults = readResultsFromJson();
+                analysisResults.addAll(convertResults(dbgResults));
             }
         }
-        return results;
+        return analysisResults;
     }
 
     /**
-     * Runs the command(s) on CLI, reads in the lines as an array of strings and
-     * returns the array.
+     * Runs the command on CLI to let goblint generate the json file with analysis results.
      *
      * @param file    the file on which to run the analysis.
      * @param command the command to run on the file.
-     * @return an array of cli output lines
      */
-    private String[] getCLIoutput(Module file, String[] command) {
+    private void generateJson(Module file) {
         SourceFileModule sourcefile = (SourceFileModule) file;
-        String[] clioutput = {};
 
         try {
             // find sourcefile URL
             this.sourcefileURL = new URL(magpieServer.getClientUri(sourcefile.getURL().toString()));
-            String[] fileCommand = { sourcefileURL.toString().substring(5) };
-            this.commands = Stream.concat(Arrays.stream(command), Arrays.stream(fileCommand)).toArray(String[]::new);
+            // file to be analyzed
+            String[] fileToAnalyze = { sourcefileURL.getFile() };
+            // command to run for analyzing
+            this.commands = Stream.concat(Arrays.stream(command), Arrays.stream(fileToAnalyze)).toArray(String[]::new);
+            // where to find analyzis results
+            pathToFindResults = System.getProperty("user.dir") + "/analyzer/" + jsonName;
         } catch (MalformedURLException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
         try {
             // run command
-            Process process = this.runCommand(new File(System.getProperty("user.dir") + "/analyzer"));
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            clioutput = reader.lines().toArray(String[]::new);
-            reader.close();
-        } catch (IOException e) {
+            Process commandRunProcess = this.runCommand(new File(System.getProperty("user.dir") + "/analyzer"));
+            commandRunProcess.waitFor();
+        } catch (IOException | InterruptedException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-
-        return clioutput;
     }
+
+
+    private List<DbgResult> readResultsFromJson() {
+        List<DbgResult> dbgResults = new ArrayList<>();
+		try {
+			JsonArray resultArray = JsonParser.parseReader(new FileReader(new File(pathToFindResults))).getAsJsonArray();
+			for (int i = 0; i < resultArray.size(); i++) {
+				JsonObject jsonResult = resultArray.get(i).getAsJsonObject();
+                JsonObject multipiece = jsonResult.get("multipiece").getAsJsonObject();
+                // check if it's a group
+                if (multipiece.has("group_text")) {
+                    String groupText   = multipiece.get("group_text").getAsString();
+                    JsonArray pieces   = multipiece.get("pieces").getAsJsonArray();
+                    //int start = dbgResults.size();
+                    for (int j = 0; j < pieces.size(); j++) {
+                        DbgResult dbgResult = createDbgResult(pieces.get(j).getAsJsonObject());
+                        dbgResult.message = groupText + ": " + dbgResult.message;
+                        dbgResults.add(dbgResult);
+                    }
+                    // for (int k = start; k < dbgResults.size(); k++) {
+                    //     ArrayList<DbgResult> related = new ArrayList<>();
+                    //     for (int l = start; l < dbgResults.size(); l++) {
+                    //         if (k != l) {
+                    //             related.add(dbgResults.get(l));
+                    //         }
+                    //     }
+                    //     DbgResult dbgResultrel = dbgResults.get(k);
+                    // }
+                } else {
+                    DbgResult dbgResult = createDbgResult(multipiece);
+                    dbgResults.add(dbgResult);
+                }
+			}
+
+		} catch (JsonIOException | JsonSyntaxException | FileNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+        return dbgResults;
+	}
+
+
+    private DbgResult createDbgResult(JsonObject multipiece) {
+
+        DbgResult dbgResult = new DbgResult();
+
+        JsonObject location   = multipiece.get("loc").getAsJsonObject();
+        dbgResult.fileName    = location.get("file").getAsString();
+        dbgResult.lineStart   = location.get("line").getAsInt();
+        dbgResult.lineEnd     = dbgResult.lineStart;
+        dbgResult.columnStart = location.get("column").getAsInt() - 1;
+
+        // get source code of the specified line
+        SourceCodeInfo sourceCodeInfo = SourceCodePositionFinder.findCode(new File(sourcefileURL.getPath()), dbgResult.lineStart);
+        // get the source code substring starting from the relevant assert statement.
+        // as the source code is given without the leading whitespace, but the column numbers take whitespace into account
+        // the offset must be subtracted from the original starting column which does include the leading whitespace
+        String sourceCode = sourceCodeInfo.code.substring(dbgResult.columnStart - sourceCodeInfo.range.getStart().getCharacter());
+        // find the index of the next semicolon
+        int indexOfNextSemicolon = sourceCode.indexOf(";") + 1;
+
+        dbgResult.columnEnd   = dbgResult.columnStart + indexOfNextSemicolon;
+        dbgResult.message     = multipiece.get("text").getAsString();
+
+        return dbgResult;
+    }
+
 
     private Collection<AnalysisResult> convertResults(List<DbgResult> dbgResultLines) {
         Set<AnalysisResult> results = new HashSet<>();
@@ -140,83 +199,6 @@ public class GoblintAnalysis implements ToolAnalysis {
         }
 
         return results;
-    }
-
-    /**
-     * Filters out the necessary information from each CLI output line for the
-     * --enable --dbg.debug option.
-     *
-     * @param lines An array of CLI output lines.
-     */
-    private List<DbgResult> convertDebugLines(String[] lines) {
-        List<DbgResult> result = new ArrayList<>();
-
-        for (String line : lines) {
-            // extract message
-            String message = match(".*(?= \\()", line);
-            // extract line number
-            int linenr = Integer.parseInt(match("(?<=c:)\\d*", line));
-            // extract column number
-            int columnStart = Integer.parseInt(match("(?<=\\d:)\\d*", line)) - 1;
-
-            // get source code of the specified line
-            SourceCodeInfo sourceCodeInfo = SourceCodePositionFinder.findCode(new File(sourcefileURL.getPath()), linenr);
-            // get the source code substring starting from the relevant assert statement.
-            // as the source code is given without the leading whitespace, but the column numbers take whitespace into account
-            // the offset must be subtracted from the original starting column which does include the leading whitespace
-            String sourceCode = sourceCodeInfo.code.substring(columnStart - sourceCodeInfo.range.getStart().getCharacter());
-            // find the index of the next semicolon
-            int indexOfNextSemicolon = sourceCode.indexOf(";") + 1;
-
-            result.add(new DbgResult(message, linenr, columnStart, columnStart + indexOfNextSemicolon));
-        }
-
-        return result;
-    }
-
-    /**
-     * Filters out the necessary information from each CLI output line for the
-     * --enable --dbg.print_dead_code option.
-     *
-     * @param lines An array of CLI output lines.
-     */
-    private List<DbgResult> convertDeadCodeLines(String[] lines) {
-        List<DbgResult> result = new ArrayList<>();
-        
-        for (String line : lines) {
-            // extract line numbers
-            String linenumbers = match("(?<=dead code on lines: )[\\d., ]*", line);
-
-            if (!linenumbers.equals("")) {
-                String[] splitnumbers = linenumbers.split(", ");
-                for (String numbers : splitnumbers) {
-                    if (numbers.contains("..")) {
-                        String[] nrs = numbers.split("\\.\\.");
-                        result.add(new DbgResult("Dead code on lines: " + nrs[0] + "-" + nrs[1], Integer.parseInt(nrs[0]), Integer.parseInt(nrs[1]), sourcefileURL));
-                    } else {
-                        result.add(new DbgResult("Dead code on line: " + numbers, Integer.parseInt(numbers), sourcefileURL));
-                    }
-                }
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * A method that applies specified regex on given string and returns the result.
-     *
-     * @param regex The regex to be used on string.
-     * @param input The string the regex is used on.
-     * 
-     * @return The match from regex or empty string otherwise.
-     */
-    private String match(String regex, String input) {
-        Matcher matcher = Pattern.compile(regex).matcher(input);
-        if (matcher.find()) {
-            return matcher.group();
-        }
-        return "";
     }
 
     /**

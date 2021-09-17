@@ -20,8 +20,8 @@ public class DbgAnalysisResult implements AnalysisResult {
 
     public DbgAnalysisResult(DbgResult dbgresult, URL sourcefileUrl) {
         this.message = dbgresult.message;
-        this.kind = dbgresult.kind;
-        // specify the exact columns where the assertion starts and ends
+        // TODO: different kinds for different categories?
+        this.kind = Kind.Diagnostic;
         this.pos = new Position() {
 
             @Override
