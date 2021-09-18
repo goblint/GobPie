@@ -14,12 +14,10 @@ import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.AnalysisResult;
 import magpiebridge.core.ToolAnalysis;
 import magpiebridge.core.MagpieServer;
-import magpiebridge.util.SourceCodeInfo;
-import magpiebridge.util.SourceCodePositionFinder;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonIOException;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
@@ -85,8 +83,7 @@ public class GoblintAnalysis implements ToolAnalysis {
         for (Module file : files) {
             if (file instanceof SourceFileModule) {
                 generateJson(file);
-                List<DbgResult> dbgResults = readResultsFromJson();
-                analysisResults.addAll(convertResults(dbgResults));
+                analysisResults.addAll(readResultsFromJson());
             }
         }
         return analysisResults;
@@ -125,81 +122,37 @@ public class GoblintAnalysis implements ToolAnalysis {
     }
 
 
-    private List<DbgResult> readResultsFromJson() {
-        List<DbgResult> dbgResults = new ArrayList<>();
-		try {
+    /**
+     * Deserializes json to GoblintResult objects and then converts the information 
+     * into GoblintAnalysisResult objects, which Magpie uses to generate IDE messages.
+     *
+     * @return A collection of GoblintAnalysisResult objects.
+     */
+    private Collection<GoblintAnalysisResult> readResultsFromJson() {
+
+        Collection<GoblintAnalysisResult> results = new ArrayList<>();
+
+        try {
+            // Read json objects as an array
 			JsonArray resultArray = JsonParser.parseReader(new FileReader(new File(pathToFindResults))).getAsJsonArray();
+            // For each JsonObject
 			for (int i = 0; i < resultArray.size(); i++) {
-				JsonObject jsonResult = resultArray.get(i).getAsJsonObject();
-                JsonObject multipiece = jsonResult.get("multipiece").getAsJsonObject();
-                // check if it's a group
-                if (multipiece.has("group_text")) {
-                    String groupText   = multipiece.get("group_text").getAsString();
-                    JsonArray pieces   = multipiece.get("pieces").getAsJsonArray();
-                    //int start = dbgResults.size();
-                    for (int j = 0; j < pieces.size(); j++) {
-                        DbgResult dbgResult = createDbgResult(pieces.get(j).getAsJsonObject());
-                        dbgResult.message = groupText + ": " + dbgResult.message;
-                        dbgResults.add(dbgResult);
-                    }
-                    // for (int k = start; k < dbgResults.size(); k++) {
-                    //     ArrayList<DbgResult> related = new ArrayList<>();
-                    //     for (int l = start; l < dbgResults.size(); l++) {
-                    //         if (k != l) {
-                    //             related.add(dbgResults.get(l));
-                    //         }
-                    //     }
-                    //     DbgResult dbgResultrel = dbgResults.get(k);
-                    // }
-                } else {
-                    DbgResult dbgResult = createDbgResult(multipiece);
-                    dbgResults.add(dbgResult);
-                }
+                // Deserailize them into GoblintResult objects
+                Gson gson = new Gson();
+                GoblintResult goblintResult = gson.fromJson(resultArray.get(i), GoblintResult.class);
+                // Add sourcefileURL to object for generationg the position
+                goblintResult.sourcefileURL = this.sourcefileURL;
+                // Convert GoblintResult object to a list of GoblintAnalysisResults
+                results.addAll(goblintResult.convert());
 			}
 
 		} catch (JsonIOException | JsonSyntaxException | FileNotFoundException e) {
 			throw new RuntimeException(e);
 		}
-        return dbgResults;
-	}
-
-
-    private DbgResult createDbgResult(JsonObject multipiece) {
-
-        DbgResult dbgResult = new DbgResult();
-
-        JsonObject location   = multipiece.get("loc").getAsJsonObject();
-        dbgResult.fileName    = location.get("file").getAsString();
-        dbgResult.lineStart   = location.get("line").getAsInt();
-        dbgResult.lineEnd     = dbgResult.lineStart;
-        dbgResult.columnStart = location.get("column").getAsInt() - 1;
-
-        // get source code of the specified line
-        SourceCodeInfo sourceCodeInfo = SourceCodePositionFinder.findCode(new File(sourcefileURL.getPath()), dbgResult.lineStart);
-        // get the source code substring starting from the relevant assert statement.
-        // as the source code is given without the leading whitespace, but the column numbers take whitespace into account
-        // the offset must be subtracted from the original starting column which does include the leading whitespace
-        String sourceCode = sourceCodeInfo.code.substring(dbgResult.columnStart - sourceCodeInfo.range.getStart().getCharacter());
-        // find the index of the next semicolon
-        int indexOfNextSemicolon = sourceCode.indexOf(";") + 1;
-
-        dbgResult.columnEnd   = dbgResult.columnStart + indexOfNextSemicolon;
-        dbgResult.message     = multipiece.get("text").getAsString();
-
-        return dbgResult;
-    }
-
-
-    private Collection<AnalysisResult> convertResults(List<DbgResult> dbgResultLines) {
-        Set<AnalysisResult> results = new HashSet<>();
-
-        // convert DbgResult to DbgAnalysisResult objects and return them
-        for (DbgResult line : dbgResultLines) {
-            results.add(new DbgAnalysisResult(line, sourcefileURL));
-        }
 
         return results;
     }
+
 
     /**
      * Converts the CLI output into a collection of Analysisresult objects
