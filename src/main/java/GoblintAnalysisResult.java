@@ -11,19 +11,28 @@ import org.eclipse.lsp4j.DiagnosticSeverity;
 
 public class GoblintAnalysisResult implements AnalysisResult {
 
-    private String message;
+    private String group_text = "";
+    private String text;
     private Position pos;
     private String severity;
     private Iterable<Pair<Position, String>> related = new ArrayList<>();
 
-    public GoblintAnalysisResult(GoblintPosition pos, String message, String severity) {
-        this.message = message;
+    public GoblintAnalysisResult(GoblintPosition pos, String text, String severity) {
+        this.text = text;
         this.pos = pos;
         this.severity = severity;
     }
 
-    public GoblintAnalysisResult(Position pos, String message, String severity, Iterable<Pair<Position, String>> related) {
-        this.message = message;
+    public GoblintAnalysisResult(GoblintPosition pos, String group_text, String text, String severity) {
+        this.group_text = group_text;
+        this.text = text;
+        this.pos = pos;
+        this.severity = severity;
+    }
+
+
+    public GoblintAnalysisResult(Position pos, String text, String severity, Iterable<Pair<Position, String>> related) {
+        this.text = text;
         this.pos = pos;
         this.severity = severity;
         this.related = related;
@@ -36,11 +45,15 @@ public class GoblintAnalysisResult implements AnalysisResult {
 
     @Override
     public String toString(boolean useMarkdown) {
-        return message;
+        return text;
     }
 
-    public String message() {
-        return message;
+    public String group_text() {
+        return group_text;
+    }
+
+    public String text() {
+        return text;
     }
 
     @Override

@@ -60,13 +60,12 @@ public class GoblintResult {
             List<GoblintAnalysisResult> intermresults = new ArrayList<>();
             List<multipiece.pieces> pieces = multipiece.pieces;
             for (multipiece.pieces piece : pieces) {
-                String message = multipiece.group_text + ", " + piece.text;
                 GoblintPosition pos = new GoblintPosition(
                 piece.loc.line,
                 piece.loc.column - 1,
                 findColumnEnd(piece.loc.line, piece.loc.column), 
                 sourcefileURL);
-                GoblintAnalysisResult result = new GoblintAnalysisResult(pos, message, severity);
+                GoblintAnalysisResult result = new GoblintAnalysisResult(pos, "Group: " + multipiece.group_text, piece.text, severity);
                 intermresults.add(result);
             }
             // Add related warnings to all the group elements
@@ -75,10 +74,10 @@ public class GoblintResult {
                 List<Pair<Position, String>> related = new ArrayList<>();
                 for (GoblintAnalysisResult res2 : intermresults) {
                     if (res1 != res2) {
-                        related.add(Pair.make(res2.position(), res2.toString()));
+                        related.add(Pair.make(res2.position(), res2.text()));
                     }
                 }
-                addedRelated.add(new GoblintAnalysisResult(res1.position(), res1.message(), res1.severityStr(), related));
+                addedRelated.add(new GoblintAnalysisResult(res1.position(), res1.group_text() +  "\n" + res1.text(), res1.severityStr(), related));
             }
             results.addAll(addedRelated);
         }
