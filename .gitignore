@@ -16,6 +16,6 @@ package-lock.json
 
 vscode/node_modules
 
-vscode/goblintanalyzer-0.0.1.vsix
+*.vsix
 
-vscode/goblintanalyzer-1.0-SNAPSHOT.jar
+*.jar
