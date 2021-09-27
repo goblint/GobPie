@@ -26,7 +26,7 @@ public class GoblintAnalysis implements ToolAnalysis {
     final private MagpieServer magpieServer;
     private URL sourcefileURL;
     private String jsonName = "analysisResults.json";
-    private String[] command = { "./goblint", "--enable", "dbg.debug", "--set", "warnstyle", "legacy", "--set", "result", "json-messages", "-o", jsonName };
+    private String[] command = { "./goblint", "--enable", "dbg.debug", "--set", "result", "json-messages", "-o", jsonName };
     private String[] commands;
     private String pathToFindResults;
 
@@ -115,6 +115,7 @@ public class GoblintAnalysis implements ToolAnalysis {
             // run command
             Process commandRunProcess = this.runCommand(new File(System.getProperty("user.dir") + "/analyzer"));
             commandRunProcess.waitFor();
+            // TODO: what happens, if Goblint isn't satisfied with the command
         } catch (IOException | InterruptedException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();

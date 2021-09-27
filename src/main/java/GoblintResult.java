@@ -12,9 +12,15 @@ import magpiebridge.util.SourceCodePositionFinder;
 
 public class GoblintResult {
 
+    private List<tag> tags = new ArrayList<>();
     private String severity;
     private multipiece multipiece;
     URL sourcefileURL;
+
+    static class tag {
+        private List<String> Category = new ArrayList<String>();
+        private Integer CWE;
+    }
 
     static class multipiece {
 
@@ -48,7 +54,7 @@ public class GoblintResult {
         List<GoblintAnalysisResult> results = new ArrayList<>();
 
         if (multipiece.group_text == null) {
-            String message = multipiece.text;
+            String message = findTags() + multipiece.text;
             GoblintPosition pos = new GoblintPosition(
                 multipiece.loc.line,
                 multipiece.loc.column - 1,
@@ -65,7 +71,7 @@ public class GoblintResult {
                 piece.loc.column - 1,
                 findColumnEnd(piece.loc.line, piece.loc.column), 
                 sourcefileURL);
-                GoblintAnalysisResult result = new GoblintAnalysisResult(pos, "Group: " + multipiece.group_text, piece.text, severity);
+                GoblintAnalysisResult result = new GoblintAnalysisResult(pos, "Group: " + findTags() + multipiece.group_text, piece.text, severity);
                 intermresults.add(result);
             }
             // Add related warnings to all the group elements
@@ -82,6 +88,17 @@ public class GoblintResult {
             results.addAll(addedRelated);
         }
         return results;      
+    }
+
+    public String findTags() {
+        String tagsPrefix = "";
+
+        for (tag tag : tags) {
+            if (tag.Category.size() > 0) tagsPrefix = "[" + String.join(" > ", tag.Category) + "]";
+            if (tag.CWE != null) tagsPrefix += "[CWE-" + tag.CWE + "]";
+        }
+
+        return tagsPrefix + " ";
     }
 
     public int findColumnEnd(int lineStart, int columnStart) {
