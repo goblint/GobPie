@@ -16,6 +16,7 @@ import magpiebridge.core.ToolAnalysis;
 import magpiebridge.core.MagpieServer;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonParser;
@@ -26,7 +27,7 @@ public class GoblintAnalysis implements ToolAnalysis {
     final private MagpieServer magpieServer;
     private URL sourcefileURL;
     private String jsonName = "analysisResults.json";
-    private String[] command = { "./goblint", "--enable", "dbg.debug", "--set", "warnstyle", "legacy", "--set", "result", "json-messages", "-o", jsonName };
+    private String[] command = { "./goblint", "--enable", "dbg.debug", "--set", "result", "json-messages", "-o", jsonName };
     private String[] commands;
     private String pathToFindResults;
 
@@ -71,8 +72,7 @@ public class GoblintAnalysis implements ToolAnalysis {
 
     /**
      * Runs the command on CLI to generate the analysis results for opened files,
-     * reads in the output and converts it into a
-     * collection of AnalysisResults.
+     * reads in the output and converts it into a collection of AnalysisResults.
      *
      * @param files the files that have been opened in the editor.
      */
@@ -90,7 +90,8 @@ public class GoblintAnalysis implements ToolAnalysis {
     }
 
     /**
-     * Runs the command on CLI to let goblint generate the json file with analysis results.
+     * Runs the command on CLI to let goblint generate the json file with analysis
+     * results.
      *
      * @param file    the file on which to run the analysis.
      * @param command the command to run on the file.
@@ -115,16 +116,17 @@ public class GoblintAnalysis implements ToolAnalysis {
             // run command
             Process commandRunProcess = this.runCommand(new File(System.getProperty("user.dir") + "/analyzer"));
             commandRunProcess.waitFor();
+            // TODO: what happens, if Goblint isn't satisfied with the command
         } catch (IOException | InterruptedException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
     }
 
-
     /**
-     * Deserializes json to GoblintResult objects and then converts the information 
-     * into GoblintAnalysisResult objects, which Magpie uses to generate IDE messages.
+     * Deserializes json to GoblintResult objects and then converts the information
+     * into GoblintAnalysisResult objects, which Magpie uses to generate IDE
+     * messages.
      *
      * @return A collection of GoblintAnalysisResult objects.
      */
@@ -134,25 +136,28 @@ public class GoblintAnalysis implements ToolAnalysis {
 
         try {
             // Read json objects as an array
-			JsonArray resultArray = JsonParser.parseReader(new FileReader(new File(pathToFindResults))).getAsJsonArray();
+            JsonArray resultArray = JsonParser.parseReader(new FileReader(new File(pathToFindResults)))
+                    .getAsJsonArray();
             // For each JsonObject
-			for (int i = 0; i < resultArray.size(); i++) {
+            for (int i = 0; i < resultArray.size(); i++) {
                 // Deserailize them into GoblintResult objects
-                Gson gson = new Gson();
+                GsonBuilder builder = new GsonBuilder();
+                builder.registerTypeAdapter(GoblintResult.tag.class, new TagInterfaceAdapter());
+                Gson gson = builder.create();
+                // Gson gson = new Gson();
                 GoblintResult goblintResult = gson.fromJson(resultArray.get(i), GoblintResult.class);
                 // Add sourcefileURL to object for generationg the position
                 goblintResult.sourcefileURL = this.sourcefileURL;
                 // Convert GoblintResult object to a list of GoblintAnalysisResults
                 results.addAll(goblintResult.convert());
-			}
+            }
 
-		} catch (JsonIOException | JsonSyntaxException | FileNotFoundException e) {
-			throw new RuntimeException(e);
-		}
+        } catch (JsonIOException | JsonSyntaxException | FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
 
         return results;
     }
-
 
     /**
      * Converts the CLI output into a collection of Analysisresult objects
