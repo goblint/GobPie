@@ -5,10 +5,10 @@ import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import magpiebridge.util.SourceCodeInfo;
 import magpiebridge.util.SourceCodePositionFinder;
-
 
 public class GoblintResult {
 
@@ -17,9 +17,28 @@ public class GoblintResult {
     private multipiece multipiece;
     URL sourcefileURL;
 
-    static class tag {
-        private List<String> Category = new ArrayList<String>();
-        private Integer CWE;
+    public static interface tag {
+
+        public String toString();
+
+        static class Category implements tag {
+            private List<String> Category = new ArrayList<String>();
+
+            @Override
+            public String toString() {
+                return (Category.size() > 0) ? "[" + String.join(" > ", Category) + "]" : "";
+            }
+
+        }
+
+        static class CWE implements tag {
+            private Integer CWE;
+
+            @Override
+            public String toString() {
+                return (CWE != null) ? "[CWE-" + CWE + "]" : "";
+            }
+        }
     }
 
     static class multipiece {
@@ -54,24 +73,19 @@ public class GoblintResult {
         List<GoblintAnalysisResult> results = new ArrayList<>();
 
         if (multipiece.group_text == null) {
-            String message = findTags() + multipiece.text;
-            GoblintPosition pos = new GoblintPosition(
-                multipiece.loc.line,
-                multipiece.loc.column - 1,
-                findColumnEnd(multipiece.loc.line, multipiece.loc.column), 
-                sourcefileURL);
-                GoblintAnalysisResult result = new GoblintAnalysisResult(pos, message, severity);
-                results.add(result);
+            String message = tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " " + multipiece.text;
+            GoblintPosition pos = new GoblintPosition(multipiece.loc.line, multipiece.loc.column - 1, findColumnEnd(multipiece.loc.line, multipiece.loc.column), sourcefileURL);
+            GoblintAnalysisResult result = new GoblintAnalysisResult(pos, message, severity);
+            results.add(result);
         } else {
             List<GoblintAnalysisResult> intermresults = new ArrayList<>();
             List<multipiece.pieces> pieces = multipiece.pieces;
             for (multipiece.pieces piece : pieces) {
-                GoblintPosition pos = new GoblintPosition(
-                piece.loc.line,
-                piece.loc.column - 1,
-                findColumnEnd(piece.loc.line, piece.loc.column), 
-                sourcefileURL);
-                GoblintAnalysisResult result = new GoblintAnalysisResult(pos, "Group: " + findTags() + multipiece.group_text, piece.text, severity);
+                GoblintPosition pos = new GoblintPosition(piece.loc.line, piece.loc.column - 1,
+                        findColumnEnd(piece.loc.line, piece.loc.column), sourcefileURL);
+                GoblintAnalysisResult result = new GoblintAnalysisResult(pos,
+                        tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
+                        piece.text, severity);
                 intermresults.add(result);
             }
             // Add related warnings to all the group elements
@@ -83,22 +97,12 @@ public class GoblintResult {
                         related.add(Pair.make(res2.position(), res2.text()));
                     }
                 }
-                addedRelated.add(new GoblintAnalysisResult(res1.position(), res1.group_text() +  "\n" + res1.text(), res1.severityStr(), related));
+                addedRelated.add(new GoblintAnalysisResult(res1.position(), res1.group_text() + "\n" + res1.text(),
+                        res1.severityStr(), related));
             }
             results.addAll(addedRelated);
         }
-        return results;      
-    }
-
-    public String findTags() {
-        String tagsPrefix = "";
-
-        for (tag tag : tags) {
-            if (tag.Category.size() > 0) tagsPrefix = "[" + String.join(" > ", tag.Category) + "]";
-            if (tag.CWE != null) tagsPrefix += "[CWE-" + tag.CWE + "]";
-        }
-
-        return tagsPrefix + " ";
+        return results;
     }
 
     public int findColumnEnd(int lineStart, int columnStart) {
@@ -106,14 +110,15 @@ public class GoblintResult {
         // get source code of the specified line
         SourceCodeInfo sourceCodeInfo = SourceCodePositionFinder.findCode(new File(sourcefileURL.getPath()), lineStart);
         // get the source code substring starting from the relevant assert statement.
-        // as the source code is given without the leading whitespace, but the column numbers take whitespace into account
-        // the offset must be subtracted from the original starting column which does include the leading whitespace
+        // as the source code is given without the leading whitespace, but the column
+        // numbers take whitespace into account
+        // the offset must be subtracted from the original starting column which does
+        // include the leading whitespace
         String sourceCode = sourceCodeInfo.code.substring(columnStart - sourceCodeInfo.range.getStart().getCharacter());
         // find the index of the next semicolon
         int indexOfNextSemicolon = sourceCode.indexOf(";") + 1;
 
         return columnStart + indexOfNextSemicolon;
     }
-    
 
 }
