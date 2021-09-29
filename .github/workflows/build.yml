@@ -1,0 +1,45 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11' # TODO: what version do we want?
+          distribution: 'adopt'
+          cache: maven
+
+      - name: Set up Node.js 14
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14.x' # TODO: what version do we want?
+          cache: npm
+
+      - name: Build with Maven
+        run: mvn install
+
+      - name: Build with NPM
+        working-directory: ./vscode
+        run: npm install
+
+      - name: Set up VSCE
+        run: npm install -g vsce
+
+      - name: Build with VSCE
+        working-directory: ./vscode
+        run: vsce package
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: plugin
+          path: ./vscode/goblintanalyzer-*.vsix
