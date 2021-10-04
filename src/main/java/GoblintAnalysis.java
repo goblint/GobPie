@@ -1,10 +1,13 @@
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.ibm.wala.classLoader.Module;
 import com.ibm.wala.classLoader.SourceFileModule;
@@ -20,6 +23,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+
+import org.eclipse.lsp4j.MessageParams;
+import org.eclipse.lsp4j.MessageType;
 
 public class GoblintAnalysis implements ToolAnalysis {
 
@@ -119,9 +125,15 @@ public class GoblintAnalysis implements ToolAnalysis {
             // run command
             Process commandRunProcess = this.runCommand(new File(System.getProperty("user.dir")));
             commandRunProcess.waitFor();
+            if (commandRunProcess.exitValue() != 0) 
+                magpieServer.forwardMessageToClient(
+                    new MessageParams(MessageType.Error, 
+                        "Goblint exited with an error." + 
+                        // the error message from command line
+                        new BufferedReader(new InputStreamReader(commandRunProcess.getErrorStream()))
+                        .lines().collect(Collectors.joining("\n"))));
         } catch (IOException | InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Running Goblint failed. " + e.getMessage()));
         }
     }
 
