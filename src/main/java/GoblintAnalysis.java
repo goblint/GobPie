@@ -110,14 +110,8 @@ public class GoblintAnalysis implements ToolAnalysis {
             // file to be analyzed
             String fileToAnalyze = sourcefileURL.getFile();
             // construct command to run
-            // check if there is a goblint conf file present
-            if (new File(System.getProperty("user.dir") + "/" + "goblint.json").exists())
-                // if there is, use the conf file
-                this.commands = new String[] { "goblint", "--conf", "goblint.json", "--set", "result", "json-messages", "-o", pathToJsonResult, fileToAnalyze };
-            else 
-                // otherwise use this default command
-                this.commands = new String[] { "goblint", "--enable", "dbg.debug", "--set", "result", "json-messages", "-o", pathToJsonResult, fileToAnalyze };
-        } catch (MalformedURLException e) {
+            this.commands = new String[] { "goblint", "--conf", "goblint.json", "--set", "result", "json-messages", "-o", pathToJsonResult, fileToAnalyze };
+            } catch (MalformedURLException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
