@@ -1,11 +1,13 @@
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 import com.ibm.wala.classLoader.Module;
 import com.ibm.wala.classLoader.SourceFileModule;
@@ -22,14 +24,15 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
+import org.eclipse.lsp4j.MessageParams;
+import org.eclipse.lsp4j.MessageType;
+
 public class GoblintAnalysis implements ToolAnalysis {
 
     final private MagpieServer magpieServer;
     private URL sourcefileURL;
-    private String jsonName = "analysisResults.json";
-    private String[] command = { "./goblint", "--enable", "dbg.debug", "--set", "result", "json-messages", "-o", jsonName };
+    private String pathToJsonResult = System.getProperty("user.dir") + "/" + "analysisResults.json";
     private String[] commands;
-    private String pathToFindResults;
 
     public GoblintAnalysis(MagpieServer server) {
         this.magpieServer = server;
@@ -90,8 +93,10 @@ public class GoblintAnalysis implements ToolAnalysis {
     }
 
     /**
-     * Runs the command on CLI to let goblint generate the json file with analysis
-     * results.
+     * Runs the command in the project root directory
+     * to let goblint generate the json file with analysis results.
+     * If there is a goblint conf file present, it uses it in the command,
+     * otherwise the command uses --enable dbg.debug option.
      *
      * @param file    the file on which to run the analysis.
      * @param command the command to run on the file.
@@ -103,23 +108,26 @@ public class GoblintAnalysis implements ToolAnalysis {
             // find sourcefile URL
             this.sourcefileURL = new URL(magpieServer.getClientUri(sourcefile.getURL().toString()));
             // file to be analyzed
-            String[] fileToAnalyze = { sourcefileURL.getFile() };
-            // command to run for analyzing
-            this.commands = Stream.concat(Arrays.stream(command), Arrays.stream(fileToAnalyze)).toArray(String[]::new);
-            // where to find analyzis results
-            pathToFindResults = System.getProperty("user.dir") + "/analyzer/" + jsonName;
-        } catch (MalformedURLException e) {
+            String fileToAnalyze = sourcefileURL.getFile();
+            // construct command to run
+            this.commands = new String[] { "goblint", "--conf", "goblint.json", "--set", "result", "json-messages", "-o", pathToJsonResult, fileToAnalyze };
+            } catch (MalformedURLException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
         try {
             // run command
-            Process commandRunProcess = this.runCommand(new File(System.getProperty("user.dir") + "/analyzer"));
+            Process commandRunProcess = this.runCommand(new File(System.getProperty("user.dir")));
             commandRunProcess.waitFor();
-            // TODO: what happens, if Goblint isn't satisfied with the command
+            if (commandRunProcess.exitValue() != 0) 
+                magpieServer.forwardMessageToClient(
+                    new MessageParams(MessageType.Error, 
+                        "Goblint exited with an error." + 
+                        // the error message from command line
+                        new BufferedReader(new InputStreamReader(commandRunProcess.getErrorStream()))
+                        .lines().collect(Collectors.joining("\n"))));
         } catch (IOException | InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Running Goblint failed. " + e.getMessage()));
         }
     }
 
@@ -136,15 +144,13 @@ public class GoblintAnalysis implements ToolAnalysis {
 
         try {
             // Read json objects as an array
-            JsonArray resultArray = JsonParser.parseReader(new FileReader(new File(pathToFindResults)))
-                    .getAsJsonArray();
+            JsonArray resultArray = JsonParser.parseReader(new FileReader(new File(pathToJsonResult))).getAsJsonArray();
             // For each JsonObject
             for (int i = 0; i < resultArray.size(); i++) {
                 // Deserailize them into GoblintResult objects
                 GsonBuilder builder = new GsonBuilder();
                 builder.registerTypeAdapter(GoblintResult.tag.class, new TagInterfaceAdapter());
                 Gson gson = builder.create();
-                // Gson gson = new Gson();
                 GoblintResult goblintResult = gson.fromJson(resultArray.get(i), GoblintResult.class);
                 // Add sourcefileURL to object for generationg the position
                 goblintResult.sourcefileURL = this.sourcefileURL;
@@ -160,7 +166,8 @@ public class GoblintAnalysis implements ToolAnalysis {
     }
 
     /**
-     * Converts the CLI output into a collection of Analysisresult objects
+     * This method actually doesn't do anything, as we are not reading
+     * any input from the command line. Has to be here for Magpie though.
      *
      * @return the analysis results of the tool converted in format of
      *         AnalysisResult
