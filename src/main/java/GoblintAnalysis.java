@@ -36,6 +36,7 @@ public class GoblintAnalysis implements ToolAnalysis {
 
     public GoblintAnalysis(MagpieServer server) {
         this.magpieServer = server;
+        magpieServer.addCommand("showresult", new ShowResultCommand());
     }
 
     /**

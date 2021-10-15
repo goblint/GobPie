@@ -2,11 +2,13 @@ import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 import magpiebridge.core.AnalysisResult;
 import magpiebridge.core.Kind;
 import magpiebridge.util.SourceCodeReader;
 
+import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
 public class GoblintAnalysisResult implements AnalysisResult {
@@ -97,5 +99,10 @@ public class GoblintAnalysisResult implements AnalysisResult {
         }
         return code;
     }
-    
+
+    @Override
+    public Iterable<Command> command() {
+        Command command = new Command("show result", "showresult", Collections.singletonList(position().getFirstLine()));
+        return Collections.singleton(command);
+    }
 }
