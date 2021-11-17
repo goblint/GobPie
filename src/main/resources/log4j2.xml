@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
-  <Properties>
-    <!-- <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t][%logger] %-5level - %msg%n</Property> --> <!--  change pattern to this to see date, threads and loggers (classes) for logs  -->
-    <Property name="pattern">%d{HH:mm:ss.SSS} %-5level - %msg%n</Property>
-  </Properties>
-  <Appenders>
-    <Console name="stderr" target="SYSTEM_ERR">
-      <PatternLayout pattern="${pattern}"/>
-    </Console>
-  </Appenders>
-  <Loggers>
-    <Root level="INFO"> <!--  change info to debug here to see the debug logs while developing  -->
-      <AppenderRef ref="stderr"/>
-    </Root>
-  </Loggers>
-  
+    <Properties>
+        <!-- <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t][%logger] %-5level - %msg%n</Property> --> <!--  change pattern to this to see date, threads and loggers (classes) for logs  -->
+        <Property name="pattern">%d{HH:mm:ss.SSS} %-5level - %msg%n</Property>
+    </Properties>
+    <Appenders>
+        <Console name="stderr" target="SYSTEM_ERR">
+            <PatternLayout pattern="${pattern}"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="INFO"> <!--  change info to debug here to see the debug logs while developing  -->
+            <AppenderRef ref="stderr"/>
+        </Root>
+    </Loggers>
 </Configuration>

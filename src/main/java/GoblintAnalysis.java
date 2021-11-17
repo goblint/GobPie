@@ -104,21 +104,21 @@ public class GoblintAnalysis implements ServerAnalysis {
         log.debug("Waiting for Goblint to run...");
         System.err.println("---------------------- Goblint's dump start ----------------------");
         ProcessResult process = new ProcessExecutor()
-                            .directory(dirPath)
-                            .command(command)
-                            .redirectOutput(System.err)
-                            .redirectError(System.err)
-                            .execute();
+                .directory(dirPath)
+                .command(command)
+                .redirectOutput(System.err)
+                .redirectError(System.err)
+                .execute();
         System.err.println("----------------------- Goblint's dump end -----------------------");
         return process;
-      }
+    }
 
     /**
      * Runs the command in the project root directory
      * to let goblint generate the json file with analysis results.
      *
-     * @param file    the file on which to run the analysis.
-     * @return        returns true if goblint finished the analyse and json was generated sucessfully, false otherwise
+     * @param file the file on which to run the analysis.
+     * @return returns true if goblint finished the analyse and json was generated sucessfully, false otherwise
      */
     private boolean generateJson(Module file) {
         SourceFileModule sourcefile = (SourceFileModule) file;
@@ -128,19 +128,19 @@ public class GoblintAnalysis implements ServerAnalysis {
             // file to be analyzed
             String fileToAnalyze = sourcefileURL.getFile();
             // construct command to run
-            this.commands = new String[] { "goblint", "--conf", "goblint.json", "--set", "result", "json-messages", "-o", pathToJsonResult, fileToAnalyze };
-            } catch (MalformedURLException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
+            this.commands = new String[]{"goblint", "--conf", "goblint.json", "--set", "result", "json-messages", "-o", pathToJsonResult, fileToAnalyze};
+        } catch (MalformedURLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
         try {
             // run command
             log.info("Goblint run with command: " + String.join(" ", this.getCommand()));
             ProcessResult commandRunProcess = this.runCommand(new File(System.getProperty("user.dir")));
             if (commandRunProcess.getExitValue() != 0) {
                 magpieServer.forwardMessageToClient(
-                    new MessageParams(MessageType.Error, 
-                        "Goblint exited with an error."));
+                        new MessageParams(MessageType.Error,
+                                "Goblint exited with an error."));
                 log.error("Goblint exited with an error.");
                 return false;
             }

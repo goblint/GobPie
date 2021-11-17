@@ -97,5 +97,5 @@ public class GoblintAnalysisResult implements AnalysisResult {
         }
         return code;
     }
-    
+
 }
