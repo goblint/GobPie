@@ -92,11 +92,8 @@ public class GoblintAnalysis implements ServerAnalysis {
 
         for (Module file : files) {
             if (file instanceof SourceFileModule) {
-                try {
-                    generateJson(file);
-                    analysisResults.addAll(readResultsFromJson());
-                } catch (RuntimeException e) {
-                }
+                boolean successful = generateJson(file);
+                if (successful) analysisResults.addAll(readResultsFromJson());
             }
         }
         return analysisResults;
@@ -121,8 +118,9 @@ public class GoblintAnalysis implements ServerAnalysis {
      * to let goblint generate the json file with analysis results.
      *
      * @param file    the file on which to run the analysis.
+     * @return        returns true if goblint finished the analyse and json was generated sucessfully, false otherwise
      */
-    private void generateJson(Module file) throws RuntimeException {
+    private boolean generateJson(Module file) {
         SourceFileModule sourcefile = (SourceFileModule) file;
         try {
             // find sourcefile URL
@@ -132,24 +130,25 @@ public class GoblintAnalysis implements ServerAnalysis {
             // construct command to run
             this.commands = new String[] { "goblint", "--conf", "goblint.json", "--set", "result", "json-messages", "-o", pathToJsonResult, fileToAnalyze };
             } catch (MalformedURLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
         try {
             // run command
             log.info("Goblint run with command: " + String.join(" ", this.getCommand()));
             ProcessResult commandRunProcess = this.runCommand(new File(System.getProperty("user.dir")));
-            log.debug("Goblint finished analyzing");
             if (commandRunProcess.getExitValue() != 0) {
                 magpieServer.forwardMessageToClient(
                     new MessageParams(MessageType.Error, 
                         "Goblint exited with an error."));
-            log.error("Goblint exited with an error.");
-            throw new RuntimeException();
+                log.error("Goblint exited with an error.");
+                return false;
             }
+            log.info("Goblint finished analyzing.");
+            return true;
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
             magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Running Goblint failed. " + e.getMessage()));
-            throw new RuntimeException(e);
+            return false;
         }
     }
 
