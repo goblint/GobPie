@@ -130,8 +130,8 @@ public class GoblintAnalysis implements ServerAnalysis {
             // construct command to run
             this.commands = new String[]{"goblint", "--conf", "goblint.json", "--set", "result", "json-messages", "-o", pathToJsonResult, fileToAnalyze};
         } catch (MalformedURLException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            log.error("An error occured while trying parse the url of the file to be analyzed. " + e.getMessage());
+            return false;
         }
         try {
             // run command
