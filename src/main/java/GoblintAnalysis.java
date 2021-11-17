@@ -167,12 +167,13 @@ public class GoblintAnalysis implements ServerAnalysis {
             log.debug("Reading analysis results from json");
             // Read json objects as an array
             JsonArray resultArray = JsonParser.parseReader(new FileReader(new File(pathToJsonResult))).getAsJsonArray();
+            GsonBuilder builder = new GsonBuilder();
+            // Add deserializer for tags
+            builder.registerTypeAdapter(GoblintResult.tag.class, new TagInterfaceAdapter());
+            Gson gson = builder.create();
             // For each JsonObject
             for (int i = 0; i < resultArray.size(); i++) {
                 // Deserailize them into GoblintResult objects
-                GsonBuilder builder = new GsonBuilder();
-                builder.registerTypeAdapter(GoblintResult.tag.class, new TagInterfaceAdapter());
-                Gson gson = builder.create();
                 GoblintResult goblintResult = gson.fromJson(resultArray.get(i), GoblintResult.class);
                 // Add sourcefileURL to object for generationg the position
                 goblintResult.sourcefileURL = this.sourcefileURL;
