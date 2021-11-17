@@ -1,5 +1,6 @@
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.classLoader.IMethod;
+
 import java.io.Reader;
 import java.net.URL;
 
@@ -26,7 +27,7 @@ public class GoblintPosition implements Position {
         this.columnEnd = columnEnd;
         this.sourcefileURL = sourcefileURL;
     }
-    
+
     @Override
     public int getFirstCol() {
         return columnStart;
