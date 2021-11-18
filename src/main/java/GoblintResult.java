@@ -1,21 +1,17 @@
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
 
-import java.io.File;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import magpiebridge.util.SourceCodeInfo;
-import magpiebridge.util.SourceCodePositionFinder;
 
 public class GoblintResult {
 
     private List<tag> tags = new ArrayList<>();
     private String severity;
     private multipiece multipiece;
-    URL sourcefileURL;
 
     public static interface tag {
 
@@ -50,8 +46,11 @@ public class GoblintResult {
 
         static class loc {
 
+            private String file;
             private int line;
             private int column;
+            private int endLine;
+            private int endColumn;
 
         }
 
@@ -62,27 +61,29 @@ public class GoblintResult {
 
             static class loc {
 
+                private String file;
                 private int line;
                 private int column;
+                private int endLine;
+                private int endColumn;
             }
         }
 
     }
 
-    public List<GoblintAnalysisResult> convert() {
+    public List<GoblintAnalysisResult> convert() throws MalformedURLException {
         List<GoblintAnalysisResult> results = new ArrayList<>();
 
         if (multipiece.group_text == null) {
             String message = tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " " + multipiece.text;
-            GoblintPosition pos = new GoblintPosition(multipiece.loc.line, multipiece.loc.column - 1, findColumnEnd(multipiece.loc.line, multipiece.loc.column), sourcefileURL);
+            GoblintPosition pos = new GoblintPosition(multipiece.loc.line, multipiece.loc.endLine, multipiece.loc.column - 1, multipiece.loc.endColumn - 1, new URL("file:" + multipiece.loc.file));
             GoblintAnalysisResult result = new GoblintAnalysisResult(pos, message, severity);
             results.add(result);
         } else {
             List<GoblintAnalysisResult> intermresults = new ArrayList<>();
             List<multipiece.pieces> pieces = multipiece.pieces;
             for (multipiece.pieces piece : pieces) {
-                GoblintPosition pos = new GoblintPosition(piece.loc.line, piece.loc.column - 1,
-                        findColumnEnd(piece.loc.line, piece.loc.column), sourcefileURL);
+                GoblintPosition pos = new GoblintPosition(piece.loc.line, piece.loc.endLine, piece.loc.column - 1, piece.loc.endColumn - 1, new URL("file:" + piece.loc.file));
                 GoblintAnalysisResult result = new GoblintAnalysisResult(pos,
                         tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
                         piece.text, severity);
@@ -105,20 +106,5 @@ public class GoblintResult {
         return results;
     }
 
-    public int findColumnEnd(int lineStart, int columnStart) {
-
-        // get source code of the specified line
-        SourceCodeInfo sourceCodeInfo = SourceCodePositionFinder.findCode(new File(sourcefileURL.getPath()), lineStart);
-        // get the source code substring starting from the relevant assert statement.
-        // as the source code is given without the leading whitespace, but the column
-        // numbers take whitespace into account
-        // the offset must be subtracted from the original starting column which does
-        // include the leading whitespace
-        String sourceCode = sourceCodeInfo.code.substring(columnStart - sourceCodeInfo.range.getStart().getCharacter());
-        // find the index of the next semicolon
-        int indexOfNextSemicolon = sourceCode.indexOf(";") + 1;
-
-        return columnStart + indexOfNextSemicolon;
-    }
 
 }

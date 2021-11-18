@@ -118,7 +118,7 @@ public class GoblintAnalysis implements ServerAnalysis {
      * to let goblint generate the json file with analysis results.
      *
      * @param file the file on which to run the analysis.
-     * @return returns true if goblint finished the analyse and json was generated sucessfully, false otherwise
+     * @return returns true if goblint finished the analysis and json was generated sucessfully, false otherwise
      */
     private boolean generateJson(Module file) {
         SourceFileModule sourcefile = (SourceFileModule) file;
@@ -175,14 +175,12 @@ public class GoblintAnalysis implements ServerAnalysis {
             for (int i = 0; i < resultArray.size(); i++) {
                 // Deserailize them into GoblintResult objects
                 GoblintResult goblintResult = gson.fromJson(resultArray.get(i), GoblintResult.class);
-                // Add sourcefileURL to object for generationg the position
-                goblintResult.sourcefileURL = this.sourcefileURL;
                 // Convert GoblintResult object to a list of GoblintAnalysisResults
                 results.addAll(goblintResult.convert());
             }
             log.debug("Analysis results read from json");
 
-        } catch (JsonIOException | JsonSyntaxException | FileNotFoundException e) {
+        } catch (JsonIOException | JsonSyntaxException | FileNotFoundException | MalformedURLException e) {
             throw new RuntimeException(e);
         }
 
