@@ -5,7 +5,7 @@ import java.util.ArrayList;
 
 import magpiebridge.core.AnalysisResult;
 import magpiebridge.core.Kind;
-import magpiebridge.util.SourceCodeReader;
+// import magpiebridge.util.SourceCodeReader;
 
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
@@ -89,13 +89,14 @@ public class GoblintAnalysisResult implements AnalysisResult {
 
     @Override
     public String code() {
-        String code;
-        try {
-            code = SourceCodeReader.getLinesInString(pos);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return code;
+        // String code;
+        // try {
+        //     code = SourceCodeReader.getLinesInString(pos);
+        // } catch (Exception e) {
+        //     throw new RuntimeException(e);
+        // }
+        // return code;
+        return null;
     }
 
 }
