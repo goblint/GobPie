@@ -32,14 +32,15 @@ import org.zeroturnaround.exec.ProcessResult;
 
 public class GoblintAnalysis implements ServerAnalysis {
 
-    final private MagpieServer magpieServer;
-    private String pathToJsonResult = System.getProperty("user.dir") + "/" + "analysisResults.json";
-    private String pathToGobPieConf = System.getProperty("user.dir") + "/" + "gobpie.json";
+    private final MagpieServer magpieServer;
+    private final String pathToJsonResult = System.getProperty("user.dir") + "/" + "analysisResults.json";
+    private final String pathToGobPieConf = System.getProperty("user.dir") + "/" + "gobpie.json";
     private String pathToGoblintConf;
     private String pathToCompilationDBDir;
-    private String[] commands;
+    private String[] compilationDBBuildCommand;
+    private String[] goblintRunCommand;
 
-    private Logger log;
+    private final Logger log;
 
     public GoblintAnalysis(MagpieServer server) {
         this.magpieServer = server;
@@ -55,12 +56,6 @@ public class GoblintAnalysis implements ServerAnalysis {
         return "GoblintAnalysis";
     }
 
-    /**
-     * @return the CLI command including the arguments to be executed.
-     */
-    public String[] getCommand() {
-        return this.commands;
-    }
 
     /**
      * The files to be analyzed.
@@ -75,6 +70,13 @@ public class GoblintAnalysis implements ServerAnalysis {
             if (consumer instanceof MagpieServer) {
                 boolean gobpieconf = readGobPieConfiguration();
                 if (!gobpieconf) return;
+                if (compilationDBBuildCommand != null && compilationDBBuildCommand.length > 0) {
+                    try { 
+                        runCommand(new File(System.getProperty("user.dir")), compilationDBBuildCommand);
+                    } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
+                        this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, "Building compilation database failed. " + e.getMessage()));
+                    }
+                }
                 log.info("New analysis started");
                 MagpieServer server = (MagpieServer) consumer;
                 boolean successful = generateJson();
@@ -86,8 +88,7 @@ public class GoblintAnalysis implements ServerAnalysis {
     }
 
 
-    public ProcessResult runCommand(File dirPath) throws IOException, InvalidExitValueException, InterruptedException, TimeoutException {
-        String[] command = this.getCommand();
+    public ProcessResult runCommand(File dirPath, String[] command) throws IOException, InvalidExitValueException, InterruptedException, TimeoutException {
         log.debug("Waiting for Goblint to run...");
         System.err.println("---------------------- Goblint's dump start ----------------------");
         ProcessResult process = new ProcessExecutor()
@@ -109,12 +110,12 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
     private boolean generateJson() {
         // construct command to run
-        this.commands = new String[]{"goblint", "--conf", pathToGoblintConf, "--set", "result", "json-messages", "-o", pathToJsonResult, pathToCompilationDBDir};
+        this.goblintRunCommand = new String[]{"goblint", "--conf", pathToGoblintConf, "--set", "result", "json-messages", "-o", pathToJsonResult, pathToCompilationDBDir};
 
         try {
             // run command
-            log.info("Goblint run with command: " + String.join(" ", this.getCommand()));
-            ProcessResult commandRunProcess = this.runCommand(new File(System.getProperty("user.dir")));
+            log.info("Goblint run with command: " + String.join(" ", goblintRunCommand));
+            ProcessResult commandRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand);
             if (commandRunProcess.getExitValue() != 0) {
                 magpieServer.forwardMessageToClient(
                         new MessageParams(MessageType.Error,
@@ -125,7 +126,7 @@ public class GoblintAnalysis implements ServerAnalysis {
             log.info("Goblint finished analyzing.");
             return true;
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
-            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Running Goblint failed. " + e.getMessage()));
+            this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Running Goblint failed. " + e.getMessage()));
             return false;
         }
     }
@@ -144,7 +145,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         try {
             log.debug("Reading analysis results from json");
             // Read json objects as an array
-            JsonArray resultArray = JsonParser.parseReader(new FileReader(new File(pathToJsonResult))).getAsJsonArray();
+            JsonArray resultArray = JsonParser.parseReader(new FileReader(new File(this.pathToJsonResult))).getAsJsonArray();
             GsonBuilder builder = new GsonBuilder();
             // Add deserializer for tags
             builder.registerTypeAdapter(GoblintResult.tag.class, new TagInterfaceAdapter());
@@ -170,11 +171,12 @@ public class GoblintAnalysis implements ServerAnalysis {
             log.debug("Reading GobPie configuration from json");
             Gson gson = new GsonBuilder().create();
             // Read json object
-            JsonObject jsonObject = JsonParser.parseReader(new FileReader(new File(pathToGobPieConf))).getAsJsonObject();
+            JsonObject jsonObject = JsonParser.parseReader(new FileReader(new File(this.pathToGobPieConf))).getAsJsonObject();
             // Convert json object to GobPieConfiguration object
             GobPieConfiguration gobpieConfiguration = gson.fromJson(jsonObject, GobPieConfiguration.class);
-            pathToGoblintConf = System.getProperty("user.dir") + "/" + gobpieConfiguration.getGoblintConfPath();
-            pathToCompilationDBDir = System.getProperty("user.dir") + "/" + gobpieConfiguration.getCompilationDatabaseDirPath();
+            this.pathToGoblintConf = System.getProperty("user.dir") + "/" + gobpieConfiguration.getGoblintConfPath();
+            this.pathToCompilationDBDir = System.getProperty("user.dir") + "/" + gobpieConfiguration.getCompilationDatabaseDirPath();
+            this.compilationDBBuildCommand = gobpieConfiguration.getCompilationDBBuildCommands();
             if (gobpieConfiguration.getGoblintConfPath().equals("") || gobpieConfiguration.getCompilationDatabaseDirPath().equals("")) {
                 log.debug("Configuration parameters missing from GobPie configuration file");
                 magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Configuration parameters missing from GobPie configuration file."));
@@ -184,7 +186,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         } catch (JsonIOException | JsonSyntaxException e) {
             throw new RuntimeException(e);
         } catch (FileNotFoundException e) {
-            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Could not locate GobPie configuration file." + e.getMessage()));
+            this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Could not locate GobPie configuration file. " + e.getMessage()));
             return false;
         }
         return true;

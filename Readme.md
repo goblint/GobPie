@@ -17,6 +17,26 @@ code .
 ```
 The *switch name* (shown in the first column of `opam switch`) is the path to the goblint installation.
 
+### Project prerequisites
+
+The project must have:
+1. GobPie configuration file in project root with name "`gobpie.json`"
+2. Goblint configuration file ([see examples](https://github.com/goblint/analyzer/tree/master/conf))
+
+#### Gobpie configuration file
+
+Example configuration file `gobpie.json`:
+```
+{
+    "compilationDatabaseDirPath" : "build", 
+    "goblintConfPath" : "goblint.json",
+    "compilationDBBuildCommands" : ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "build"]
+}
+```
+
+* `compilationDatabaseDirPath` - the relative path from project root to the folder containing the project's compilation database (required)
+* `goblintConfPath` - the relative path from project root to the goblint configuration file (required)
+* `compilationDBBuildCommands` - the command for building/updating the compilation database (optional)
 
 ## Developing
 
