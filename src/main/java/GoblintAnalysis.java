@@ -3,12 +3,10 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 import com.ibm.wala.classLoader.Module;
-import com.ibm.wala.classLoader.SourceFileModule;
 
 import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.AnalysisResult;
@@ -22,6 +20,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonIOException;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
@@ -34,8 +33,10 @@ import org.zeroturnaround.exec.ProcessResult;
 public class GoblintAnalysis implements ServerAnalysis {
 
     final private MagpieServer magpieServer;
-    private URL sourcefileURL;
     private String pathToJsonResult = System.getProperty("user.dir") + "/" + "analysisResults.json";
+    private String pathToGobPieConf = System.getProperty("user.dir") + "/" + "gobpie.json";
+    private String pathToGoblintConf;
+    private String pathToCompilationDBDir;
     private String[] commands;
 
     private Logger log;
@@ -64,7 +65,7 @@ public class GoblintAnalysis implements ServerAnalysis {
     /**
      * The files to be analyzed.
      *
-     * @param files    the files that have been opened in the editor.
+     * @param files    the files that have been opened in the editor (not using due to using the compilation database).
      * @param consumer the server which consumes the analysis results.
      * @param rerun    tells if the analysis should be reran.
      */
@@ -72,32 +73,18 @@ public class GoblintAnalysis implements ServerAnalysis {
     public void analyze(Collection<? extends Module> files, AnalysisConsumer consumer, boolean rerun) {
         if (rerun) {
             if (consumer instanceof MagpieServer) {
+                boolean gobpieconf = readGobPieConfiguration();
+                if (!gobpieconf) return;
                 log.info("New analysis started");
                 MagpieServer server = (MagpieServer) consumer;
-                Collection<AnalysisResult> results = runAnalysisOnSelectedFiles(files);
-                server.consume(results, source());
-            }
-        }
-    }
-
-    /**
-     * Runs the command on CLI to generate the analysis results for opened files,
-     * reads in the output and converts it into a collection of AnalysisResults.
-     *
-     * @param files the files that have been opened in the editor.
-     */
-    private Collection<AnalysisResult> runAnalysisOnSelectedFiles(Collection<? extends Module> files) {
-
-        Collection<AnalysisResult> analysisResults = new ArrayList<>();
-
-        for (Module file : files) {
-            if (file instanceof SourceFileModule) {
-                boolean successful = generateJson(file);
+                boolean successful = generateJson();
+                Collection<AnalysisResult> analysisResults = new ArrayList<>();
                 if (successful) analysisResults.addAll(readResultsFromJson());
+                server.consume(analysisResults, source());
             }
         }
-        return analysisResults;
     }
+
 
     public ProcessResult runCommand(File dirPath) throws IOException, InvalidExitValueException, InterruptedException, TimeoutException {
         String[] command = this.getCommand();
@@ -120,19 +107,10 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @param file the file on which to run the analysis.
      * @return returns true if goblint finished the analysis and json was generated sucessfully, false otherwise
      */
-    private boolean generateJson(Module file) {
-        SourceFileModule sourcefile = (SourceFileModule) file;
-        try {
-            // find sourcefile URL
-            this.sourcefileURL = new URL(magpieServer.getClientUri(sourcefile.getURL().toString()));
-            // file to be analyzed
-            String fileToAnalyze = sourcefileURL.getFile();
-            // construct command to run
-            this.commands = new String[]{"goblint", "--conf", "goblint.json", "--set", "result", "json-messages", "-o", pathToJsonResult, fileToAnalyze};
-        } catch (MalformedURLException e) {
-            log.error("An error occured while trying parse the url of the file to be analyzed. " + e.getMessage());
-            return false;
-        }
+    private boolean generateJson() {
+        // construct command to run
+        this.commands = new String[]{"goblint", "--conf", pathToGoblintConf, "--set", "result", "json-messages", "-o", pathToJsonResult, pathToCompilationDBDir};
+
         try {
             // run command
             log.info("Goblint run with command: " + String.join(" ", this.getCommand()));
@@ -185,6 +163,31 @@ public class GoblintAnalysis implements ServerAnalysis {
         }
 
         return results;
+    }
+
+    private boolean readGobPieConfiguration() {
+        try {
+            log.debug("Reading GobPie configuration from json");
+            Gson gson = new GsonBuilder().create();
+            // Read json object
+            JsonObject jsonObject = JsonParser.parseReader(new FileReader(new File(pathToGobPieConf))).getAsJsonObject();
+            // Convert json object to GobPieConfiguration object
+            GobPieConfiguration gobpieConfiguration = gson.fromJson(jsonObject, GobPieConfiguration.class);
+            pathToGoblintConf = System.getProperty("user.dir") + "/" + gobpieConfiguration.getGoblintConfPath();
+            pathToCompilationDBDir = System.getProperty("user.dir") + "/" + gobpieConfiguration.getCompilationDatabaseDirPath();
+            if (gobpieConfiguration.getGoblintConfPath().equals("") || gobpieConfiguration.getCompilationDatabaseDirPath().equals("")) {
+                log.debug("Configuration parameters missing from GobPie configuration file");
+                magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Configuration parameters missing from GobPie configuration file."));
+                return false;
+            }
+            log.debug("GobPie configuration read from json");
+        } catch (JsonIOException | JsonSyntaxException e) {
+            throw new RuntimeException(e);
+        } catch (FileNotFoundException e) {
+            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Could not locate GobPie configuration file." + e.getMessage()));
+            return false;
+        }
+        return true;
     }
 
 }
