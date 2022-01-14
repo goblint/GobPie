@@ -2,9 +2,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.MalformedURLException;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
 
 import com.ibm.wala.classLoader.Module;
 
@@ -33,11 +35,11 @@ import org.zeroturnaround.exec.ProcessResult;
 public class GoblintAnalysis implements ServerAnalysis {
 
     private final MagpieServer magpieServer;
-    private final String pathToJsonResult = System.getProperty("user.dir") + "/" + "analysisResults.json";
-    private final String pathToGobPieConf = System.getProperty("user.dir") + "/" + "gobpie.json";
+    private File jsonResult = new File("analysisResults.json");
+    private File gobPieConf = new File("gobpie.json");
     private String pathToGoblintConf;
-    private String pathToCompilationDBDir;
-    private String[] compilationDBBuildCommand;
+    private String[] filesToAnalyze;
+    private String[] preAnalyzeCommand;
     private String[] goblintRunCommand;
 
     private final Logger log;
@@ -70,9 +72,9 @@ public class GoblintAnalysis implements ServerAnalysis {
             if (consumer instanceof MagpieServer) {
                 boolean gobpieconf = readGobPieConfiguration();
                 if (!gobpieconf) return;
-                if (compilationDBBuildCommand != null && compilationDBBuildCommand.length > 0) {
+                if (preAnalyzeCommand != null && preAnalyzeCommand.length > 0) {
                     try { 
-                        runCommand(new File(System.getProperty("user.dir")), compilationDBBuildCommand);
+                        runCommand(new File(System.getProperty("user.dir")), preAnalyzeCommand);
                     } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
                         this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, "Building compilation database failed. " + e.getMessage()));
                     }
@@ -110,7 +112,10 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
     private boolean generateJson() {
         // construct command to run
-        this.goblintRunCommand = new String[]{"goblint", "--conf", pathToGoblintConf, "--set", "result", "json-messages", "-o", pathToJsonResult, pathToCompilationDBDir};
+        this.goblintRunCommand = Stream.concat(
+                                    Arrays.stream(new String[]{"goblint", "--conf", pathToGoblintConf, "--set", "result", "json-messages", "-o", jsonResult.getAbsolutePath()}), 
+                                    Arrays.stream(filesToAnalyze))
+                                    .toArray(size -> (String[]) Array.newInstance(filesToAnalyze.getClass().getComponentType(), size));
 
         try {
             // run command
@@ -145,7 +150,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         try {
             log.debug("Reading analysis results from json");
             // Read json objects as an array
-            JsonArray resultArray = JsonParser.parseReader(new FileReader(new File(this.pathToJsonResult))).getAsJsonArray();
+            JsonArray resultArray = JsonParser.parseReader(new FileReader(jsonResult)).getAsJsonArray();
             GsonBuilder builder = new GsonBuilder();
             // Add deserializer for tags
             builder.registerTypeAdapter(GoblintResult.tag.class, new TagInterfaceAdapter());
@@ -171,13 +176,13 @@ public class GoblintAnalysis implements ServerAnalysis {
             log.debug("Reading GobPie configuration from json");
             Gson gson = new GsonBuilder().create();
             // Read json object
-            JsonObject jsonObject = JsonParser.parseReader(new FileReader(new File(this.pathToGobPieConf))).getAsJsonObject();
+            JsonObject jsonObject = JsonParser.parseReader(new FileReader(gobPieConf)).getAsJsonObject();
             // Convert json object to GobPieConfiguration object
             GobPieConfiguration gobpieConfiguration = gson.fromJson(jsonObject, GobPieConfiguration.class);
-            this.pathToGoblintConf = System.getProperty("user.dir") + "/" + gobpieConfiguration.getGoblintConfPath();
-            this.pathToCompilationDBDir = System.getProperty("user.dir") + "/" + gobpieConfiguration.getCompilationDatabaseDirPath();
-            this.compilationDBBuildCommand = gobpieConfiguration.getCompilationDBBuildCommands();
-            if (gobpieConfiguration.getGoblintConfPath().equals("") || gobpieConfiguration.getCompilationDatabaseDirPath().equals("")) {
+            this.pathToGoblintConf = new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath().toString();
+            this.filesToAnalyze = gobpieConfiguration.getFiles();
+            this.preAnalyzeCommand = gobpieConfiguration.getPreAnalyzeCommand();
+            if (gobpieConfiguration.getGoblintConf().equals("") || gobpieConfiguration.getFiles() == null || gobpieConfiguration.getFiles().length < 1) {
                 log.debug("Configuration parameters missing from GobPie configuration file");
                 magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Configuration parameters missing from GobPie configuration file."));
                 return false;

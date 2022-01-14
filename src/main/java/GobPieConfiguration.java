@@ -1,19 +1,19 @@
 public class GobPieConfiguration {
 
-    private String compilationDatabaseDirPath = "";
-    private String goblintConfPath = "";
-    private String[] compilationDBBuildCommands;
+    private String   goblintConf = "";
+    private String[] files;
+    private String[] preAnalyzeCommand;
 
-    public String getCompilationDatabaseDirPath() {
-        return this.compilationDatabaseDirPath;
+    public String getGoblintConf() {
+        return this.goblintConf;
     }
 
-    public String getGoblintConfPath() {
-        return this.goblintConfPath;
+    public String[] getFiles() {
+        return this.files;
     }
 
-    public String[] getCompilationDBBuildCommands() {
-        return this.compilationDBBuildCommands;
+    public String[] getPreAnalyzeCommand() {
+        return this.preAnalyzeCommand;
     }
 
 }

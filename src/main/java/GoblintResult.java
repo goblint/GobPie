@@ -1,8 +1,8 @@
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
 
+import java.io.File;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -76,14 +76,14 @@ public class GoblintResult {
 
         if (multipiece.group_text == null) {
             String message = tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " " + multipiece.text;
-            GoblintPosition pos = new GoblintPosition(multipiece.loc.line, multipiece.loc.endLine, multipiece.loc.column - 1, multipiece.loc.endColumn - 1, new URL("file:" + multipiece.loc.file));
+            GoblintPosition pos = new GoblintPosition(multipiece.loc.line, multipiece.loc.endLine, multipiece.loc.column - 1, multipiece.loc.endColumn - 1, new File(multipiece.loc.file).toURI().toURL());
             GoblintAnalysisResult result = new GoblintAnalysisResult(pos, message, severity);
             results.add(result);
         } else {
             List<GoblintAnalysisResult> intermresults = new ArrayList<>();
             List<multipiece.pieces> pieces = multipiece.pieces;
             for (multipiece.pieces piece : pieces) {
-                GoblintPosition pos = new GoblintPosition(piece.loc.line, piece.loc.endLine, piece.loc.column - 1, piece.loc.endColumn - 1, new URL("file:" + piece.loc.file));
+                GoblintPosition pos = new GoblintPosition(piece.loc.line, piece.loc.endLine, piece.loc.column - 1, piece.loc.endColumn - 1, new File(piece.loc.file).toURI().toURL());
                 GoblintAnalysisResult result = new GoblintAnalysisResult(pos,
                         tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
                         piece.text, severity);
