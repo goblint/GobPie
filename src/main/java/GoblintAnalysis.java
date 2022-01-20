@@ -2,7 +2,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.net.MalformedURLException;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
@@ -112,7 +111,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         this.goblintRunCommand = Stream.concat(
                                     Arrays.stream(new String[]{"goblint", "--conf", pathToGoblintConf, "--set", "result", "json-messages", "-o", jsonResult.getAbsolutePath()}), 
                                     Arrays.stream(filesToAnalyze))
-                                    .toArray(size -> (String[]) Array.newInstance(filesToAnalyze.getClass().getComponentType(), size));
+                                    .toArray(String[]::new);
 
         try {
             // run command
