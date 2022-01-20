@@ -17,6 +17,35 @@ code .
 ```
 The *switch name* (shown in the first column of `opam switch`) is the path to the goblint installation.
 
+### Project prerequisites
+
+The project must have:
+1. GobPie configuration file in project root with name "`gobpie.json`"
+2. Goblint configuration file ([see examples](https://github.com/goblint/analyzer/tree/master/conf))
+
+#### Gobpie configuration file
+
+Example configuration file `gobpie.json`:
+```
+{
+    "goblintConf" : "goblint.json",
+    "files" : ["./build"], 
+    "preAnalyzeCommand" : ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "build"]
+}
+```
+
+* `goblintConf` - the relative path from project root to the goblint configuration file (required)
+* `files` - the relative paths from project root to the files to be analysed (required)
+* `preAnalyzeCommand` - the command to run before analysing (e.g. command for building/updating the compilation database for some automation) (optional)
+
+Example values for `files`:
+* analyse files according to a compilation database:
+  * `["."]`  (current directory should have the database)
+  * `["./build"]` (build directory should have the database)
+  * `["./build/compile_commands.json"]` (direct path to the database, not its directory)
+* analyse specified file(s) from the project:
+  * `["./01-assert.c"]` (single file for analysis without database)
+  * `["./01-assert.c", "extra.c"]` (multiple files for analysis without database)
 
 ## Developing
 

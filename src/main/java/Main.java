@@ -20,7 +20,7 @@ public class Main {
         MagpieServer server = createServer();
         log.info("Server created");
         // launch the server only if there is a goblint conf file present
-        if (new File(System.getProperty("user.dir") + "/" + "goblint.json").exists()) {
+        if (new File(System.getProperty("user.dir") + "/" + "gobpie.json").exists()) {
             server.launchOnStdio();
             log.info("Server launched");
         }
@@ -28,10 +28,8 @@ public class Main {
 
     private static MagpieServer createServer() {
         // set up configuration for MagpieServer
-        ServerConfiguration defaultConfig = new ServerConfiguration();
-        // trigger analysis when file is opened
-        defaultConfig.setDoAnalysisByOpen(true);
-        MagpieServer server = new MagpieServer(defaultConfig);
+        ServerConfiguration serverConfig = new ServerConfiguration();
+        MagpieServer server = new MagpieServer(serverConfig);
         // define language
         String language = "c";
         // add analysis to the MagpieServer
