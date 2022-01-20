@@ -11,7 +11,6 @@ import java.util.stream.Stream;
 import com.ibm.wala.classLoader.Module;
 
 import magpiebridge.core.AnalysisConsumer;
-import magpiebridge.core.AnalysisResult;
 import magpiebridge.core.ServerAnalysis;
 import magpiebridge.core.MagpieServer;
 
@@ -20,7 +19,6 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -32,6 +30,7 @@ import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 
+
 public class GoblintAnalysis implements ServerAnalysis {
 
     private final MagpieServer magpieServer;
@@ -41,6 +40,7 @@ public class GoblintAnalysis implements ServerAnalysis {
     private String[] filesToAnalyze;
     private String[] preAnalyzeCommand;
     private String[] goblintRunCommand;
+    // private List<String> projectFiles; // for future use
 
     private final Logger log;
 
@@ -81,10 +81,7 @@ public class GoblintAnalysis implements ServerAnalysis {
                 }
                 log.info("New analysis started");
                 MagpieServer server = (MagpieServer) consumer;
-                boolean successful = generateJson();
-                Collection<AnalysisResult> analysisResults = new ArrayList<>();
-                if (successful) analysisResults.addAll(readResultsFromJson());
-                server.consume(analysisResults, source());
+                if (generateJson()) server.consume(new ArrayList<>(readResultsFromJson()), source());
             }
         }
     }
@@ -144,31 +141,22 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @return A collection of GoblintAnalysisResult objects.
      */
     private Collection<GoblintAnalysisResult> readResultsFromJson() {
-
-        Collection<GoblintAnalysisResult> results = new ArrayList<>();
-
         try {
             log.debug("Reading analysis results from json");
             // Read json objects as an array
-            JsonArray resultArray = JsonParser.parseReader(new FileReader(jsonResult)).getAsJsonArray();
+            JsonObject json = JsonParser.parseReader(new FileReader(jsonResult)).getAsJsonObject();
             GsonBuilder builder = new GsonBuilder();
             // Add deserializer for tags
-            builder.registerTypeAdapter(GoblintResult.tag.class, new TagInterfaceAdapter());
+            builder.registerTypeAdapter(GoblintResult.Message.tag.class, new TagInterfaceAdapter());
             Gson gson = builder.create();
-            // For each JsonObject
-            for (int i = 0; i < resultArray.size(); i++) {
-                // Deserailize them into GoblintResult objects
-                GoblintResult goblintResult = gson.fromJson(resultArray.get(i), GoblintResult.class);
-                // Convert GoblintResult object to a list of GoblintAnalysisResults
-                results.addAll(goblintResult.convert());
-            }
+            GoblintResult goblintResult = gson.fromJson(json, GoblintResult.class);
+            Collection<GoblintAnalysisResult> results = goblintResult.convert();
+            // this.projectFiles = goblintResult.getFiles();
             log.debug("Analysis results read from json");
-
+            return results;
         } catch (JsonIOException | JsonSyntaxException | FileNotFoundException | MalformedURLException e) {
             throw new RuntimeException(e);
         }
-
-        return results;
     }
 
     private boolean readGobPieConfiguration() {
