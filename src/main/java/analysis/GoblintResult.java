@@ -1,3 +1,5 @@
+package analysis;
+
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
 
@@ -121,7 +123,7 @@ public class GoblintResult {
 
     public List<String> getFiles() {
         Set<String> allFiles = new HashSet<>();
-        for (Entry<String,List<String>> entry : files.entrySet()) {
+        for (Entry<String, List<String>> entry : files.entrySet()) {
             allFiles.add(entry.getKey());
             allFiles.addAll(entry.getValue());
         }

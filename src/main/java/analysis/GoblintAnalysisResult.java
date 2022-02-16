@@ -1,3 +1,5 @@
+package analysis;
+
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
 

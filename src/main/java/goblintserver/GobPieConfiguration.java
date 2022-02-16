@@ -1,3 +1,5 @@
+package goblintserver;
+
 public class GobPieConfiguration {
 
     private String   goblintConf = "";
@@ -13,6 +15,7 @@ public class GobPieConfiguration {
     }
 
     public String[] getPreAnalyzeCommand() {
+        if (preAnalyzeCommand.length < 0) return null;
         return this.preAnalyzeCommand;
     }
 
