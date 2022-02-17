@@ -58,7 +58,7 @@ public class GoblintServer {
      * @return True if server was started successfully, false otherwise.
      */
 
-    public boolean startGoblitServer() {
+    public boolean startGoblintServer() {
         // read configuration file
         boolean gobpieconf = readGobPieConfiguration();
         if (!gobpieconf) return false;
