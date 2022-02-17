@@ -46,7 +46,7 @@ public class Main {
 
         // start GoblintServer
         GoblintServer goblintServer = new GoblintServer(magpieServer);
-        boolean gobServerStarted = goblintServer.startGoblitServer();
+        boolean gobServerStarted = goblintServer.startGoblintServer();
         if (!gobServerStarted) return null;
 
         // connect GoblintClient
