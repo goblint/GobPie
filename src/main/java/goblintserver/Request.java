@@ -13,6 +13,9 @@ public class Request {
 
     public Request(String method) {
         this.method = method;
+        if (method == "analyze") {
+            this.params = new params();
+        }
     }
 
     public String getJsonrpc() {
