@@ -82,8 +82,10 @@ public class GoblintAnalysis implements ServerAnalysis {
 
                 preAnalyse();
 
+                System.err.println("\n---------------------- Analysis started ----------------------");
                 MagpieServer server = (MagpieServer) consumer;
                 if (reanalyse()) server.consume(new ArrayList<>(readResultsFromJson()), source());
+                System.err.println("--------------------- Analysis finished ----------------------\n");
 
             }
         }
@@ -101,7 +103,9 @@ public class GoblintAnalysis implements ServerAnalysis {
         String[] preAnalyzeCommand = goblintServer.getPreAnalyzeCommand();
         if (preAnalyzeCommand != null) {
             try {
+                log.info("Preanalyze command ran: \"" + Arrays.toString(preAnalyzeCommand) + "\"");
                 runCommand(new File(System.getProperty("user.dir")), preAnalyzeCommand);
+                log.info("Preanalyze command finished.");
             } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
                 this.magpieServer.forwardMessageToClient(
                         new MessageParams(MessageType.Warning, "Running preanalysis command failed. " + e.getMessage()));
@@ -111,7 +115,7 @@ public class GoblintAnalysis implements ServerAnalysis {
 
 
     /**
-     * Sends the request to Goblint server to reanalyse.
+     * Sends the request to Goblint server to reanalyse and reads the result.
      *
      * @return returns true if the request was sucessful, false otherwise
      */
@@ -119,16 +123,20 @@ public class GoblintAnalysis implements ServerAnalysis {
     private boolean reanalyse() {
 
         // {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
-        String request = new GsonBuilder().create().toJson(new Request("analyze"));
+        String request1 = new GsonBuilder().create().toJson(new Request("analyze")) + "\n";
+        String request2 = new GsonBuilder().create().toJson(new Request("messages")) + "\n";
 
         try {
-            goblintClient.writeMessageToSocket(request);
+            goblintClient.writeRequestToSocket(request1);
+            goblintClient.readResultFromSocket();
+            goblintClient.writeRequestToSocket(request2);
+            goblintClient.readResultFromSocket();
             return true;
         } catch (IOException e) {
-            log.info("Sending the request to the server failed.");
+            log.info("Sending the request to or receiving result from the server failed: " + e);
+            e.printStackTrace();
             return false;
         }
-
     }
 
 

@@ -1,9 +1,13 @@
 package goblintserver;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
-import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 
@@ -19,6 +23,7 @@ public class GoblintClient {
 
     private MagpieServer magpieServer;
     private SocketChannel channel;
+    private UnixDomainSocketAddress address;
     private final String goblintSocketName = "goblint.sock";
 
     private final Logger log = LogManager.getLogger(GoblintClient.class);
@@ -38,7 +43,7 @@ public class GoblintClient {
     public boolean connectGoblitClient() {
         try {
             // connect to the goblint socket
-            UnixDomainSocketAddress address = UnixDomainSocketAddress.of(Path.of(goblintSocketName));
+            address = UnixDomainSocketAddress.of(Path.of(goblintSocketName));
             channel = SocketChannel.open(StandardProtocolFamily.UNIX);
             boolean connected = channel.connect(address);
             if (!connected) return false;
@@ -55,15 +60,25 @@ public class GoblintClient {
      * Method for sending the requests to Goblint server.
      */
 
-    public void writeMessageToSocket(String message) throws IOException {
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
-        buffer.clear();
-        buffer.put(message.getBytes());
-        buffer.flip();
-        while (buffer.hasRemaining()) {
-            channel.write(buffer);
-        }
-        log.debug("Message written to socket.");
+    public void writeRequestToSocket(String request) throws IOException {
+        OutputStream stream = Channels.newOutputStream(channel);
+        stream.write(request.getBytes());  
+        log.info(request);   
+        log.info("Request written to socket.");
+    }
+
+
+    /**
+     * Method for reading the results from Goblint server.
+     */
+
+    public String readResultFromSocket() throws IOException {
+        InputStream stream = Channels.newInputStream(channel);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+        String result = reader.readLine();
+        log.info(result);
+        log.info("Result read from socket.");
+        return result;
     }
 
 }

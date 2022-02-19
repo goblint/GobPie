@@ -7,7 +7,7 @@ import { LanguageClient, LanguageClientOptions, ServerOptions, StreamInfo } from
 
 export function activate(context: ExtensionContext) {
     let script = 'java';
-    let args = ['-jar',context.asAbsolutePath('goblintanalyzer-0.0.1-SNAPSHOT.jar')];
+    let args = ['-jar',context.asAbsolutePath('gobpie-0.0.2-SNAPSHOT.jar')];
     
     // Use this for communicating on stdio 
     let serverOptions: ServerOptions = {
@@ -41,7 +41,7 @@ export function activate(context: ExtensionContext) {
     };
     
     // Create the language client and start the client.
-    let lc : LanguageClient = new LanguageClient('GoblintAnalyzer','GoblintAnalyzer', serverOptions, clientOptions);
+    let lc : LanguageClient = new LanguageClient('GobPie','GobPie', serverOptions, clientOptions);
     lc.start();
 }
 

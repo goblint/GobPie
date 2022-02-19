@@ -23,7 +23,9 @@ import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
+import org.zeroturnaround.exec.ProcessResult;
 import org.zeroturnaround.exec.StartedProcess;
+import org.zeroturnaround.exec.listener.ProcessListener;
 
 import magpiebridge.core.MagpieServer;
 
@@ -74,6 +76,11 @@ public class GoblintServer {
                 log.error("Goblint exited with an error.");
                 return false;
             }
+
+            while(!goblintSocket.exists()) {
+                Thread.sleep(1000); 
+            }
+
             log.info("Goblint server started.");
 
             return true;
@@ -103,12 +110,30 @@ public class GoblintServer {
      */
 
     public StartedProcess runCommand(File dirPath, String[] command) throws IOException, InterruptedException, InvalidExitValueException, TimeoutException {
+        ProcessListener listener = new ProcessListener() {
+            public void afterFinish(Process process, ProcessResult result) {
+                magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, "Goblint server finished."));
+                log.info("Goblint server finished.");
+              }
+
+            public void afterStop(Process process) {
+                if (process.exitValue() != 0) {
+                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error."));
+                    log.error("Goblint server exited due to an error.");
+                } else {
+                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, "Goblint server has stopped."));
+                    log.info("Goblint server has stopped.");
+                }
+            }
+        };
+        
         log.debug("Waiting for command: " + command.toString() + " to run...");
         StartedProcess process = new ProcessExecutor()
                 .directory(dirPath)
                 .command(command)
                 .redirectOutput(System.err)
                 .redirectError(System.err)
+                .addListener(listener)
                 .start();
         return process;
     }
