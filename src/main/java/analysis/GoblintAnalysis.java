@@ -1,8 +1,6 @@
 package analysis;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.*;
@@ -19,9 +17,10 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonIOException;
-import com.google.gson.JsonParser;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 
 import org.eclipse.lsp4j.MessageParams;
@@ -41,8 +40,6 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final MagpieServer magpieServer;
     private final GoblintServer goblintServer;
     private final GoblintClient goblintClient;
-
-    private File jsonResult = new File("analysisResults.json");
 
     // private List<String> projectFiles; // for future use
 
@@ -84,7 +81,8 @@ public class GoblintAnalysis implements ServerAnalysis {
 
                 System.err.println("\n---------------------- Analysis started ----------------------");
                 MagpieServer server = (MagpieServer) consumer;
-                if (reanalyse()) server.consume(new ArrayList<>(readResultsFromJson()), source());
+                Collection<GoblintAnalysisResult> response = reanalyse();
+                if (response != null) server.consume(new ArrayList<>(response), source());
                 System.err.println("--------------------- Analysis finished ----------------------\n");
 
             }
@@ -120,22 +118,23 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @return returns true if the request was sucessful, false otherwise
      */
 
-    private boolean reanalyse() {
+    private Collection<GoblintAnalysisResult> reanalyse() {
 
         // {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
-        String request1 = new GsonBuilder().create().toJson(new Request("analyze")) + "\n";
-        String request2 = new GsonBuilder().create().toJson(new Request("messages")) + "\n";
+        String analyzeRequest = new GsonBuilder().create().toJson(new Request("analyze")) + "\n";
+        String messagesRequest = new GsonBuilder().create().toJson(new Request("messages")) + "\n";
 
         try {
-            goblintClient.writeRequestToSocket(request1);
-            goblintClient.readResultFromSocket();
-            goblintClient.writeRequestToSocket(request2);
-            goblintClient.readResultFromSocket();
-            return true;
+            goblintClient.writeRequestToSocket(analyzeRequest);
+            goblintClient.readResponseFromSocket();
+            goblintClient.writeRequestToSocket(messagesRequest);
+            JsonObject response = goblintClient.readResponseFromSocket();
+            Collection<GoblintAnalysisResult> results = convertResultsFromJson(response);
+            return results;
         } catch (IOException e) {
             log.info("Sending the request to or receiving result from the server failed: " + e);
             e.printStackTrace();
-            return false;
+            return null;
         }
     }
 
@@ -168,27 +167,34 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @return A collection of GoblintAnalysisResult objects.
      */
 
-    private Collection<GoblintAnalysisResult> readResultsFromJson() {
+    private Collection<GoblintAnalysisResult> convertResultsFromJson(JsonObject response) {
+        
+        Collection<GoblintAnalysisResult> results = new ArrayList<>();
+
         try {
-            log.debug("Reading analysis results from json");
+            log.debug("Reading analysis results from json.");
             // Read json objects as an array
-            JsonElement json = JsonParser.parseReader(new FileReader(jsonResult));
-            if (!json.isJsonObject()) {
+            JsonArray messagesArray = response.get("result").getAsJsonArray();
+            if (messagesArray != null && !messagesArray.isJsonArray()) {
                 log.error("Reading analysis results failed.");
                 this.magpieServer.forwardMessageToClient(
                         new MessageParams(MessageType.Error, "Reading analysis results failed."));
-                return new ArrayList<GoblintAnalysisResult>();
+                return null;
             }
             GsonBuilder builder = new GsonBuilder();
             // Add deserializer for tags
-            builder.registerTypeAdapter(GoblintResult.Message.tag.class, new TagInterfaceAdapter());
+            builder.registerTypeAdapter(GoblintMessages.tag.class, new TagInterfaceAdapter());
             Gson gson = builder.create();
-            GoblintResult goblintResult = gson.fromJson(json.getAsJsonObject(), GoblintResult.class);
-            Collection<GoblintAnalysisResult> results = goblintResult.convert();
-            // this.projectFiles = goblintResult.getFiles();
+
+            for (JsonElement msg : messagesArray) {
+                GoblintMessages goblintResult = gson.fromJson(msg, GoblintMessages.class);
+                results.addAll(goblintResult.convert());
+            }
+
             log.debug("Analysis results read from json");
+            
             return results;
-        } catch (JsonIOException | JsonSyntaxException | FileNotFoundException | MalformedURLException e) {
+        } catch (JsonIOException | JsonSyntaxException | MalformedURLException e) {
             throw new RuntimeException(e);
         }
     }

@@ -6,20 +6,11 @@ import com.ibm.wala.util.collections.Pair;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 
-public class GoblintResult {
-
-    private Map<String, List<String>> files;
-    private List<Message> messages = new ArrayList<>();
-
-    static class Message {
+public class GoblintMessages {
 
         private List<tag> tags = new ArrayList<>();
         private String severity;
@@ -80,26 +71,25 @@ public class GoblintResult {
                     private int endColumn;
                 }
             }
-        }
     }
+
 
     public List<GoblintAnalysisResult> convert() throws MalformedURLException {
         List<GoblintAnalysisResult> results = new ArrayList<>();
 
-        for (Message message : messages) {
-            if (message.multipiece.group_text == null) {
-                String msg = message.tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " " + message.multipiece.text;
-                GoblintPosition pos = new GoblintPosition(message.multipiece.loc.line, message.multipiece.loc.endLine, message.multipiece.loc.column - 1, message.multipiece.loc.endColumn - 1, new File(message.multipiece.loc.file).toURI().toURL());
-                GoblintAnalysisResult result = new GoblintAnalysisResult(pos, msg, message.severity);
+            if (multipiece.group_text == null) {
+                String msg = tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " " + multipiece.text;
+                GoblintPosition pos = new GoblintPosition(multipiece.loc.line, multipiece.loc.endLine, multipiece.loc.column - 1, multipiece.loc.endColumn - 1, new File(multipiece.loc.file).toURI().toURL());
+                GoblintAnalysisResult result = new GoblintAnalysisResult(pos, msg, severity);
                 results.add(result);
             } else {
                 List<GoblintAnalysisResult> intermresults = new ArrayList<>();
-                List<Message.multipiece.pieces> pieces = message.multipiece.pieces;
-                for (Message.multipiece.pieces piece : pieces) {
+                List<multipiece.pieces> pieces = multipiece.pieces;
+                for (multipiece.pieces piece : pieces) {
                     GoblintPosition pos = new GoblintPosition(piece.loc.line, piece.loc.endLine, piece.loc.column - 1, piece.loc.endColumn - 1, new File(piece.loc.file).toURI().toURL());
                     GoblintAnalysisResult result = new GoblintAnalysisResult(pos,
-                            message.tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " Group: " + message.multipiece.group_text,
-                            piece.text, message.severity);
+                            tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
+                            piece.text, severity);
                     intermresults.add(result);
                 }
                 // Add related warnings to all the group elements
@@ -115,19 +105,18 @@ public class GoblintResult {
                             res1.severityStr(), related));
                 }
                 results.addAll(addedRelated);
-            }
         }
         return results;
     }
 
 
-    public List<String> getFiles() {
-        Set<String> allFiles = new HashSet<>();
-        for (Entry<String, List<String>> entry : files.entrySet()) {
-            allFiles.add(entry.getKey());
-            allFiles.addAll(entry.getValue());
-        }
-        return new ArrayList<>(allFiles);
-    }
+    // public List<String> getFiles() {
+    //     Set<String> allFiles = new HashSet<>();
+    //     for (Entry<String, List<String>> entry : files.entrySet()) {
+    //         allFiles.add(entry.getKey());
+    //         allFiles.addAll(entry.getValue());
+    //     }
+    //     return new ArrayList<>(allFiles);
+    // }
 
 }

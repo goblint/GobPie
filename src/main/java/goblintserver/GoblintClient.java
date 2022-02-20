@@ -11,6 +11,10 @@ import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
@@ -62,23 +66,22 @@ public class GoblintClient {
 
     public void writeRequestToSocket(String request) throws IOException {
         OutputStream stream = Channels.newOutputStream(channel);
-        stream.write(request.getBytes());  
-        log.info(request);   
+        stream.write(request.getBytes());    
         log.info("Request written to socket.");
     }
 
 
     /**
-     * Method for reading the results from Goblint server.
+     * Method for reading the response from Goblint server.
      */
 
-    public String readResultFromSocket() throws IOException {
+    public JsonObject readResponseFromSocket() throws IOException {
         InputStream stream = Channels.newInputStream(channel);
         BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-        String result = reader.readLine();
-        log.info(result);
-        log.info("Result read from socket.");
-        return result;
+        String response = reader.readLine();
+        log.info("Response read from socket.");
+        JsonObject responseJson = new Gson().fromJson (response, JsonElement.class).getAsJsonObject();
+        return responseJson;
     }
 
 }
