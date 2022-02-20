@@ -28,6 +28,9 @@ public class GoblintClient {
     private MagpieServer magpieServer;
     private SocketChannel channel;
     private UnixDomainSocketAddress address;
+    private OutputStream outputStream;
+    private BufferedReader inputReader;
+    
     private final String goblintSocketName = "goblint.sock";
 
     private final Logger log = LogManager.getLogger(GoblintClient.class);
@@ -50,6 +53,9 @@ public class GoblintClient {
             address = UnixDomainSocketAddress.of(Path.of(goblintSocketName));
             channel = SocketChannel.open(StandardProtocolFamily.UNIX);
             boolean connected = channel.connect(address);
+            outputStream = Channels.newOutputStream(channel);
+            InputStream inputStream = Channels.newInputStream(channel);
+            inputReader = new BufferedReader(new InputStreamReader(inputStream));
             if (!connected) return false;
             log.info("Goblint client connected.");
             return true;
@@ -65,8 +71,7 @@ public class GoblintClient {
      */
 
     public void writeRequestToSocket(String request) throws IOException {
-        OutputStream stream = Channels.newOutputStream(channel);
-        stream.write(request.getBytes());    
+        outputStream.write(request.getBytes());    
         log.info("Request written to socket.");
     }
 
@@ -76,9 +81,7 @@ public class GoblintClient {
      */
 
     public JsonObject readResponseFromSocket() throws IOException {
-        InputStream stream = Channels.newInputStream(channel);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-        String response = reader.readLine();
+        String response = inputReader.readLine();
         log.info("Response read from socket.");
         JsonObject responseJson = new Gson().fromJson (response, JsonElement.class).getAsJsonObject();
         return responseJson;
