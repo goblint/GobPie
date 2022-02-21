@@ -3,28 +3,16 @@ package goblintserver;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
+import java.io.*;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
+import com.google.gson.*;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
-import org.zeroturnaround.exec.InvalidExitValueException;
-import org.zeroturnaround.exec.ProcessExecutor;
-import org.zeroturnaround.exec.ProcessResult;
-import org.zeroturnaround.exec.StartedProcess;
+import org.zeroturnaround.exec.*;
 import org.zeroturnaround.exec.listener.ProcessListener;
 
 import magpiebridge.core.MagpieServer;
@@ -35,7 +23,6 @@ public class GoblintServer {
     private MagpieServer magpieServer;
 
     private File gobPieConf = new File("gobpie.json");
-    private File jsonResult = new File("analysisResults.json");
     private File goblintSocket = new File("goblint.sock");
 
     private String[] preAnalyzeCommand;
@@ -175,8 +162,7 @@ public class GoblintServer {
                                     "--enable", "server.enabled",
                                     //    "--enable", "server.reparse",
                                     "--set", "server.mode", "unix",
-                                    "--set", "server.unix-socket", goblintSocket.getAbsolutePath(),
-                                    "--set", "result", "json-messages", "-o", jsonResult.getAbsolutePath()}),
+                                    "--set", "server.unix-socket", goblintSocket.getAbsolutePath()}),
                             Arrays.stream(gobpieConfiguration.getFiles()))
                     .toArray(String[]::new);
 

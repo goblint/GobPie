@@ -30,7 +30,7 @@ Example configuration file `gobpie.json`:
 {
     "goblintConf" : "goblint.json",
     "files" : ["./build"], 
-    "preAnalyzeCommand" : ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "build"]
+    "preAnalyzeCommand" : ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"]
 }
 ```
 

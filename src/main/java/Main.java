@@ -39,6 +39,7 @@ public class Main {
 
         // set up configuration for MagpieServer
         ServerConfiguration serverConfig = new ServerConfiguration();
+        serverConfig.setDoAnalysisByFirstOpen(false);
         MagpieServer magpieServer = new MagpieServer(serverConfig);
 
         // define language

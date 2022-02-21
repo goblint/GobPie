@@ -15,13 +15,7 @@ import magpiebridge.core.MagpieServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
+import com.google.gson.*;
 
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
@@ -40,8 +34,6 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final MagpieServer magpieServer;
     private final GoblintServer goblintServer;
     private final GoblintClient goblintClient;
-
-    // private List<String> projectFiles; // for future use
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
@@ -192,7 +184,7 @@ public class GoblintAnalysis implements ServerAnalysis {
             }
 
             log.debug("Analysis results read from json");
-            
+
             return results;
         } catch (JsonIOException | JsonSyntaxException | MalformedURLException e) {
             throw new RuntimeException(e);
