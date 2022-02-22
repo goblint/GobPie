@@ -160,7 +160,7 @@ public class GoblintServer {
             this.goblintRunCommand = Stream.concat(
                             Arrays.stream(new String[]{"goblint", "--conf", new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath(),
                                     "--enable", "server.enabled",
-                                    //    "--enable", "server.reparse",
+                                    "--enable", "server.reparse",
                                     "--set", "server.mode", "unix",
                                     "--set", "server.unix-socket", goblintSocket.getAbsolutePath()}),
                             Arrays.stream(gobpieConfiguration.getFiles()))
