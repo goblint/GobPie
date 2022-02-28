@@ -23,8 +23,8 @@ public class GoblintServer {
 
     private MagpieServer magpieServer;
 
-    private File gobPieConf = new File("gobpie.json");
-    private File goblintSocket = new File("goblint.sock");
+    private String gobPieConf = "gobpie.json";
+    private String goblintSocket = "goblint.sock";
 
     private String[] preAnalyzeCommand;
     private String[] goblintRunCommand;
@@ -72,7 +72,8 @@ public class GoblintServer {
             WatchKey key;
             while ((key = watchService.take()) != null) {
                 for (WatchEvent<?> event : key.pollEvents()) {
-                    if (event.context().toString().equals(goblintSocket.toString())) {
+                    
+                    if (((Path) event.context()).equals(Paths.get(goblintSocket))) {
                         log.info("Goblint server started.");
                         return true;
                     }
@@ -173,7 +174,7 @@ public class GoblintServer {
                                     "--enable", "server.enabled",
                                     "--enable", "server.reparse",
                                     "--set", "server.mode", "unix",
-                                    "--set", "server.unix-socket", goblintSocket.getAbsolutePath()}),
+                                    "--set", "server.unix-socket", new File(goblintSocket).getAbsolutePath()}),
                             Arrays.stream(gobpieConfiguration.getFiles()))
                     .toArray(String[]::new);
 

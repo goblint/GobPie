@@ -29,8 +29,8 @@ public class Main {
                 log.info("Unable to launch MagpieBridge.");
             } else {
                 magpieServer.launchOnStdio();
-                magpieServer.doAnalysis("c", true);
                 log.info("MagpieBridge server launched.");
+                magpieServer.doAnalysis("c", true);
             }
         }
     }
