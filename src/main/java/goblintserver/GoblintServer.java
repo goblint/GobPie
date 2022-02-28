@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 import java.io.*;
+import java.nio.file.*;
 
 import com.google.gson.*;
 
@@ -64,13 +65,23 @@ public class GoblintServer {
                 return false;
             }
 
-            while(!goblintSocket.exists()) {
-                Thread.sleep(1000); 
+            // wait until Goblint socket is created before continuing
+            WatchService watchService = FileSystems.getDefault().newWatchService();
+            Path path = Paths.get(System.getProperty("user.dir"));
+            path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE );
+            WatchKey key;
+            while ((key = watchService.take()) != null) {
+                for (WatchEvent<?> event : key.pollEvents()) {
+                    if (event.context().toString().equals(goblintSocket.toString())) {
+                        log.info("Goblint server started.");
+                        return true;
+                    }
+                }
+                key.reset();
             }
 
-            log.info("Goblint server started.");
-
-            return true;
+            return false;
+            
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
             this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Running Goblint failed. " + e.getMessage()));
             return false;
