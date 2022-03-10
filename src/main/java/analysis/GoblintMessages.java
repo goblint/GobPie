@@ -78,18 +78,13 @@ public class GoblintMessages {
         List<GoblintAnalysisResult> results = new ArrayList<>();
 
             if (multipiece.group_text == null) {
-                String msg = tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " " + multipiece.text;
-                GoblintPosition pos = new GoblintPosition(multipiece.loc.line, multipiece.loc.endLine, multipiece.loc.column - 1, multipiece.loc.endColumn - 1, new File(multipiece.loc.file).toURI().toURL());
-                GoblintAnalysisResult result = new GoblintAnalysisResult(pos, msg, severity);
+                GoblintAnalysisResult result = createGoblintAnalysisResult();
                 results.add(result);
             } else {
                 List<GoblintAnalysisResult> intermresults = new ArrayList<>();
                 List<multipiece.pieces> pieces = multipiece.pieces;
                 for (multipiece.pieces piece : pieces) {
-                    GoblintPosition pos = new GoblintPosition(piece.loc.line, piece.loc.endLine, piece.loc.column - 1, piece.loc.endColumn - 1, new File(piece.loc.file).toURI().toURL());
-                    GoblintAnalysisResult result = new GoblintAnalysisResult(pos,
-                            tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
-                            piece.text, severity);
+                    GoblintAnalysisResult result = createGoblintAnalysisResult(piece);
                     intermresults.add(result);
                 }
                 // Add related warnings to all the group elements
@@ -106,7 +101,27 @@ public class GoblintMessages {
                 }
                 results.addAll(addedRelated);
         }
+
         return results;
+    }
+
+
+    public GoblintAnalysisResult createGoblintAnalysisResult() throws MalformedURLException {
+        GoblintPosition pos = multipiece.loc == null 
+                              ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL()) 
+                              : new GoblintPosition(multipiece.loc.line, multipiece.loc.endLine, multipiece.loc.column - 1, multipiece.loc.endColumn - 1, new File(multipiece.loc.file).toURI().toURL());
+        String msg = tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " " + multipiece.text;
+        return new GoblintAnalysisResult(pos, msg, severity);
+    }
+
+
+    public GoblintAnalysisResult createGoblintAnalysisResult(multipiece.pieces piece) throws MalformedURLException {
+        GoblintPosition pos = multipiece.loc == null
+                              ? new GoblintPosition(1, 1, 5, new File("").toURI().toURL())
+                              : new GoblintPosition(piece.loc.line, piece.loc.endLine, piece.loc.column - 1, piece.loc.endColumn - 1, new File(piece.loc.file).toURI().toURL());
+        return new GoblintAnalysisResult(pos,
+                    tags.stream().map(tag -> tag.toString()).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
+                    piece.text, severity);
     }
 
 
