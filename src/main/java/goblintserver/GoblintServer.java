@@ -2,7 +2,6 @@ package goblintserver;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Stream;
 import java.io.*;
 import java.nio.file.*;
 
@@ -161,21 +160,20 @@ public class GoblintServer {
             this.preAnalyzeCommand = gobpieConfiguration.getPreAnalyzeCommand();
 
             // Check if all required parameters have been set
-            if (gobpieConfiguration.getGoblintConf().equals("") || gobpieConfiguration.getFiles() == null || gobpieConfiguration.getFiles().length < 1) {
+            if (gobpieConfiguration.getGoblintConf().equals("")) {
                 log.debug("Configuration parameters missing from GobPie configuration file");
                 this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Configuration parameters missing from GobPie configuration file."));
                 return false;
             }
 
             // Construct command to run Goblint Server 
-            // by concatenating the run command with files to analyse (read from GobPie conf)
-            this.goblintRunCommand = Stream.concat(
-                            Arrays.stream(new String[]{"goblint", "--conf", new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath(),
+            // Files to analyse must be defined in goblint conf
+            this.goblintRunCommand = Arrays.stream(new String[]{
+                                    "goblint", "--conf", new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath(),
                                     "--enable", "server.enabled",
                                     "--enable", "server.reparse",
                                     "--set", "server.mode", "unix",
-                                    "--set", "server.unix-socket", new File(goblintSocket).getAbsolutePath()}),
-                            Arrays.stream(gobpieConfiguration.getFiles()))
+                                    "--set", "server.unix-socket", new File(goblintSocket).getAbsolutePath()})
                     .toArray(String[]::new);
 
             log.debug("GobPie configuration read from json");
