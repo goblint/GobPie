@@ -12,6 +12,8 @@ import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.ServerAnalysis;
 import magpiebridge.core.MagpieServer;
 
+import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
+import org.apache.commons.io.monitor.FileAlterationObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -34,6 +36,7 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final MagpieServer magpieServer;
     private final GoblintServer goblintServer;
     private final GoblintClient goblintClient;
+    private final FileAlterationObserver goblintConfObserver;
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
@@ -42,6 +45,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         this.magpieServer = magpieServer;
         this.goblintServer = goblintServer;
         this.goblintClient = goblintClient;
+        this.goblintConfObserver = createGoblintConfObserver();
     }
 
 
@@ -69,6 +73,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         if (rerun) {
             if (consumer instanceof MagpieServer) {
 
+                goblintConfObserver.checkAndNotify();
                 preAnalyse();
 
                 System.err.println("\n---------------------- Analysis started ----------------------");
@@ -189,6 +194,37 @@ public class GoblintAnalysis implements ServerAnalysis {
         } catch (JsonIOException | JsonSyntaxException | MalformedURLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+
+    /**
+     * Method for creating an observer for Goblint configuration file.
+     * So that the server could be restarted when the configuration file is changed.
+     *
+     * @return The FileAlterationObserver of project root directory.
+     */
+
+    public FileAlterationObserver createGoblintConfObserver() {
+        FileAlterationObserver observer = new FileAlterationObserver(System.getProperty("user.dir"));
+        
+        observer.addListener(new FileAlterationListenerAdaptor() {        
+            @Override
+            public void onFileChange(File file) {
+                if (file.getName().equals(goblintServer.getGoblintConf())) {
+                    goblintServer.restartGoblintServer();
+                    goblintClient.connectGoblintClient();
+                }
+            }
+        });
+        
+        try {
+            observer.initialize();
+        } catch (Exception e) {
+            this.magpieServer.forwardMessageToClient(
+                new MessageParams(MessageType.Warning, "After changing the files list in Goblint configuration the server will not be automatically restarted. Close and reopen the IDE to restart the server manually if needed."));
+                log.error("Initializing goblintConfObserver failed: " + e.getMessage());
+        }
+        return observer;
     }
 
 
