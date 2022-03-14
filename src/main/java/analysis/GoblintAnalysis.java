@@ -1,6 +1,7 @@
 package analysis;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.*;
@@ -205,15 +206,21 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
 
     public FileAlterationObserver createGoblintConfObserver() {
-        FileAlterationObserver observer = new FileAlterationObserver(System.getProperty("user.dir"));
-        
+
+        FileFilter fileFilter = new FileFilter() {
+            @Override
+            public boolean accept(File file) {
+                if (file.getName().equals(goblintServer.getGoblintConf())) return true;
+                return false;
+            };
+        };
+
+        FileAlterationObserver observer = new FileAlterationObserver(System.getProperty("user.dir"), fileFilter);
         observer.addListener(new FileAlterationListenerAdaptor() {        
             @Override
             public void onFileChange(File file) {
-                if (file.getName().equals(goblintServer.getGoblintConf())) {
-                    goblintServer.restartGoblintServer();
-                    goblintClient.connectGoblintClient();
-                }
+                goblintServer.restartGoblintServer();
+                goblintClient.connectGoblintClient();
             }
         });
         
