@@ -23,20 +23,21 @@ The project must have:
 1. GobPie configuration file in project root with name "`gobpie.json`"
 2. Goblint configuration file ([see examples](https://github.com/goblint/analyzer/tree/master/conf))
 
-#### Gobpie configuration file
 
 Example configuration file `gobpie.json`:
 ```
 {
     "goblintConf" : "goblint.json",
-    "files" : ["./build"], 
     "preAnalyzeCommand" : ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"]
 }
 ```
 
 * `goblintConf` - the relative path from project root to the goblint configuration file (required)
-* `files` - the relative paths from project root to the files to be analysed (required)
 * `preAnalyzeCommand` - the command to run before analysing (e.g. command for building/updating the compilation database for some automation) (optional)
+
+Goblint configuration file (e.g. `goblint.json`) must have field `files` defined:
+
+* `files` - a list of the relative paths from project root to the files to be analysed (required)
 
 Example values for `files`:
 * analyse files according to a compilation database:

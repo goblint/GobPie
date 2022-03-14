@@ -53,7 +53,7 @@ public class Main {
 
         // connect GoblintClient
         GoblintClient goblintClient = new GoblintClient(magpieServer);
-        boolean goblintClientConnected = goblintClient.connectGoblitClient();
+        boolean goblintClientConnected = goblintClient.connectGoblintClient();
         if (!goblintClientConnected) return null;
 
         // add analysis to the MagpieServer

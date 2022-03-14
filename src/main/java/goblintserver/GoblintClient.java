@@ -47,7 +47,7 @@ public class GoblintClient {
      * @return True if connection was started successfully, false otherwise.
      */
 
-    public boolean connectGoblitClient() {
+    public boolean connectGoblintClient() {
         try {
             // connect to the goblint socket
             address = UnixDomainSocketAddress.of(Path.of(goblintSocketName));
