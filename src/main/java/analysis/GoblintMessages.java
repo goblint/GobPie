@@ -116,7 +116,7 @@ public class GoblintMessages {
 
 
     public GoblintAnalysisResult createGoblintAnalysisResult(multipiece.pieces piece) throws MalformedURLException {
-        GoblintPosition pos = multipiece.loc == null
+        GoblintPosition pos = piece.loc == null
                               ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
                               : new GoblintPosition(piece.loc.line, piece.loc.endLine, piece.loc.column - 1, piece.loc.endColumn - 1, new File(piece.loc.file).toURI().toURL());
         return new GoblintAnalysisResult(pos,
