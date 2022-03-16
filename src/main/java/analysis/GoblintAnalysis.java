@@ -229,7 +229,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         } catch (Exception e) {
             this.magpieServer.forwardMessageToClient(
                 new MessageParams(MessageType.Warning, "After changing the files list in Goblint configuration the server will not be automatically restarted. Close and reopen the IDE to restart the server manually if needed."));
-                log.error("Initializing goblintConfObserver failed: " + e.getMessage());
+            log.error("Initializing goblintConfObserver failed: " + e.getMessage());
         }
         return observer;
     }

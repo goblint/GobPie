@@ -22,8 +22,8 @@ public class GoblintServer {
 
     private MagpieServer magpieServer;
 
-    private String gobPieConf = "gobpie.json";
-    private String goblintSocket = "goblint.sock";
+    private final String gobPieConf;
+    private final String goblintSocket = "goblint.sock";
     private String goblintConf;
 
     private String[] preAnalyzeCommand;
@@ -34,8 +34,13 @@ public class GoblintServer {
     private final Logger log = LogManager.getLogger(GoblintClient.class);
 
 
-    public GoblintServer(MagpieServer magpieServer) {
+    public GoblintServer(MagpieServer magpieServer, String gobPieConfFileName) {
         this.magpieServer = magpieServer;
+        this.gobPieConf = gobPieConfFileName;
+    }
+
+    public String getGobPieConf() {
+        return gobPieConf;
     }
 
 
@@ -91,7 +96,7 @@ public class GoblintServer {
             return false;
             
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
-            this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Running Goblint failed. " + e.getMessage()));
+            log.error("Running Goblint failed. " + e.getMessage());
             return false;
         }
     }
@@ -136,8 +141,8 @@ public class GoblintServer {
                 } else if (process.exitValue() == 143) {
                     log.info("Goblint server has been killed.");
                 } else {
-                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error."));
-                    log.error("Goblint server exited due to an error.");
+                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error. Please check the output terminal of GobPie extension for more information."));
+                    log.error("Goblint server exited due to an error. Please fix the issue reported above and restart the extension.");
                 }
             }
         };
@@ -179,8 +184,7 @@ public class GoblintServer {
 
             // Check if all required parameters have been set
             if (goblintConf.equals("")) {
-                log.debug("Configuration parameters missing from GobPie configuration file");
-                this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Configuration parameters missing from GobPie configuration file."));
+                log.error("Configuration parameters missing from GobPie configuration file.");
                 return false;
             }
 
@@ -196,7 +200,7 @@ public class GoblintServer {
 
             log.debug("GobPie configuration read from json");
         } catch (FileNotFoundException e) {
-            this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Could not locate GobPie configuration file. " + e.getMessage()));
+            log.error("Could not locate GobPie configuration file. " + e.getMessage());
             return false;
         }
         return true;
