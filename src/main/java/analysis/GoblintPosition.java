@@ -6,6 +6,13 @@ import com.ibm.wala.classLoader.IMethod;
 import java.io.Reader;
 import java.net.URL;
 
+/**
+ * The Class GoblintPosition.
+ * 
+ * @author      Karoliine Holter
+ * @since       0.0.1
+ */
+
 public class GoblintPosition implements Position {
 
     private int columnStart;

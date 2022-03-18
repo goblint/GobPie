@@ -15,6 +15,15 @@ import org.zeroturnaround.exec.listener.ProcessListener;
 
 import static goblintserver.GobPieExceptionType.*;
 
+/**
+ * The Class GoblintServer.
+ * 
+ * Reads the configuration for GobPie extension, including Goblint's configuration file name.
+ * Starts Goblint Server and waits for the unix socket to be created.
+ * 
+ * @author      Karoliine Holter
+ * @since       0.0.2
+ */
 
 public class GoblintServer {
 
@@ -52,8 +61,7 @@ public class GoblintServer {
     /**
      * Method to start the Goblint server.
      *
-     * @return True if server was started successfully, false otherwise.
-     * @throws GobPieException
+     * @throws GobPieException thrown when running Goblint failed
      */
 
     public void startGoblintServer() throws GobPieException {
@@ -99,8 +107,7 @@ public class GoblintServer {
     /**
      * Method to restart the Goblint server.
      *
-     * @return True if new server was started successfully, false otherwise.
-     * @throws GobPieException
+     * @throws GobPieException thrown if starting Goblint Server throws an exception
      */
 
     public void restartGoblintServer() throws GobPieException {
@@ -147,11 +154,10 @@ public class GoblintServer {
      * Method for reading GobPie configuration.
      * Deserializes json to GobPieConfiguration object.
      *
-     * @return true if gobpie configuration was read sucessfully, false otherwise:
-     *      * no goblint configuration file was specified;
-     *      * no files to analyse have been listed;
-     *      * no gobpie.json file is found in root directory
-     * @throws GobPieException is thrown if gobpie conf cannot be found or the configuration parameters are missing.
+     * @throws GobPieException is thrown if
+     *      * configuration parameters are missing (no goblint configuration file was specified);
+     *      * gobpie conf cannot be found (no gobpie.json file is found in root directory)
+     *      * gobpie conf's json syntax is wrong
      */
 
     private void readGobPieConfiguration() throws GobPieException {

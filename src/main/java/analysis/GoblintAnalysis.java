@@ -224,8 +224,12 @@ public class GoblintAnalysis implements ServerAnalysis {
                     goblintServer.restartGoblintServer();
                     goblintClient.connectGoblintClient();
                 } catch (GobPieException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+                    String message = "Unable to restart GobPie extension: " + e.getMessage();
+                        magpieServer.forwardMessageToClient( 
+                            new MessageParams(MessageType.Error, message + " Please check the output terminal of GobPie extension for more information.")
+                        );
+                    if (e.getCause() == null) log.error(message);
+                    else log.error(message + " Cause: " + e.getCause().getMessage());
                 }
             }
         });

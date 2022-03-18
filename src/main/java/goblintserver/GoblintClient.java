@@ -18,6 +18,14 @@ import com.google.gson.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * The Class GoblintClient.
+ * 
+ * Handles the communication with Goblint Server through unix socket.
+ * 
+ * @author      Karoliine Holter
+ * @since       0.0.2
+ */
 
 public class GoblintClient {
 
@@ -37,7 +45,6 @@ public class GoblintClient {
     /**
      * Method for connecting to Goblint server socket.
      *
-     * @return true if connection was started successfully, false otherwise.
      * @throws GobPieException in case Goblint socket is missing or the client was unable to connect to the socket.
      */
 
@@ -70,6 +77,7 @@ public class GoblintClient {
 
     /**
      * Method for reading the response from Goblint server.
+     * @return JsonObject of the results read from Goblint socket.
      */
 
     public JsonObject readResponseFromSocket() throws IOException {

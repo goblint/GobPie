@@ -60,12 +60,7 @@ public class Main {
      * Otherwise just a server without an analysis added to it is created. 
      * This is due to the extension having to start something in able to not just crash.
      *
-     * @return exit value:
-     *          0 - if Goblint Server is created and successfully connected to MagPieBridge
-     *          1 - if Goblint Server was not started successfully
-     *          2 - if Goblint Client could not connect to Goblint Server
-     *          3 - if GobPie configuration file was missing and running Goblint Server was not possible
-     * @throws GobPieException
+     * @throws GobPieException if something goes wrong in any of the steps.
      */
 
     private static void createMagpieServer() throws GobPieException {
@@ -106,7 +101,7 @@ public class Main {
 
 
     /**
-     * Method for waiting until GobPie configuration file is created
+     * Method for waiting until GobPie configuration file is created or modified to satisfy the requirements
      * and then restarting the server so that analyses can be run.
      */
 

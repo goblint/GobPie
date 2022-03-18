@@ -1,5 +1,14 @@
 package goblintserver;
 
+/**
+ * The Class Request.
+ * 
+ * Corresponding object to the jsonrpc request JSON.
+ * 
+ * @author      Karoliine Holter
+ * @since       0.0.2
+ */
+
 public class Request {
     // // {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
 
