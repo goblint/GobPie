@@ -10,17 +10,13 @@ import com.google.gson.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import org.eclipse.lsp4j.MessageParams;
-import org.eclipse.lsp4j.MessageType;
 import org.zeroturnaround.exec.*;
 import org.zeroturnaround.exec.listener.ProcessListener;
 
-import magpiebridge.core.MagpieServer;
+import static goblintserver.GobPieExceptionType.*;
 
 
 public class GoblintServer {
-
-    private MagpieServer magpieServer;
 
     private final String gobPieConf;
     private final String goblintSocket = "goblint.sock";
@@ -34,8 +30,7 @@ public class GoblintServer {
     private final Logger log = LogManager.getLogger(GoblintClient.class);
 
 
-    public GoblintServer(MagpieServer magpieServer, String gobPieConfFileName) {
-        this.magpieServer = magpieServer;
+    public GoblintServer(String gobPieConfFileName) {
         this.gobPieConf = gobPieConfFileName;
     }
 
@@ -58,12 +53,12 @@ public class GoblintServer {
      * Method to start the Goblint server.
      *
      * @return True if server was started successfully, false otherwise.
+     * @throws GobPieException
      */
 
-    public boolean startGoblintServer() {
+    public void startGoblintServer() throws GobPieException {
         // read configuration file
-        boolean gobpieconf = readGobPieConfiguration();
-        if (!gobpieconf) return false;
+        readGobPieConfiguration();
 
         try {
             // run command to start goblint
@@ -71,33 +66,23 @@ public class GoblintServer {
 
             goblintRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand);
 
-            if (goblintRunProcess.getFuture().isDone() && goblintRunProcess.getProcess().exitValue() != 0) {
-                magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint exited with an error."));
-                log.error("Goblint exited with an error.");
-                return false;
-            }
-
             // wait until Goblint socket is created before continuing
             WatchService watchService = FileSystems.getDefault().newWatchService();
             Path path = Paths.get(System.getProperty("user.dir"));
-            path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE );
+            path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE);
             WatchKey key;
             while ((key = watchService.take()) != null) {
                 for (WatchEvent<?> event : key.pollEvents()) {
-                    
                     if (((Path) event.context()).equals(Paths.get(goblintSocket))) {
                         log.info("Goblint server started.");
-                        return true;
+                        return;
                     }
                 }
                 key.reset();
             }
-
-            return false;
             
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
-            log.error("Running Goblint failed. " + e.getMessage());
-            return false;
+            throw new GobPieException("Running Goblint failed.", e, GOBLINT_EXCEPTION);
         }
     }
 
@@ -115,11 +100,12 @@ public class GoblintServer {
      * Method to restart the Goblint server.
      *
      * @return True if new server was started successfully, false otherwise.
+     * @throws GobPieException
      */
 
-    public boolean restartGoblintServer() {
+    public void restartGoblintServer() throws GobPieException {
         stopGoblintServer();
-        return startGoblintServer();
+        startGoblintServer();
     }
 
 
@@ -136,12 +122,10 @@ public class GoblintServer {
 
             public void afterStop(Process process) {
                 if (process.exitValue() == 0) {
-                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, "Goblint server has stopped."));
                     log.info("Goblint server has stopped.");
                 } else if (process.exitValue() == 143) {
                     log.info("Goblint server has been killed.");
                 } else {
-                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error. Please check the output terminal of GobPie extension for more information."));
                     log.error("Goblint server exited due to an error. Please fix the issue reported above and restart the extension.");
                 }
             }
@@ -167,9 +151,10 @@ public class GoblintServer {
      *      * no goblint configuration file was specified;
      *      * no files to analyse have been listed;
      *      * no gobpie.json file is found in root directory
+     * @throws GobPieException is thrown if gobpie conf cannot be found or the configuration parameters are missing.
      */
 
-    private boolean readGobPieConfiguration() {
+    private void readGobPieConfiguration() throws GobPieException {
         try {
             log.debug("Reading GobPie configuration from json");
 
@@ -184,8 +169,7 @@ public class GoblintServer {
 
             // Check if all required parameters have been set
             if (goblintConf.equals("")) {
-                log.error("Configuration parameters missing from GobPie configuration file.");
-                return false;
+                throw new GobPieException("Configuration parameters missing from GobPie configuration file.", GOBPIE_CONF_EXCEPTION);
             }
 
             // Construct command to run Goblint Server 
@@ -200,10 +184,10 @@ public class GoblintServer {
 
             log.debug("GobPie configuration read from json");
         } catch (FileNotFoundException e) {
-            log.error("Could not locate GobPie configuration file. " + e.getMessage());
-            return false;
+            throw new GobPieException("Could not locate GobPie configuration file.", e, GOBPIE_CONF_EXCEPTION);
+        } catch (JsonSyntaxException e) {
+            throw new GobPieException("Gobpie configuration file syntax is wrong.", e, GOBPIE_CONF_EXCEPTION);
         }
-        return true;
     }
 
 }

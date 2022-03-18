@@ -27,6 +27,7 @@ import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 
+import goblintserver.GobPieException;
 import goblintserver.GoblintClient;
 import goblintserver.GoblintServer;
 import goblintserver.Request;
@@ -219,8 +220,13 @@ public class GoblintAnalysis implements ServerAnalysis {
         observer.addListener(new FileAlterationListenerAdaptor() {        
             @Override
             public void onFileChange(File file) {
-                goblintServer.restartGoblintServer();
-                goblintClient.connectGoblintClient();
+                try {
+                    goblintServer.restartGoblintServer();
+                    goblintClient.connectGoblintClient();
+                } catch (GobPieException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
             }
         });
         
