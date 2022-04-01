@@ -8,6 +8,16 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
+/**
+ * The Class TagInterfaceAdapter.
+ * 
+ * Implements the JsonDeserializer to deserialize json to GoblintResult objects.
+ * In particular to differentiate between the Category and CWE classes.
+ * 
+ * @author      Karoliine Holter
+ * @since       0.0.1
+ */
+
 public class TagInterfaceAdapter implements JsonDeserializer<Object> {
 
     @Override

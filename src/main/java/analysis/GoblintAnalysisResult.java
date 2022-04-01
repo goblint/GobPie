@@ -11,6 +11,15 @@ import magpiebridge.core.Kind;
 
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
+/**
+ * The Class GoblintAnalysisResult.
+ * 
+ * Implementation of the MagpieBridge AnalysisResult class. 
+ * Customizes it for the needs of Goblint.
+ *
+ * @author Julian Dolby and Linghui Luo
+ */
+
 public class GoblintAnalysisResult implements AnalysisResult {
 
     private String group_text = "";

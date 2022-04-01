@@ -9,6 +9,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * The Class GoblintMessages.
+ * 
+ * Corresponding object to the Goblint results in JSON.
+ * Converts the results from JSON to AnalysisResult requested by MagpieBridge.
+ * 
+ * @author      Karoliine Holter
+ * @since       0.0.1
+ */
 
 public class GoblintMessages {
 

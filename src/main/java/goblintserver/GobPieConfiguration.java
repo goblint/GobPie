@@ -1,8 +1,17 @@
 package goblintserver;
 
+/**
+ * The Class GobPieConfiguration.
+ * 
+ * Corresponding object to the GobPie configuration JSON.
+ * 
+ * @author      Karoliine Holter
+ * @since       0.0.2
+ */
+
 public class GobPieConfiguration {
 
-    private String   goblintConf = "";
+    private String   goblintConf;
     private String[] preAnalyzeCommand;
 
     public String getGoblintConf() {
@@ -10,7 +19,7 @@ public class GobPieConfiguration {
     }
 
     public String[] getPreAnalyzeCommand() {
-        if (preAnalyzeCommand.length < 0) return null;
+        if (preAnalyzeCommand == null || preAnalyzeCommand.length == 0) return null;
         return this.preAnalyzeCommand;
     }
 

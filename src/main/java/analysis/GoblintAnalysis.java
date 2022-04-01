@@ -27,9 +27,7 @@ import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 
-import goblintserver.GoblintClient;
-import goblintserver.GoblintServer;
-import goblintserver.Request;
+import goblintserver.*;
 
 
 public class GoblintAnalysis implements ServerAnalysis {
@@ -37,15 +35,17 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final MagpieServer magpieServer;
     private final GoblintServer goblintServer;
     private final GoblintClient goblintClient;
+    private final GobPieConfiguration gobpieConfiguration;
     private final FileAlterationObserver goblintConfObserver;
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
 
-    public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintClient goblintClient) {
+    public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintClient goblintClient, GobPieConfiguration gobpieConfiguration) {
         this.magpieServer = magpieServer;
         this.goblintServer = goblintServer;
         this.goblintClient = goblintClient;
+        this.gobpieConfiguration = gobpieConfiguration;
         this.goblintConfObserver = createGoblintConfObserver();
     }
 
@@ -96,7 +96,7 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
 
     private void preAnalyse() {
-        String[] preAnalyzeCommand = goblintServer.getPreAnalyzeCommand();
+        String[] preAnalyzeCommand = gobpieConfiguration.getPreAnalyzeCommand();
         if (preAnalyzeCommand != null) {
             try {
                 log.info("Preanalyze command ran: \"" + Arrays.toString(preAnalyzeCommand) + "\"");
@@ -210,7 +210,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         FileFilter fileFilter = new FileFilter() {
             @Override
             public boolean accept(File file) {
-                if (file.getName().equals(goblintServer.getGoblintConf())) return true;
+                if (file.getName().equals(gobpieConfiguration.getGoblintConf())) return true;
                 return false;
             };
         };
@@ -219,8 +219,17 @@ public class GoblintAnalysis implements ServerAnalysis {
         observer.addListener(new FileAlterationListenerAdaptor() {        
             @Override
             public void onFileChange(File file) {
-                goblintServer.restartGoblintServer();
-                goblintClient.connectGoblintClient();
+                try {
+                    goblintServer.restartGoblintServer();
+                    goblintClient.connectGoblintClient();
+                } catch (GobPieException e) {
+                    String message = "Unable to restart GobPie extension: " + e.getMessage();
+                        magpieServer.forwardMessageToClient( 
+                            new MessageParams(MessageType.Error, message + " Please check the output terminal of GobPie extension for more information.")
+                        );
+                    if (e.getCause() == null) log.error(message);
+                    else log.error(message + " Cause: " + e.getCause().getMessage());
+                }
             }
         });
         
@@ -229,7 +238,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         } catch (Exception e) {
             this.magpieServer.forwardMessageToClient(
                 new MessageParams(MessageType.Warning, "After changing the files list in Goblint configuration the server will not be automatically restarted. Close and reopen the IDE to restart the server manually if needed."));
-                log.error("Initializing goblintConfObserver failed: " + e.getMessage());
+            log.error("Initializing goblintConfObserver failed: " + e.getMessage());
         }
         return observer;
     }

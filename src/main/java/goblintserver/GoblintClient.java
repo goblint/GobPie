@@ -17,15 +17,18 @@ import com.google.gson.JsonObject;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.lsp4j.MessageParams;
-import org.eclipse.lsp4j.MessageType;
 
-import magpiebridge.core.MagpieServer;
-
+/**
+ * The Class GoblintClient.
+ * 
+ * Handles the communication with Goblint Server through unix socket.
+ * 
+ * @author      Karoliine Holter
+ * @since       0.0.2
+ */
 
 public class GoblintClient {
 
-    private MagpieServer magpieServer;
     private SocketChannel channel;
     private UnixDomainSocketAddress address;
     private OutputStream outputStream;
@@ -36,18 +39,16 @@ public class GoblintClient {
     private final Logger log = LogManager.getLogger(GoblintClient.class);
 
 
-    public GoblintClient(MagpieServer magpieServer) {
-        this.magpieServer = magpieServer;
-    }
+    public GoblintClient() {}
 
 
     /**
      * Method for connecting to Goblint server socket.
      *
-     * @return True if connection was started successfully, false otherwise.
+     * @throws GobPieException in case Goblint socket is missing or the client was unable to connect to the socket.
      */
 
-    public boolean connectGoblintClient() {
+    public void connectGoblintClient() {
         try {
             // connect to the goblint socket
             address = UnixDomainSocketAddress.of(Path.of(goblintSocketName));
@@ -56,12 +57,10 @@ public class GoblintClient {
             outputStream = Channels.newOutputStream(channel);
             InputStream inputStream = Channels.newInputStream(channel);
             inputReader = new BufferedReader(new InputStreamReader(inputStream));
-            if (!connected) return false;
+            if (!connected) throw new GobPieException("Connecting Goblint Client to Goblint socket failed.", GobPieExceptionType.GOBPIE_EXCEPTION);
             log.info("Goblint client connected.");
-            return true;
         } catch (IOException e) {
-            this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Connecting GoblintClient failed. " + e.getMessage()));
-            return false;
+            throw new GobPieException("Connecting Goblint Client  to Goblint socket failed.", e, GobPieExceptionType.GOBPIE_EXCEPTION);
         }
     }
 
@@ -78,6 +77,7 @@ public class GoblintClient {
 
     /**
      * Method for reading the response from Goblint server.
+     * @return JsonObject of the results read from Goblint socket.
      */
 
     public JsonObject readResponseFromSocket() throws IOException {

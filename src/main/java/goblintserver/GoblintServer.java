@@ -1,15 +1,12 @@
 package goblintserver;
 
-import java.util.*;
+import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 import java.io.*;
 import java.nio.file.*;
 
-import com.google.gson.*;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.zeroturnaround.exec.*;
@@ -17,25 +14,34 @@ import org.zeroturnaround.exec.listener.ProcessListener;
 
 import magpiebridge.core.MagpieServer;
 
+import static goblintserver.GobPieExceptionType.*;
+
+/**
+ * The Class GoblintServer.
+ * 
+ * Reads the configuration for GobPie extension, including Goblint's configuration file name.
+ * Starts Goblint Server and waits for the unix socket to be created.
+ * 
+ * @author      Karoliine Holter
+ * @since       0.0.2
+ */
 
 public class GoblintServer {
 
-    private MagpieServer magpieServer;
-
-    private String gobPieConf = "gobpie.json";
-    private String goblintSocket = "goblint.sock";
-    private String goblintConf;
-
-    private String[] preAnalyzeCommand;
-    private String[] goblintRunCommand;
+    private final String goblintSocket = "goblint.sock";
+    private final String goblintConf;
+    private final MagpieServer magpieServer;
+    private final String[] goblintRunCommand;
 
     private StartedProcess goblintRunProcess;
 
     private final Logger log = LogManager.getLogger(GoblintClient.class);
 
 
-    public GoblintServer(MagpieServer magpieServer) {
+    public GoblintServer(String goblintConfName, MagpieServer magpieServer) {
+        this.goblintConf = goblintConfName;
         this.magpieServer = magpieServer;
+        this.goblintRunCommand = constructGoblintRunCommand();
     }
 
 
@@ -44,21 +50,31 @@ public class GoblintServer {
     }
 
 
-    public String[] getPreAnalyzeCommand() {
-        return preAnalyzeCommand;
+    /**
+     * Method for constructing the command to run Goblint server.
+     * Files to analyse must be defined in goblint conf.
+     *
+     * @throws GobPieException thrown when running Goblint failed
+     */
+
+    private String[] constructGoblintRunCommand() {
+        return Arrays.stream(new String[]{
+                "goblint", "--conf", new File(goblintConf).getAbsolutePath(),
+                "--enable", "server.enabled",
+                "--enable", "server.reparse",
+                "--set", "server.mode", "unix",
+                "--set", "server.unix-socket", new File(goblintSocket).getAbsolutePath()})
+                .toArray(String[]::new);
     }
 
 
     /**
      * Method to start the Goblint server.
      *
-     * @return True if server was started successfully, false otherwise.
+     * @throws GobPieException thrown when running Goblint fails.
      */
 
-    public boolean startGoblintServer() {
-        // read configuration file
-        boolean gobpieconf = readGobPieConfiguration();
-        if (!gobpieconf) return false;
+    public void startGoblintServer() {
 
         try {
             // run command to start goblint
@@ -66,33 +82,23 @@ public class GoblintServer {
 
             goblintRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand);
 
-            if (goblintRunProcess.getFuture().isDone() && goblintRunProcess.getProcess().exitValue() != 0) {
-                magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint exited with an error."));
-                log.error("Goblint exited with an error.");
-                return false;
-            }
-
             // wait until Goblint socket is created before continuing
             WatchService watchService = FileSystems.getDefault().newWatchService();
             Path path = Paths.get(System.getProperty("user.dir"));
-            path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE );
+            path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE);
             WatchKey key;
             while ((key = watchService.take()) != null) {
                 for (WatchEvent<?> event : key.pollEvents()) {
-                    
                     if (((Path) event.context()).equals(Paths.get(goblintSocket))) {
                         log.info("Goblint server started.");
-                        return true;
+                        return;
                     }
                 }
                 key.reset();
             }
-
-            return false;
             
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
-            this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Running Goblint failed. " + e.getMessage()));
-            return false;
+            throw new GobPieException("Running Goblint failed.", e, GOBLINT_EXCEPTION);
         }
     }
 
@@ -109,12 +115,12 @@ public class GoblintServer {
     /**
      * Method to restart the Goblint server.
      *
-     * @return True if new server was started successfully, false otherwise.
+     * @throws GobPieException if starting Goblint Server throws an exception.
      */
 
-    public boolean restartGoblintServer() {
+    public void restartGoblintServer() {
         stopGoblintServer();
-        return startGoblintServer();
+        startGoblintServer();
     }
 
 
@@ -131,13 +137,12 @@ public class GoblintServer {
 
             public void afterStop(Process process) {
                 if (process.exitValue() == 0) {
-                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, "Goblint server has stopped."));
                     log.info("Goblint server has stopped.");
                 } else if (process.exitValue() == 143) {
                     log.info("Goblint server has been killed.");
                 } else {
-                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error."));
-                    log.error("Goblint server exited due to an error.");
+                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error. Please check the output terminal of GobPie extension for more information."));
+                    log.error("Goblint server exited due to an error. Please fix the issue reported above and restart the extension.");
                 }
             }
         };
@@ -151,55 +156,6 @@ public class GoblintServer {
                 .addListener(listener)
                 .start();
         return process;
-    }
-
-
-    /**
-     * Method for reading GobPie configuration.
-     * Deserializes json to GobPieConfiguration object.
-     *
-     * @return true if gobpie configuration was read sucessfully, false otherwise:
-     *      * no goblint configuration file was specified;
-     *      * no files to analyse have been listed;
-     *      * no gobpie.json file is found in root directory
-     */
-
-    private boolean readGobPieConfiguration() {
-        try {
-            log.debug("Reading GobPie configuration from json");
-
-            Gson gson = new GsonBuilder().create();
-            // Read json object
-            JsonObject jsonObject = JsonParser.parseReader(new FileReader(gobPieConf)).getAsJsonObject();
-
-            // Convert json object to GobPieConfiguration object
-            GobPieConfiguration gobpieConfiguration = gson.fromJson(jsonObject, GobPieConfiguration.class);
-            this.preAnalyzeCommand = gobpieConfiguration.getPreAnalyzeCommand();
-            this.goblintConf = gobpieConfiguration.getGoblintConf();
-
-            // Check if all required parameters have been set
-            if (goblintConf.equals("")) {
-                log.debug("Configuration parameters missing from GobPie configuration file");
-                this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Configuration parameters missing from GobPie configuration file."));
-                return false;
-            }
-
-            // Construct command to run Goblint Server 
-            // Files to analyse must be defined in goblint conf
-            this.goblintRunCommand = Arrays.stream(new String[]{
-                                    "goblint", "--conf", new File(goblintConf).getAbsolutePath(),
-                                    "--enable", "server.enabled",
-                                    "--enable", "server.reparse",
-                                    "--set", "server.mode", "unix",
-                                    "--set", "server.unix-socket", new File(goblintSocket).getAbsolutePath()})
-                    .toArray(String[]::new);
-
-            log.debug("GobPie configuration read from json");
-        } catch (FileNotFoundException e) {
-            this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Could not locate GobPie configuration file. " + e.getMessage()));
-            return false;
-        }
-        return true;
     }
 
 }
