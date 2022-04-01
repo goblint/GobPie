@@ -1,17 +1,18 @@
 package goblintserver;
 
-import java.util.*;
+import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 import java.io.*;
 import java.nio.file.*;
 
-import com.google.gson.*;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
+import org.eclipse.lsp4j.MessageParams;
+import org.eclipse.lsp4j.MessageType;
 import org.zeroturnaround.exec.*;
 import org.zeroturnaround.exec.listener.ProcessListener;
+
+import magpiebridge.core.MagpieServer;
 
 import static goblintserver.GobPieExceptionType.*;
 
@@ -27,24 +28,20 @@ import static goblintserver.GobPieExceptionType.*;
 
 public class GoblintServer {
 
-    private final String gobPieConf;
     private final String goblintSocket = "goblint.sock";
-    private String goblintConf;
-
-    private String[] preAnalyzeCommand;
-    private String[] goblintRunCommand;
+    private final String goblintConf;
+    private final MagpieServer magpieServer;
+    private final String[] goblintRunCommand;
 
     private StartedProcess goblintRunProcess;
 
     private final Logger log = LogManager.getLogger(GoblintClient.class);
 
 
-    public GoblintServer(String gobPieConfFileName) {
-        this.gobPieConf = gobPieConfFileName;
-    }
-
-    public String getGobPieConf() {
-        return gobPieConf;
+    public GoblintServer(String goblintConfName, MagpieServer magpieServer) {
+        this.goblintConf = goblintConfName;
+        this.magpieServer = magpieServer;
+        this.goblintRunCommand = constructGoblintRunCommand();
     }
 
 
@@ -53,20 +50,31 @@ public class GoblintServer {
     }
 
 
-    public String[] getPreAnalyzeCommand() {
-        return preAnalyzeCommand;
+    /**
+     * Method for constructing the command to run Goblint server.
+     * Files to analyse must be defined in goblint conf.
+     *
+     * @throws GobPieException thrown when running Goblint failed
+     */
+
+    private String[] constructGoblintRunCommand() {
+        return Arrays.stream(new String[]{
+                "goblint", "--conf", new File(goblintConf).getAbsolutePath(),
+                "--enable", "server.enabled",
+                "--enable", "server.reparse",
+                "--set", "server.mode", "unix",
+                "--set", "server.unix-socket", new File(goblintSocket).getAbsolutePath()})
+                .toArray(String[]::new);
     }
 
 
     /**
      * Method to start the Goblint server.
      *
-     * @throws GobPieException thrown when running Goblint failed
+     * @throws GobPieException thrown when running Goblint fails.
      */
 
-    public void startGoblintServer() throws GobPieException {
-        // read configuration file
-        readGobPieConfiguration();
+    public void startGoblintServer() {
 
         try {
             // run command to start goblint
@@ -107,10 +115,10 @@ public class GoblintServer {
     /**
      * Method to restart the Goblint server.
      *
-     * @throws GobPieException thrown if starting Goblint Server throws an exception
+     * @throws GobPieException if starting Goblint Server throws an exception.
      */
 
-    public void restartGoblintServer() throws GobPieException {
+    public void restartGoblintServer() {
         stopGoblintServer();
         startGoblintServer();
     }
@@ -133,6 +141,7 @@ public class GoblintServer {
                 } else if (process.exitValue() == 143) {
                     log.info("Goblint server has been killed.");
                 } else {
+                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error. Please check the output terminal of GobPie extension for more information."));
                     log.error("Goblint server exited due to an error. Please fix the issue reported above and restart the extension.");
                 }
             }
@@ -147,53 +156,6 @@ public class GoblintServer {
                 .addListener(listener)
                 .start();
         return process;
-    }
-
-
-    /**
-     * Method for reading GobPie configuration.
-     * Deserializes json to GobPieConfiguration object.
-     *
-     * @throws GobPieException is thrown if
-     *      * configuration parameters are missing (no goblint configuration file was specified);
-     *      * gobpie conf cannot be found (no gobpie.json file is found in root directory)
-     *      * gobpie conf's json syntax is wrong
-     */
-
-    private void readGobPieConfiguration() throws GobPieException {
-        try {
-            log.debug("Reading GobPie configuration from json");
-
-            Gson gson = new GsonBuilder().create();
-            // Read json object
-            JsonObject jsonObject = JsonParser.parseReader(new FileReader(gobPieConf)).getAsJsonObject();
-
-            // Convert json object to GobPieConfiguration object
-            GobPieConfiguration gobpieConfiguration = gson.fromJson(jsonObject, GobPieConfiguration.class);
-            this.preAnalyzeCommand = gobpieConfiguration.getPreAnalyzeCommand();
-            this.goblintConf = gobpieConfiguration.getGoblintConf();
-
-            // Check if all required parameters have been set
-            if (goblintConf.equals("")) {
-                throw new GobPieException("Configuration parameters missing from GobPie configuration file.", GOBPIE_CONF_EXCEPTION);
-            }
-
-            // Construct command to run Goblint Server 
-            // Files to analyse must be defined in goblint conf
-            this.goblintRunCommand = Arrays.stream(new String[]{
-                                    "goblint", "--conf", new File(goblintConf).getAbsolutePath(),
-                                    "--enable", "server.enabled",
-                                    "--enable", "server.reparse",
-                                    "--set", "server.mode", "unix",
-                                    "--set", "server.unix-socket", new File(goblintSocket).getAbsolutePath()})
-                    .toArray(String[]::new);
-
-            log.debug("GobPie configuration read from json");
-        } catch (FileNotFoundException e) {
-            throw new GobPieException("Could not locate GobPie configuration file.", e, GOBPIE_CONF_EXCEPTION);
-        } catch (JsonSyntaxException e) {
-            throw new GobPieException("Gobpie configuration file syntax is wrong.", e, GOBPIE_CONF_EXCEPTION);
-        }
     }
 
 }

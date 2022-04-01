@@ -7,7 +7,7 @@ package goblintserver;
  * @since       0.0.2
  */
 
-public class GobPieException extends Exception {
+public class GobPieException extends RuntimeException {
 
     private final GobPieExceptionType type;
 

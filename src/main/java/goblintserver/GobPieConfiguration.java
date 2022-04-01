@@ -11,7 +11,7 @@ package goblintserver;
 
 public class GobPieConfiguration {
 
-    private String   goblintConf = "";
+    private String   goblintConf;
     private String[] preAnalyzeCommand;
 
     public String getGoblintConf() {

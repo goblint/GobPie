@@ -48,7 +48,7 @@ public class GoblintClient {
      * @throws GobPieException in case Goblint socket is missing or the client was unable to connect to the socket.
      */
 
-    public void connectGoblintClient() throws GobPieException {
+    public void connectGoblintClient() {
         try {
             // connect to the goblint socket
             address = UnixDomainSocketAddress.of(Path.of(goblintSocketName));

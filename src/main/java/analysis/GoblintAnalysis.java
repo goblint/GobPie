@@ -27,10 +27,7 @@ import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 
-import goblintserver.GobPieException;
-import goblintserver.GoblintClient;
-import goblintserver.GoblintServer;
-import goblintserver.Request;
+import goblintserver.*;
 
 
 public class GoblintAnalysis implements ServerAnalysis {
@@ -38,15 +35,17 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final MagpieServer magpieServer;
     private final GoblintServer goblintServer;
     private final GoblintClient goblintClient;
+    private final GobPieConfiguration gobpieConfiguration;
     private final FileAlterationObserver goblintConfObserver;
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
 
-    public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintClient goblintClient) {
+    public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintClient goblintClient, GobPieConfiguration gobpieConfiguration) {
         this.magpieServer = magpieServer;
         this.goblintServer = goblintServer;
         this.goblintClient = goblintClient;
+        this.gobpieConfiguration = gobpieConfiguration;
         this.goblintConfObserver = createGoblintConfObserver();
     }
 
@@ -97,7 +96,7 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
 
     private void preAnalyse() {
-        String[] preAnalyzeCommand = goblintServer.getPreAnalyzeCommand();
+        String[] preAnalyzeCommand = gobpieConfiguration.getPreAnalyzeCommand();
         if (preAnalyzeCommand != null) {
             try {
                 log.info("Preanalyze command ran: \"" + Arrays.toString(preAnalyzeCommand) + "\"");
@@ -211,7 +210,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         FileFilter fileFilter = new FileFilter() {
             @Override
             public boolean accept(File file) {
-                if (file.getName().equals(goblintServer.getGoblintConf())) return true;
+                if (file.getName().equals(gobpieConfiguration.getGoblintConf())) return true;
                 return false;
             };
         };
