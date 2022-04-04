@@ -152,7 +152,7 @@ public class Main {
      * Deserializes json to GobPieConfiguration object.
      * 
      * @return GobPieConfiguration object.
-     * @throws GobPieException is thrown if
+     * @throws GobPieException if
      *          <ul>
      *              <li>gobpie conf cannot be found to be read from;</li>
      *              <li>gobpie conf json syntax is wrong.</li>

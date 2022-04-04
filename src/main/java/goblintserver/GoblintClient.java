@@ -60,7 +60,7 @@ public class GoblintClient {
             if (!connected) throw new GobPieException("Connecting Goblint Client to Goblint socket failed.", GobPieExceptionType.GOBPIE_EXCEPTION);
             log.info("Goblint client connected.");
         } catch (IOException e) {
-            throw new GobPieException("Connecting Goblint Client  to Goblint socket failed.", e, GobPieExceptionType.GOBPIE_EXCEPTION);
+            throw new GobPieException("Connecting Goblint Client to Goblint socket failed.", e, GobPieExceptionType.GOBPIE_EXCEPTION);
         }
     }
 
