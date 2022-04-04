@@ -1,5 +1,7 @@
 package goblintserver;
 
+import java.util.UUID;
+
 /**
  * The Class Request.
  * 
@@ -13,7 +15,7 @@ public class Request {
     // // {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
 
     private String jsonrpc = "2.0";
-    private int id = 0;
+    private UUID id;
     private String method;
     private params params;
 
@@ -25,13 +27,14 @@ public class Request {
         if (method == "analyze") {
             this.params = new params();
         }
+        this.id = UUID.randomUUID();
     }
 
     public String getJsonrpc() {
         return jsonrpc;
     }
 
-    public int getId() {
+    public UUID getId() {
         return id;
     }
 
