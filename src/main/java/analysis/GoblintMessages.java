@@ -117,7 +117,7 @@ public class GoblintMessages {
 
     public GoblintAnalysisResult createGoblintAnalysisResult() throws MalformedURLException {
         int column = multipiece.loc.column < 0 ? 1 : multipiece.loc.column - 1;
-        int endColumn = multipiece.loc.endColumn< 0 ? 10000 : multipiece.loc.endColumn - 1;
+        int endColumn = multipiece.loc.endColumn < 0 ? 10000 : multipiece.loc.endColumn - 1;
         GoblintPosition pos = multipiece.loc == null 
                               ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL()) 
                               : new GoblintPosition(multipiece.loc.line, multipiece.loc.endLine, column, endColumn, new File(multipiece.loc.file).toURI().toURL());
@@ -128,7 +128,7 @@ public class GoblintMessages {
 
     public GoblintAnalysisResult createGoblintAnalysisResult(multipiece.pieces piece) throws MalformedURLException {
         int column = piece.loc.column < 0 ? 1 : piece.loc.column - 1;
-        int endColumn = piece.loc.endColumn< 0 ? 10000 : piece.loc.endColumn - 1;
+        int endColumn = piece.loc.endColumn < 0 ? 10000 : piece.loc.endColumn - 1;
         GoblintPosition pos = piece.loc == null
                               ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
                               : new GoblintPosition(piece.loc.line, piece.loc.endLine, column, endColumn, new File(piece.loc.file).toURI().toURL());
