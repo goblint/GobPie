@@ -18,7 +18,6 @@ import org.apache.commons.io.monitor.FileAlterationObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 
@@ -27,14 +26,10 @@ import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 
 import goblintclient.*;
-import goblintclient.communication.AnalyzeResponse;
-import goblintclient.communication.MessagesResponse;
-import goblintclient.communication.Request;
-import goblintclient.messages.GoblintMessages;
+import goblintclient.communication.*;
+import goblintclient.messages.*;
 import goblintserver.*;
-import gobpie.GobPieConfiguration;
-import gobpie.GobPieException;
-import gobpie.GobPieExceptionType;
+import gobpie.*;
 
 
 public class GoblintAnalysis implements ServerAnalysis {
@@ -130,10 +125,12 @@ public class GoblintAnalysis implements ServerAnalysis {
         try {
             goblintClient.writeRequestToSocket(analyzeRequest);
             AnalyzeResponse analyzeResponse = goblintClient.readAnalyzeResponseFromSocket();
-            if (!analyzeRequest.getId().equals(analyzeResponse.getId())) throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
+            if (!analyzeRequest.getId().equals(analyzeResponse.getId()))
+                throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
             goblintClient.writeRequestToSocket(messagesRequest);
             MessagesResponse messagesResponse = goblintClient.readMessagesResponseFromSocket();
-            if (!messagesRequest.getId().equals(messagesResponse.getId())) throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
+            if (!messagesRequest.getId().equals(messagesResponse.getId()))
+                throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
             return convertResultsFromJson(messagesResponse);
         } catch (IOException e) {
             log.info("Sending the request to or receiving result from the server failed: " + e);

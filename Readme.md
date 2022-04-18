@@ -2,7 +2,7 @@
 
 [![build workflow status](https://github.com/goblint/GobPie/actions/workflows/build.yml/badge.svg)](https://github.com/goblint/GobPie/actions/workflows/build.yml)
 
-The Integration of analyzer Goblint (Command Line Tool) into IDEs with MagpieBridge
+The Integration of the static analyzer Goblint into IDEs with MagpieBridge.
 
 ## Installing
 
