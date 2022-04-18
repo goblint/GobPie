@@ -1,4 +1,4 @@
-package analysis;
+package goblintclient.messages;
 
 import java.lang.reflect.Type;
 
@@ -10,15 +10,15 @@ import com.google.gson.JsonParseException;
 
 /**
  * The Class TagInterfaceAdapter.
- * 
+ * <p>
  * Implements the JsonDeserializer to deserialize json to GoblintResult objects.
  * In particular to differentiate between the Category and CWE classes.
- * 
- * @author      Karoliine Holter
- * @since       0.0.1
+ *
+ * @author Karoliine Holter
+ * @since 0.0.1
  */
 
-public class TagInterfaceAdapter implements JsonDeserializer<Object> {
+public class GoblintTagInterfaceAdapter implements JsonDeserializer<Object> {
 
     @Override
     public Object deserialize(JsonElement jsonElement, Type type, JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {

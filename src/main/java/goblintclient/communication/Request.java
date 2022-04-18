@@ -1,22 +1,22 @@
-package goblintserver;
+package goblintclient.communication;
 
 import java.util.UUID;
 
 /**
  * The Class Request.
- * 
+ * <p>
  * Corresponding object to the jsonrpc request JSON.
- * 
- * @author      Karoliine Holter
- * @since       0.0.2
+ *
+ * @author Karoliine Holter
+ * @since 0.0.2
  */
 
 public class Request {
-    // // {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
+    // {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
 
-    private String jsonrpc = "2.0";
-    private UUID id;
-    private String method;
+    private final String jsonrpc = "2.0";
+    private final UUID id;
+    private final String method;
     private params params;
 
     static class params {
@@ -24,7 +24,7 @@ public class Request {
 
     public Request(String method) {
         this.method = method;
-        if (method == "analyze") {
+        if (method.equals("analyze")) {
             this.params = new params();
         }
         this.id = UUID.randomUUID();

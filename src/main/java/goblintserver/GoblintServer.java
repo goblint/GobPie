@@ -1,7 +1,9 @@
 package goblintserver;
-
 import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
+
+import static gobpie.GobPieExceptionType.*;
+
 import java.io.*;
 import java.nio.file.*;
 
@@ -12,9 +14,9 @@ import org.eclipse.lsp4j.MessageType;
 import org.zeroturnaround.exec.*;
 import org.zeroturnaround.exec.listener.ProcessListener;
 
+import goblintclient.GoblintClient;
+import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
-
-import static goblintserver.GobPieExceptionType.*;
 
 /**
  * The Class GoblintServer.
