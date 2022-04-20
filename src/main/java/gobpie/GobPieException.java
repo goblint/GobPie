@@ -1,10 +1,10 @@
-package goblintserver;
+package gobpie;
 
 /**
  * The Class GobPieException.
- * 
- * @author      Karoliine Holter
- * @since       0.0.2
+ *
+ * @author Karoliine Holter
+ * @since 0.0.2
  */
 
 public class GobPieException extends RuntimeException {
@@ -13,16 +13,16 @@ public class GobPieException extends RuntimeException {
 
     public GobPieException(String message, Throwable cause, GobPieExceptionType type) {
         super(message, cause);
-		this.type = type;
-	}
+        this.type = type;
+    }
 
     public GobPieException(String message, GobPieExceptionType type) {
         super(message);
-		this.type = type;
-	}
+        this.type = type;
+    }
 
     public GobPieExceptionType getType() {
         return type;
     }
-    
+
 }

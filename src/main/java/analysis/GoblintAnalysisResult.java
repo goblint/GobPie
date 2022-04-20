@@ -11,21 +11,23 @@ import magpiebridge.core.Kind;
 
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
+import goblintclient.messages.GoblintPosition;
+
 /**
  * The Class GoblintAnalysisResult.
- * 
- * Implementation of the MagpieBridge AnalysisResult class. 
+ * <p>
+ * Implementation of the MagpieBridge AnalysisResult class.
  * Customizes it for the needs of Goblint.
  *
- * @author Julian Dolby and Linghui Luo
+ * @author Julian Dolby, Linghui Luo and Karoliine Holter
  */
 
 public class GoblintAnalysisResult implements AnalysisResult {
 
     private String group_text = "";
-    private String text;
-    private Position pos;
-    private String severity;
+    private final String text;
+    private final Position pos;
+    private final String severity;
     private Iterable<Pair<Position, String>> related = new ArrayList<>();
 
     public GoblintAnalysisResult(GoblintPosition pos, String text, String severity) {

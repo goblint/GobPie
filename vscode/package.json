@@ -1,6 +1,7 @@
 {
 	"name": "gobpie",
-	"description": "The Goblint analyzer interactive extension",
+	"displayName": "GobPie",
+	"description": "The interactive Goblint analyzer extension",
 	"author": "Karoliine Holter",
 	"license": "EPL-2.0",
 	"version": "0.0.2",

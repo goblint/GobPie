@@ -1,4 +1,4 @@
-package analysis;
+package goblintclient.messages;
 
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.classLoader.IMethod;
@@ -8,18 +8,18 @@ import java.net.URL;
 
 /**
  * The Class GoblintPosition.
- * 
- * @author      Karoliine Holter
- * @since       0.0.1
+ *
+ * @author Karoliine Holter
+ * @since 0.0.1
  */
 
 public class GoblintPosition implements Position {
 
-    private int columnStart;
-    private int columnEnd;
-    private int lineStart;
-    private int lineEnd;
-    private URL sourcefileURL;
+    private final int columnStart;
+    private final int columnEnd;
+    private final int lineStart;
+    private final int lineEnd;
+    private final URL sourcefileURL;
 
     public GoblintPosition(int lineStart, int lineEnd, int columnStart, int columnEnd, URL sourcefileURL) {
         this.lineStart = lineStart;

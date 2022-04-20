@@ -1,4 +1,4 @@
-package goblintserver;
+package gobpie;
 
 public enum GobPieExceptionType {
     GOBLINT_EXCEPTION,

@@ -12,15 +12,17 @@ import magpiebridge.core.ToolAnalysis;
 import com.google.gson.*;
 
 import analysis.GoblintAnalysis;
-import goblintserver.*;
+import goblintclient.GoblintClient;
+import goblintserver.GoblintServer;
+import gobpie.GobPieConfiguration;
+import gobpie.GobPieException;
+import gobpie.GobPieExceptionType;
 
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import static goblintserver.GobPieExceptionType.*;
 
 public class Main {
 
@@ -57,8 +59,8 @@ public class Main {
      * Method for creating and launching MagpieBridge server.
      */
 
-    private static void createMagpieServer()  {
-        
+    private static void createMagpieServer() {
+
         // set up configuration for MagpieServer
         ServerConfiguration serverConfig = new ServerConfiguration();
         serverConfig.setDoAnalysisByFirstOpen(false);
@@ -72,16 +74,16 @@ public class Main {
 
 
     /**
-     * Method for creating and adding GoblintAnalysis to MagpieBridge server 
+     * Method for creating and adding GoblintAnalysis to MagpieBridge server
      * and doing the initial analysis.
-     * 
+     * <p>
      * Creates GoblintServer, GoblintClient and the GoblintAnalysis classes.
-     * 
+     *
      * @throws GobPieException if something goes wrong with creating any of the classes:
-     *          <ul>
-     *              <li>GoblintServer;</li>
-     *              <li>GoblintClient.</li>
-     *          </ul>
+     *                         <ul>
+     *                             <li>GoblintServer;</li>
+     *                             <li>GoblintClient.</li>
+     *                         </ul>
      */
 
     private static void addAnalysis() {
@@ -106,11 +108,11 @@ public class Main {
     }
 
 
-   /**
+    /**
      * Method for reading GobPie configuration.
-     * 
+     * <p>
      * Waits for the Gobpie configuration file to be created if one is not present in the project root.
-     * Checks if all the required parameters are present in the configuration and 
+     * Checks if all the required parameters are present in the configuration and
      * if not, waits for the file to be changed and reparses it until the user gives the parameters.
      *
      * @return GobPieConfiguration object.
@@ -128,7 +130,7 @@ public class Main {
 
         // Parse the configuration file
         GobPieConfiguration gobpieConfiguration = parseGobPieConf();
-           
+
         // Check if all required parameters have been set
         // If not, wait for change and reparse
         String goblintConf = gobpieConfiguration.getGoblintConf();
@@ -140,23 +142,23 @@ public class Main {
             gobpieConfiguration = parseGobPieConf();
             goblintConf = gobpieConfiguration.getGoblintConf();
         }
-        
+
         return gobpieConfiguration;
 
-        
+
     }
 
 
     /**
      * Method for parsing GobPie configuration.
      * Deserializes json to GobPieConfiguration object.
-     * 
+     *
      * @return GobPieConfiguration object.
-     * @throws GobPieException is thrown if
-     *          <ul>
-     *              <li>gobpie conf cannot be found to be read from;</li>
-     *              <li>gobpie conf json syntax is wrong.</li>
-     *          </ul>
+     * @throws GobPieException if
+     *                         <ul>
+     *                             <li>gobpie conf cannot be found to be read from;</li>
+     *                             <li>gobpie conf json syntax is wrong.</li>
+     *                         </ul>
      */
 
     private static GobPieConfiguration parseGobPieConf() {
@@ -169,9 +171,9 @@ public class Main {
             log.debug("GobPie configuration read from json");
             return gson.fromJson(jsonObject, GobPieConfiguration.class);
         } catch (FileNotFoundException e) {
-            throw new GobPieException("Could not locate GobPie configuration file.", e, GOBPIE_CONF_EXCEPTION);
+            throw new GobPieException("Could not locate GobPie configuration file.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
         } catch (JsonSyntaxException e) {
-            throw new GobPieException("Gobpie configuration file syntax is wrong.", e, GOBPIE_CONF_EXCEPTION);
+            throw new GobPieException("Gobpie configuration file syntax is wrong.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
         }
     }
 
@@ -200,22 +202,23 @@ public class Main {
         } catch (IOException | InterruptedException e) {
             String message = "Waiting for GobPie configuration file failed.";
             forwardErrorMessageToClient(message, message + e.getMessage());
-        } 
+        }
 
-   }
+    }
 
 
     /**
      * Method for forwarding Error messages to MagpieServer.
-     * @param popUpMessage The message shown on the pop-up message.
+     *
+     * @param popUpMessage    The message shown on the pop-up message.
      * @param terminalMessage The message shown in the terminal.
      */
 
-   private static void forwardErrorMessageToClient(String popUpMessage, String terminalMessage) {
+    private static void forwardErrorMessageToClient(String popUpMessage, String terminalMessage) {
         magpieServer.forwardMessageToClient(
-            new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Please check the output terminal of GobPie extension for more information.")
+                new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Please check the output terminal of GobPie extension for more information.")
         );
         log.error(terminalMessage);
-   }
+    }
 
 }

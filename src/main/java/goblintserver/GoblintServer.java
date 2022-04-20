@@ -1,7 +1,9 @@
 package goblintserver;
-
 import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
+
+import static gobpie.GobPieExceptionType.*;
+
 import java.io.*;
 import java.nio.file.*;
 
@@ -12,9 +14,9 @@ import org.eclipse.lsp4j.MessageType;
 import org.zeroturnaround.exec.*;
 import org.zeroturnaround.exec.listener.ProcessListener;
 
+import goblintclient.GoblintClient;
+import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
-
-import static goblintserver.GobPieExceptionType.*;
 
 /**
  * The Class GoblintServer.
@@ -54,7 +56,7 @@ public class GoblintServer {
      * Method for constructing the command to run Goblint server.
      * Files to analyse must be defined in goblint conf.
      *
-     * @throws GobPieException thrown when running Goblint failed
+     * @throws GobPieException when running Goblint failed.
      */
 
     private String[] constructGoblintRunCommand() {
@@ -71,7 +73,7 @@ public class GoblintServer {
     /**
      * Method to start the Goblint server.
      *
-     * @throws GobPieException thrown when running Goblint fails.
+     * @throws GobPieException when running Goblint fails.
      */
 
     public void startGoblintServer() {
