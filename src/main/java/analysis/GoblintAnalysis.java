@@ -1,35 +1,38 @@
 package analysis;
 
-import java.io.File;
-import java.io.FileFilter;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.util.*;
-import java.util.concurrent.TimeoutException;
-
 import com.ibm.wala.classLoader.Module;
-
+import goblintclient.GoblintClient;
+import goblintclient.communication.AnalyzeResponse;
+import goblintclient.communication.MessagesResponse;
+import goblintclient.communication.Request;
+import goblintclient.messages.GoblintMessages;
+import goblintserver.GoblintServer;
+import gobpie.GobPieConfiguration;
+import gobpie.GobPieException;
+import gobpie.GobPieExceptionType;
 import magpiebridge.core.AnalysisConsumer;
-import magpiebridge.core.ServerAnalysis;
 import magpiebridge.core.MagpieServer;
-
+import magpiebridge.core.ServerAnalysis;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
 import org.apache.commons.io.monitor.FileAlterationObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
-
 import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
+import org.zeroturnaround.process.UnixProcess;
 
-import goblintclient.*;
-import goblintclient.communication.*;
-import goblintclient.messages.*;
-import goblintserver.*;
-import gobpie.*;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 
 public class GoblintAnalysis implements ServerAnalysis {
@@ -39,6 +42,8 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final GoblintClient goblintClient;
     private final GobPieConfiguration gobpieConfiguration;
     private final FileAlterationObserver goblintConfObserver;
+
+    private Boolean analysisRunning = false;
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
@@ -76,12 +81,17 @@ public class GoblintAnalysis implements ServerAnalysis {
         if (rerun) {
             if (consumer instanceof MagpieServer server) {
 
+                if (analysisRunning) { 
+                    abortAnalysis();
+                }
                 goblintConfObserver.checkAndNotify();
                 preAnalyse();
 
                 System.err.println("\n---------------------- Analysis started ----------------------");
+                analysisRunning = true;
                 Collection<GoblintAnalysisResult> response = reanalyse();
                 if (response != null) server.consume(new ArrayList<>(response), source());
+                analysisRunning = false;
                 System.err.println("--------------------- Analysis finished ----------------------\n");
 
             }
@@ -111,10 +121,23 @@ public class GoblintAnalysis implements ServerAnalysis {
     }
 
 
+    private void abortAnalysis() {
+        Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
+        int pid = Math.toIntExact(goblintProcess.pid());
+        UnixProcess unixProcess = new UnixProcess(pid);
+        try {
+            unixProcess.kill(2);
+            System.err.println("\n-------------- This analysis has been aborted ------------");
+        } catch (IOException e) {
+            log.error("Aborting analysis failed.");
+        }
+    }
+
+
     /**
      * Sends the request to Goblint server to reanalyse and reads the result.
      *
-     * @return returns true if the request was sucessful, false otherwise
+     * @return returns a collection of analysis results if the request was sucessful, null otherwise
      */
 
     private Collection<GoblintAnalysisResult> reanalyse() {

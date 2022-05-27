@@ -51,6 +51,10 @@ public class GoblintServer {
         return goblintConf;
     }
 
+    public StartedProcess getGoblintRunProcess() {
+        return goblintRunProcess;
+    }
+
 
     /**
      * Method for constructing the command to run Goblint server.
