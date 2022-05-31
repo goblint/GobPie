@@ -90,7 +90,7 @@ public class GoblintAnalysis implements ServerAnalysis {
                 System.err.println("\n---------------------- Analysis started ----------------------");
                 analysisRunning = true;
                 Collection<GoblintAnalysisResult> response = reanalyse();
-                if (response != null) server.consume(new ArrayList<>(response), source());
+                server.consume(new ArrayList<>(response), source());
                 analysisRunning = false;
                 System.err.println("--------------------- Analysis finished ----------------------\n");
 
@@ -156,8 +156,7 @@ public class GoblintAnalysis implements ServerAnalysis {
                 throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
             return convertResultsFromJson(messagesResponse);
         } catch (IOException e) {
-            log.info("Sending the request to or receiving result from the server failed: " + e);
-            return null;
+            throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }
     }
 
