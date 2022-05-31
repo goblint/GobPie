@@ -90,10 +90,11 @@ public class GoblintAnalysis implements ServerAnalysis {
                 System.err.println("\n---------------------- Analysis started ----------------------");
                 analysisRunning = true;
                 Collection<GoblintAnalysisResult> response = reanalyse();
-                server.consume(new ArrayList<>(response), source());
-                analysisRunning = false;
-                System.err.println("--------------------- Analysis finished ----------------------\n");
-
+                if (response != null) {
+                    server.consume(new ArrayList<>(response), source());
+                    analysisRunning = false;
+                    System.err.println("--------------------- Analysis finished ----------------------\n");
+                }
             }
         }
     }
@@ -127,7 +128,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         UnixProcess unixProcess = new UnixProcess(pid);
         try {
             unixProcess.kill(2);
-            System.err.println("\n-------------- This analysis has been aborted ------------");
+            System.err.println("--------------- This analysis has been aborted -------------\n");
         } catch (IOException e) {
             log.error("Aborting analysis failed.");
         }
@@ -150,6 +151,8 @@ public class GoblintAnalysis implements ServerAnalysis {
             AnalyzeResponse analyzeResponse = goblintClient.readAnalyzeResponseFromSocket();
             if (!analyzeRequest.getId().equals(analyzeResponse.getId()))
                 throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
+            if (analyzeResponse.getResult().getStatus().contains("Aborted"))
+                return null;
             goblintClient.writeRequestToSocket(messagesRequest);
             MessagesResponse messagesResponse = goblintClient.readMessagesResponseFromSocket();
             if (!messagesRequest.getId().equals(messagesResponse.getId()))
