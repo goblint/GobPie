@@ -88,13 +88,13 @@ public class GoblintAnalysis implements ServerAnalysis {
                 goblintConfObserver.checkAndNotify();
                 preAnalyse();
 
-                System.err.println("\n---------------------- Analysis started ----------------------");
+                log.info("\n---------------------- Analysis started ----------------------");
                 analysisRunning = true;
                 Collection<GoblintAnalysisResult> response = reanalyse();
                 if (response != null) {
                     server.consume(new ArrayList<>(response), source());
                     analysisRunning = false;
-                    System.err.println("--------------------- Analysis finished ----------------------\n");
+                    log.info("--------------------- Analysis finished ----------------------\n");
                 }
             }
         }
@@ -129,7 +129,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         UnixProcess unixProcess = new UnixProcess(pid);
         try {
             unixProcess.kill(SIGINT);
-            System.err.println("--------------- This analysis has been aborted -------------\n");
+            log.info("--------------- This analysis has been aborted -------------\n");
         } catch (IOException e) {
             log.error("Aborting analysis failed.");
         }
