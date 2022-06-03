@@ -42,6 +42,7 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final GoblintClient goblintClient;
     private final GobPieConfiguration gobpieConfiguration;
     private final FileAlterationObserver goblintConfObserver;
+    private final int SIGINT = 2;
 
     private Boolean analysisRunning = false;
 
@@ -127,7 +128,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         int pid = Math.toIntExact(goblintProcess.pid());
         UnixProcess unixProcess = new UnixProcess(pid);
         try {
-            unixProcess.kill(2);
+            unixProcess.kill(SIGINT);
             System.err.println("--------------- This analysis has been aborted -------------\n");
         } catch (IOException e) {
             log.error("Aborting analysis failed.");
