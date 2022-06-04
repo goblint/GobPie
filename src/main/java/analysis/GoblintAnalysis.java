@@ -45,7 +45,7 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final FileAlterationObserver goblintConfObserver;
     private final int SIGINT = 2;
 
-    private boolean analysisRunning = false;
+    private AtomicBoolean analysisRunning = new AtomicBoolean(false);
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
@@ -83,18 +83,16 @@ public class GoblintAnalysis implements ServerAnalysis {
         if (rerun) {
             if (consumer instanceof MagpieServer server) {
 
-                if (analysisRunning) { 
+                if (analysisRunning.get() == true) { 
                     abortAnalysis();
                 }
                 goblintConfObserver.checkAndNotify();
                 preAnalyse();
 
                 log.info("---------------------- Analysis started ----------------------");
-                analysisRunning = true;
                 Collection<GoblintAnalysisResult> response = reanalyse();
                 if (response != null) {
                     server.consume(new ArrayList<>(response), source());
-                    analysisRunning = false;
                     log.info("--------------------- Analysis finished ----------------------");
                 }
             }
@@ -149,12 +147,14 @@ public class GoblintAnalysis implements ServerAnalysis {
         Request messagesRequest = new Request("messages");
 
         try {
+            analysisRunning.set(true);
             goblintClient.writeRequestToSocket(analyzeRequest);
             AnalyzeResponse analyzeResponse = goblintClient.readAnalyzeResponseFromSocket();
             if (!analyzeRequest.getId().equals(analyzeResponse.getId()))
                 throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
             if (analyzeResponse.getResult().getStatus().contains("Aborted"))
                 return null;
+            analysisRunning.set(false);
             goblintClient.writeRequestToSocket(messagesRequest);
             MessagesResponse messagesResponse = goblintClient.readMessagesResponseFromSocket();
             if (!messagesRequest.getId().equals(messagesResponse.getId()))
