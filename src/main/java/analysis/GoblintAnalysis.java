@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class GoblintAnalysis implements ServerAnalysis {
@@ -44,7 +45,7 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final FileAlterationObserver goblintConfObserver;
     private final int SIGINT = 2;
 
-    private Boolean analysisRunning = false;
+    private boolean analysisRunning = false;
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
@@ -88,13 +89,13 @@ public class GoblintAnalysis implements ServerAnalysis {
                 goblintConfObserver.checkAndNotify();
                 preAnalyse();
 
-                log.info("\n---------------------- Analysis started ----------------------");
+                log.info("---------------------- Analysis started ----------------------");
                 analysisRunning = true;
                 Collection<GoblintAnalysisResult> response = reanalyse();
                 if (response != null) {
                     server.consume(new ArrayList<>(response), source());
                     analysisRunning = false;
-                    log.info("--------------------- Analysis finished ----------------------\n");
+                    log.info("--------------------- Analysis finished ----------------------");
                 }
             }
         }
@@ -129,7 +130,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         UnixProcess unixProcess = new UnixProcess(pid);
         try {
             unixProcess.kill(SIGINT);
-            log.info("--------------- This analysis has been aborted -------------\n");
+            log.info("--------------- This analysis has been aborted -------------");
         } catch (IOException e) {
             log.error("Aborting analysis failed.");
         }
