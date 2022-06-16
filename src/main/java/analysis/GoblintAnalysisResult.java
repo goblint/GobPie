@@ -4,11 +4,17 @@ import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
+import magpiebridge.command.CodeActionCommand;
 import magpiebridge.core.AnalysisResult;
 import magpiebridge.core.Kind;
 // import magpiebridge.util.SourceCodeReader;
 
+import magpiebridge.util.SourceCodePositionUtils;
+import org.eclipse.lsp4j.Command;
+import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
 import goblintclient.messages.GoblintPosition;
@@ -110,6 +116,14 @@ public class GoblintAnalysisResult implements AnalysisResult {
         // }
         // return code;
         return null;
+    }
+
+    @Override
+    public Iterable<Command> command() {
+        // TODO: hardcoded
+        String cfgPath = "http://localhost:8080/cfgs/src%252Fexample.c/main.svg";
+        Command command = new Command("show cfg", "showcfg", Collections.singletonList(cfgPath));
+        return Collections.singleton(command);
     }
 
 }
