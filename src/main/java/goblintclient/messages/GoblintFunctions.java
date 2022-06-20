@@ -5,8 +5,6 @@ import magpiebridge.core.AnalysisResult;
 
 import java.io.File;
 import java.net.MalformedURLException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * The Class GoblintFunctions.
@@ -37,16 +35,16 @@ public class GoblintFunctions {
         return type;
     }
 
-    public List<AnalysisResult> convert() throws MalformedURLException {
-        List<AnalysisResult> results = new ArrayList<>();
-
-        results.add(new GoblintCFGAnalysisResult(
-                new GoblintPosition(location.line, location.endLine, location.column, location.endColumn, new File(location.file).toURI().toURL()),
-                funName,
-                new File(location.file).getName()
-        ));
-
-        return results;
+    public AnalysisResult convert() {
+        try {
+            return new GoblintCFGAnalysisResult(
+                    new GoblintPosition(location.line, location.endLine, location.column, location.endColumn, new File(location.file).toURI().toURL()),
+                    funName,
+                    new File(location.file).getName()
+            );
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

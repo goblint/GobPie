@@ -2,7 +2,12 @@ package analysis;
 
 import com.ibm.wala.classLoader.Module;
 import goblintclient.GoblintClient;
-import goblintclient.communication.*;
+import goblintclient.communication.FunctionsResponse;
+import goblintclient.communication.MessagesResponse;
+import goblintclient.communication.Request;
+import goblintclient.communication.Response;
+import goblintclient.messages.GoblintFunctions;
+import goblintclient.messages.GoblintMessages;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
@@ -24,7 +29,6 @@ import org.zeroturnaround.exec.ProcessResult;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -190,23 +194,11 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
 
     private Collection<AnalysisResult> convertResultsFromJson(MessagesResponse response) {
-        return response.getResult().stream().map(msg -> {
-            try {
-                return msg.convert();
-            } catch (MalformedURLException e) {
-                throw new RuntimeException(e);
-            }
-        }).flatMap(List::stream).collect(Collectors.toList());
+        return response.getResult().stream().map(GoblintMessages::convert).flatMap(List::stream).collect(Collectors.toList());
     }
 
     private Collection<AnalysisResult> convertResultsFromJson(FunctionsResponse response) {
-        return response.getResult().stream().map(msg -> {
-            try {
-                return msg.convert();
-            } catch (MalformedURLException e) {
-                throw new RuntimeException(e);
-            }
-        }).flatMap(List::stream).collect(Collectors.toList());
+        return response.getResult().stream().map(GoblintFunctions::convert).collect(Collectors.toList());
     }
 
 
