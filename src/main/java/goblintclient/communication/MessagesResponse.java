@@ -1,9 +1,9 @@
 package goblintclient.communication;
 
+import goblintclient.messages.GoblintMessages;
+
 import java.util.ArrayList;
 import java.util.List;
-
-import goblintclient.messages.GoblintMessages;
 
 /**
  * The Class MessagesResponse.

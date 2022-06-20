@@ -1,32 +1,28 @@
 package goblintclient;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import goblintclient.communication.AnalyzeResponse;
+import goblintclient.communication.FunctionsResponse;
+import goblintclient.communication.MessagesResponse;
+import goblintclient.communication.Request;
+import goblintclient.messages.GoblintMessages;
+import goblintclient.messages.GoblintTagInterfaceAdapter;
+import gobpie.GobPieException;
+import gobpie.GobPieExceptionType;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.io.*;
 import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
-import goblintclient.communication.Request;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import goblintclient.communication.AnalyzeResponse;
-import goblintclient.communication.MessagesResponse;
-import goblintclient.messages.GoblintMessages;
-import goblintclient.messages.GoblintTagInterfaceAdapter;
-import gobpie.GobPieException;
-import gobpie.GobPieExceptionType;
-
 
 /**
+ * s
  * The Class GoblintClient.
  * <p>
  * Handles the communication with Goblint Server through unix socket.
@@ -113,6 +109,19 @@ public class GoblintClient {
         MessagesResponse messagesResponse = gson.fromJson(response, MessagesResponse.class);
         log.info("Response " + messagesResponse.getId() + " read from socket.");
         return messagesResponse;
+    }
+
+    /**
+     * Method for reading the response from Goblint server.
+     *
+     * @return JsonObject of the results read from Goblint socket.
+     */
+
+    public FunctionsResponse readFunctionsResponseFromSocket() throws IOException {
+        String response = inputReader.readLine();
+        FunctionsResponse functionsResponse = new Gson().fromJson(response, FunctionsResponse.class);
+        log.info("Response " + functionsResponse.getId() + " read from socket.");
+        return functionsResponse;
     }
 
 

@@ -2,27 +2,23 @@ package analysis;
 
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
+import goblintclient.messages.GoblintPosition;
+import magpiebridge.core.AnalysisResult;
+import magpiebridge.core.Kind;
+import org.eclipse.lsp4j.DiagnosticSeverity;
 
 import java.util.ArrayList;
 
-import magpiebridge.core.AnalysisResult;
-import magpiebridge.core.Kind;
-// import magpiebridge.util.SourceCodeReader;
-
-import org.eclipse.lsp4j.DiagnosticSeverity;
-
-import goblintclient.messages.GoblintPosition;
-
 /**
- * The Class GoblintAnalysisResult.
+ * The Class GoblintMessagesAnalysisResult.
  * <p>
- * Implementation of the MagpieBridge AnalysisResult class.
- * Customizes it for the needs of Goblint.
+ * Implementation of the GoblintAnalysisResult class that extends MagpieBridge AnalysisResult class.
+ * The class that corresponds to the Goblint warnings that are shown in the IDE.
  *
- * @author Julian Dolby, Linghui Luo and Karoliine Holter
+ * @author Karoliine Holter
  */
 
-public class GoblintAnalysisResult implements AnalysisResult {
+public class GoblintMessagesAnalysisResult implements AnalysisResult {
 
     private String group_text = "";
     private final String text;
@@ -30,13 +26,13 @@ public class GoblintAnalysisResult implements AnalysisResult {
     private final String severity;
     private Iterable<Pair<Position, String>> related = new ArrayList<>();
 
-    public GoblintAnalysisResult(GoblintPosition pos, String text, String severity) {
+    public GoblintMessagesAnalysisResult(GoblintPosition pos, String text, String severity) {
         this.text = text;
         this.pos = pos;
         this.severity = severity;
     }
 
-    public GoblintAnalysisResult(GoblintPosition pos, String group_text, String text, String severity) {
+    public GoblintMessagesAnalysisResult(GoblintPosition pos, String group_text, String text, String severity) {
         this.group_text = group_text;
         this.text = text;
         this.pos = pos;
@@ -44,7 +40,7 @@ public class GoblintAnalysisResult implements AnalysisResult {
     }
 
 
-    public GoblintAnalysisResult(Position pos, String text, String severity, Iterable<Pair<Position, String>> related) {
+    public GoblintMessagesAnalysisResult(Position pos, String text, String severity, Iterable<Pair<Position, String>> related) {
         this.text = text;
         this.pos = pos;
         this.severity = severity;
