@@ -16,6 +16,8 @@ public abstract class Response {
     // {"id":0,"jsonrpc":"2.0","result":{"status":["Success"]}}
     // method: "messages" response:
     // {"id":0,"jsonrpc":"2.0","result":[{"tags":[{"Category":["Race"]}], ... }]}
+    // method: "functions" response:
+    // {"id":0,"jsonrpc":"2.0","result":[{"funName":"qsort","location":{"file":"/home/ ... }]}
 
     private UUID id;
     private String jsonrpc = "2.0";

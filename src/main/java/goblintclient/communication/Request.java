@@ -12,7 +12,10 @@ import java.util.UUID;
  */
 
 public class Request {
+    // Examples of requests used in this project:
     // {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
+    // {"jsonrpc":"2.0","id":0,"method":"messages"}
+    // {"jsonrpc":"2.0","id":0,"method":"functions"}
 
     private final String jsonrpc = "2.0";
     private final UUID id;

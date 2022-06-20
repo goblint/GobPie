@@ -17,7 +17,7 @@ import {XMLHttpRequest} from 'xmlhttprequest-ts';
 
 export function activate(context: ExtensionContext) {
     let script = 'java';
-    let args = ['-jar', context.asAbsolutePath('gobpie-0.0.2-SNAPSHOT.jar')];
+    let args = ['-jar', context.asAbsolutePath('gobpie-0.0.3-SNAPSHOT.jar')];
 
     // Use this for communicating on stdio 
     let serverOptions: ServerOptions = {

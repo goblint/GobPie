@@ -4,7 +4,7 @@
   "description": "The interactive Goblint analyzer extension",
   "author": "Karoliine Holter",
   "license": "EPL-2.0",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "repository": {
     "type": "git",
     "url": "https://github.com/karoliineh/MagpieBridge-Goblint.git"
@@ -53,7 +53,7 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "cp ../target/gobpie-0.0.2-SNAPSHOT.jar gobpie-0.0.2-SNAPSHOT.jar && npm run compile",
+    "vscode:prepublish": "cp ../target/gobpie-0.0.3-SNAPSHOT.jar gobpie-0.0.3-SNAPSHOT.jar && npm run compile",
     "compile": "tsc -b",
     "watch": "tsc -b -w"
   },

@@ -4,16 +4,17 @@ import com.google.gson.JsonPrimitive;
 import magpiebridge.core.MagpieClient;
 import magpiebridge.core.MagpieServer;
 import magpiebridge.core.WorkspaceCommand;
-import magpiebridge.util.URIUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.ExecuteCommandParams;
 import org.eclipse.lsp4j.services.LanguageClient;
 
-import java.awt.*;
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 
 public class ShowCFGCommand implements WorkspaceCommand {
+
+    private final Logger log = LogManager.getLogger(ShowCFGCommand.class);
 
     @Override
     public void execute(ExecuteCommandParams params, MagpieServer server, LanguageClient client) {
@@ -25,6 +26,7 @@ public class ShowCFGCommand implements WorkspaceCommand {
             } else {
                 uri = (String) uriJson;
             }
+            log.info("Showing CFG from: " + uri);
             showHTMLinClientOrBrowser(server, client, uri);
         } catch (IOException | URISyntaxException e) {
             MagpieServer.ExceptionLogger.log(e);
@@ -63,11 +65,11 @@ public class ShowCFGCommand implements WorkspaceCommand {
                                 "</html>";
                 ((MagpieClient) client).showHTML(content);
             }
-        } else {
-            // TODO: probably does not work?
+        } /*else {
+            // TODO: Not tested if this works, probably not?
             if (Desktop.isDesktopSupported())
                 Desktop.getDesktop().browse(new URI(URIUtils.checkURI(cfg)));
-        }
+        }*/
     }
 }
 
