@@ -32,6 +32,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -44,8 +47,9 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final GobPieConfiguration gobpieConfiguration;
     private final FileAlterationObserver goblintConfObserver;
     private final int SIGINT = 2;
-
-    private AtomicBoolean analysisRunning = new AtomicBoolean(false);
+    private static Future<?> lastAnalysisTask;
+    private static final ExecutorService execService = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean analysisRunning = new AtomicBoolean(false);
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
@@ -80,22 +84,21 @@ public class GoblintAnalysis implements ServerAnalysis {
 
     @Override
     public void analyze(Collection<? extends Module> files, AnalysisConsumer consumer, boolean rerun) {
-        if (rerun) {
-            if (consumer instanceof MagpieServer server) {
-
-                if (analysisRunning.get() == true) { 
-                    abortAnalysis();
-                }
-                goblintConfObserver.checkAndNotify();
-                preAnalyse();
-
-                log.info("---------------------- Analysis started ----------------------");
+        if (consumer instanceof MagpieServer server) {
+            if (analysisRunning.get()) {
+                abortAnalysis();
+            }
+            goblintConfObserver.checkAndNotify();
+            preAnalyse();
+            log.info("---------------------- Analysis started ----------------------");
+            Runnable analysisTask = () -> {
                 Collection<GoblintAnalysisResult> response = reanalyse();
                 if (response != null) {
                     server.consume(new ArrayList<>(response), source());
                     log.info("--------------------- Analysis finished ----------------------");
                 }
-            }
+            };
+            lastAnalysisTask = execService.submit(analysisTask);
         }
     }
 
@@ -123,15 +126,21 @@ public class GoblintAnalysis implements ServerAnalysis {
 
 
     private void abortAnalysis() {
-        Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
-        int pid = Math.toIntExact(goblintProcess.pid());
-        UnixProcess unixProcess = new UnixProcess(pid);
-        try {
-            unixProcess.kill(SIGINT);
-            log.info("--------------- This analysis has been aborted -------------");
-        } catch (IOException e) {
-            log.error("Aborting analysis failed.");
+        if (lastAnalysisTask != null && !lastAnalysisTask.isDone()) {
+            Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
+            int pid = Math.toIntExact(goblintProcess.pid());
+            UnixProcess unixProcess = new UnixProcess(pid);
+            try {
+                unixProcess.kill(SIGINT);
+                lastAnalysisTask.cancel(false);
+                if (lastAnalysisTask.isCancelled()) {
+                    log.info("--------------- This analysis has been aborted -------------");
+                }
+            } catch (IOException e) {
+                log.error("Aborting analysis failed.");
+            }
         }
+
     }
 
 
@@ -150,11 +159,11 @@ public class GoblintAnalysis implements ServerAnalysis {
             analysisRunning.set(true);
             goblintClient.writeRequestToSocket(analyzeRequest);
             AnalyzeResponse analyzeResponse = goblintClient.readAnalyzeResponseFromSocket();
+            analysisRunning.set(false);
             if (!analyzeRequest.getId().equals(analyzeResponse.getId()))
                 throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
             if (analyzeResponse.getResult().getStatus().contains("Aborted"))
                 return null;
-            analysisRunning.set(false);
             goblintClient.writeRequestToSocket(messagesRequest);
             MessagesResponse messagesResponse = goblintClient.readMessagesResponseFromSocket();
             if (!messagesRequest.getId().equals(messagesResponse.getId()))
