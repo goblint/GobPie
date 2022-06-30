@@ -132,10 +132,7 @@ public class GoblintAnalysis implements ServerAnalysis {
             UnixProcess unixProcess = new UnixProcess(pid);
             try {
                 unixProcess.kill(SIGINT);
-                lastAnalysisTask.cancel(false);
-                if (lastAnalysisTask.isCancelled()) {
-                    log.info("--------------- This analysis has been aborted -------------");
-                }
+                log.info("--------------- This analysis has been aborted -------------");
             } catch (IOException e) {
                 log.error("Aborting analysis failed.");
             }
