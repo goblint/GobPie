@@ -18,7 +18,7 @@ public class AnalyzeResponse extends Response {
 
     private result result;
 
-    static class result {
+    public static class result {
         private final List<String> status = new ArrayList<>();
 
         public List<String> getStatus() {
