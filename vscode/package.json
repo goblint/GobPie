@@ -58,7 +58,7 @@
     "watch": "tsc -b -w"
   },
   "dependencies": {
-    "vscode-languageclient": "^8.0.2",
+    "vscode-languageclient": "^5.2.1",
     "xmlhttprequest-ts": "^1.0.1"
   },
   "devDependencies": {
