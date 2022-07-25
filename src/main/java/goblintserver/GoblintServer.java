@@ -51,6 +51,10 @@ public class GoblintServer {
         return goblintConf;
     }
 
+    public StartedProcess getGoblintRunProcess() {
+        return goblintRunProcess;
+    }
+
 
     /**
      * Method for constructing the command to run Goblint server.
@@ -144,7 +148,7 @@ public class GoblintServer {
                     log.info("Goblint server has been killed.");
                 } else {
                     magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error. Please check the output terminal of GobPie extension for more information."));
-                    log.error("Goblint server exited due to an error. Please fix the issue reported above and restart the extension.");
+                    log.error("Goblint server exited due to an error (code: " + process.exitValue() + "). Please fix the issue reported above and restart the extension.");
                 }
             }
         };

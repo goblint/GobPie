@@ -1,35 +1,42 @@
 package analysis;
 
-import java.io.File;
-import java.io.FileFilter;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.util.*;
-import java.util.concurrent.TimeoutException;
-
 import com.ibm.wala.classLoader.Module;
-
+import goblintclient.GoblintClient;
+import goblintclient.communication.AnalyzeResponse;
+import goblintclient.communication.MessagesResponse;
+import goblintclient.communication.Request;
+import goblintclient.messages.GoblintMessages;
+import goblintserver.GoblintServer;
+import gobpie.GobPieConfiguration;
+import gobpie.GobPieException;
+import gobpie.GobPieExceptionType;
 import magpiebridge.core.AnalysisConsumer;
-import magpiebridge.core.ServerAnalysis;
 import magpiebridge.core.MagpieServer;
-
+import magpiebridge.core.ServerAnalysis;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
 import org.apache.commons.io.monitor.FileAlterationObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
-
 import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
+import org.zeroturnaround.process.UnixProcess;
 
-import goblintclient.*;
-import goblintclient.communication.*;
-import goblintclient.messages.*;
-import goblintserver.*;
-import gobpie.*;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class GoblintAnalysis implements ServerAnalysis {
@@ -39,6 +46,10 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final GoblintClient goblintClient;
     private final GobPieConfiguration gobpieConfiguration;
     private final FileAlterationObserver goblintConfObserver;
+    private final int SIGINT = 2;
+    private static Future<?> lastAnalysisTask;
+    private static final ExecutorService execService = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean analysisRunning = new AtomicBoolean(false);
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
@@ -73,18 +84,21 @@ public class GoblintAnalysis implements ServerAnalysis {
 
     @Override
     public void analyze(Collection<? extends Module> files, AnalysisConsumer consumer, boolean rerun) {
-        if (rerun) {
-            if (consumer instanceof MagpieServer server) {
-
-                goblintConfObserver.checkAndNotify();
-                preAnalyse();
-
-                System.err.println("\n---------------------- Analysis started ----------------------");
-                Collection<GoblintAnalysisResult> response = reanalyse();
-                if (response != null) server.consume(new ArrayList<>(response), source());
-                System.err.println("--------------------- Analysis finished ----------------------\n");
-
+        if (consumer instanceof MagpieServer server) {
+            if (analysisRunning.get()) {
+                abortAnalysis();
             }
+            goblintConfObserver.checkAndNotify();
+            preAnalyse();
+            log.info("---------------------- Analysis started ----------------------");
+            Runnable analysisTask = () -> {
+                Collection<GoblintAnalysisResult> response = reanalyse();
+                if (response != null) {
+                    server.consume(new ArrayList<>(response), source());
+                    log.info("--------------------- Analysis finished ----------------------");
+                }
+            };
+            lastAnalysisTask = execService.submit(analysisTask);
         }
     }
 
@@ -111,10 +125,26 @@ public class GoblintAnalysis implements ServerAnalysis {
     }
 
 
+    private void abortAnalysis() {
+        if (lastAnalysisTask != null && !lastAnalysisTask.isDone()) {
+            Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
+            int pid = Math.toIntExact(goblintProcess.pid());
+            UnixProcess unixProcess = new UnixProcess(pid);
+            try {
+                unixProcess.kill(SIGINT);
+                log.info("--------------- This analysis has been aborted -------------");
+            } catch (IOException e) {
+                log.error("Aborting analysis failed.");
+            }
+        }
+
+    }
+
+
     /**
      * Sends the request to Goblint server to reanalyse and reads the result.
      *
-     * @return returns true if the request was sucessful, false otherwise
+     * @return returns a collection of analysis results if the request was sucessful, null otherwise
      */
 
     private Collection<GoblintAnalysisResult> reanalyse() {
@@ -123,18 +153,21 @@ public class GoblintAnalysis implements ServerAnalysis {
         Request messagesRequest = new Request("messages");
 
         try {
+            analysisRunning.set(true);
             goblintClient.writeRequestToSocket(analyzeRequest);
             AnalyzeResponse analyzeResponse = goblintClient.readAnalyzeResponseFromSocket();
+            analysisRunning.set(false);
             if (!analyzeRequest.getId().equals(analyzeResponse.getId()))
                 throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
+            if (analyzeResponse.getResult().getStatus().contains("Aborted"))
+                return null;
             goblintClient.writeRequestToSocket(messagesRequest);
             MessagesResponse messagesResponse = goblintClient.readMessagesResponseFromSocket();
             if (!messagesRequest.getId().equals(messagesResponse.getId()))
                 throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
             return convertResultsFromJson(messagesResponse);
         } catch (IOException e) {
-            log.info("Sending the request to or receiving result from the server failed: " + e);
-            return null;
+            throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }
     }
 
