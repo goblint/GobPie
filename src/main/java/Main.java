@@ -73,8 +73,7 @@ public class Main {
 
 
     /**
-     * Method for creating and adding GoblintAnalysis to MagpieBridge server
-     * and doing the initial analysis.
+     * Method for creating and adding Goblint analysis to MagpieBridge server.
      * <p>
      * Creates GoblintServer, GoblintClient and the GoblintAnalysis classes.
      *
@@ -105,7 +104,7 @@ public class Main {
         Either<ServerAnalysis, ToolAnalysis> analysis = Either.forLeft(serverAnalysis);
         magpieServer.addAnalysis(analysis, language);
 
-        // TODO: move into separate function?
+        // add HTTP server for showing CFGs
         magpieServer.addHttpServer(cfgHttpServer);
         magpieServer.addCommand("showcfg", new ShowCFGCommand(goblintClient));
     }
