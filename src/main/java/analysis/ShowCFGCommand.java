@@ -4,9 +4,10 @@ import com.google.gson.JsonPrimitive;
 import goblintclient.GoblintClient;
 import goblintclient.communication.CFGsResponse;
 import goblintclient.communication.Request;
-import goblintclient.messages.GoblintCFG;
 import gobpie.GobPieException;
 import gobpie.GobPieExceptionType;
+import guru.nidi.graphviz.engine.Format;
+import guru.nidi.graphviz.engine.Graphviz;
 import magpiebridge.core.MagpieClient;
 import magpiebridge.core.MagpieServer;
 import magpiebridge.core.WorkspaceCommand;
@@ -15,6 +16,7 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.ExecuteCommandParams;
 import org.eclipse.lsp4j.services.LanguageClient;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
@@ -46,12 +48,22 @@ public class ShowCFGCommand implements WorkspaceCommand {
         }
     }
 
+    /**
+     * Writes the request to the socket to get the cfg for the given function.
+     *
+     * @param funName The function name for which the CFG was requested.
+     * @return the CFG of the given function as a dot language string.
+     * @throws GobPieException if the request and response ID do not match.
+     */
+
     public String getCFG(String funName) {
-        Request cfgRequest = new Request("cfgs", funName);
+        Request cfgsRequest = new Request("cfgs", funName);
         try {
-            goblintClient.writeRequestToSocket(cfgRequest);
-            CFGsResponse cfGsResponse = goblintClient.readCFGsResponseFromSocket();
-            return cfGsResponse.getResult().getCfg();
+            goblintClient.writeRequestToSocket(cfgsRequest);
+            CFGsResponse cfgsResponse = goblintClient.readCFGsResponseFromSocket();
+            if (!cfgsRequest.getId().equals(cfgsResponse.getId()))
+                throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
+            return cfgsResponse.getResult().getCfg();
         } catch (IOException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }
@@ -67,9 +79,15 @@ public class ShowCFGCommand implements WorkspaceCommand {
      * @throws IOException        IO exception
      * @throws URISyntaxException URI exception
      */
+
     public static void showHTMLinClientOrBrowser(MagpieServer server, LanguageClient client, String cfg) throws IOException, URISyntaxException {
         if (server.clientSupportShowHTML()) {
             if (client instanceof MagpieClient) {
+                // Generate svg from dot using graphviz-java
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                Graphviz.fromString(cfg).render(Format.SVG).toOutputStream(output);
+                String svg = output.toString();
+                // TODO: improve this HTML horror?
                 String content =
                         "<!DOCTYPE html>\n" +
                                 "<html lang=\"en\"\">\n" +
@@ -83,7 +101,8 @@ public class ShowCFGCommand implements WorkspaceCommand {
                                 "       </style>\n" +
                                 "   </head>\n" +
                                 "   <body>\n" +
-                                "       <p>" + cfg + "</p>\n" +
+                                /*"       <img src=\"data:image/svg+xml;base64," + imageAsBase64 + "\" />" +*/
+                                "       <svg>" + svg + "</svg>" +
                                 "   </body>\n" +
                                 "</html>";
                 ((MagpieClient) client).showHTML(content);
