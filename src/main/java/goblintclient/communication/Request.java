@@ -16,7 +16,7 @@ public class Request {
     // {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
     // {"jsonrpc":"2.0","id":0,"method":"messages"}
     // {"jsonrpc":"2.0","id":0,"method":"functions"}
-    // {"jsonrpc":"2.0","id":0,"method":"cfgs", "params":{"fname":"main"}}
+    // {"jsonrpc":"2.0","id":0,"method":"cfg", "params":{"fname":"main"}}
 
     private final String jsonrpc = "2.0";
     private final UUID id;

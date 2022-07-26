@@ -2,7 +2,7 @@ package analysis;
 
 import com.google.gson.JsonPrimitive;
 import goblintclient.GoblintClient;
-import goblintclient.communication.CFGsResponse;
+import goblintclient.communication.CFGResponse;
 import goblintclient.communication.Request;
 import gobpie.GobPieException;
 import gobpie.GobPieExceptionType;
@@ -57,13 +57,13 @@ public class ShowCFGCommand implements WorkspaceCommand {
      */
 
     public String getCFG(String funName) {
-        Request cfgsRequest = new Request("cfgs", funName);
+        Request cfgRequest = new Request("cfg", funName);
         try {
-            goblintClient.writeRequestToSocket(cfgsRequest);
-            CFGsResponse cfgsResponse = goblintClient.readCFGsResponseFromSocket();
-            if (!cfgsRequest.getId().equals(cfgsResponse.getId()))
+            goblintClient.writeRequestToSocket(cfgRequest);
+            CFGResponse cfgResponse = goblintClient.readCFGResponseFromSocket();
+            if (!cfgRequest.getId().equals(cfgResponse.getId()))
                 throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
-            return cfgsResponse.getResult().getCfg();
+            return cfgResponse.getResult().getCfg();
         } catch (IOException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }

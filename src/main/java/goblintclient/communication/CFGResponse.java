@@ -3,17 +3,16 @@ package goblintclient.communication;
 import goblintclient.messages.GoblintCFG;
 
 /**
- * The Class CFGsResponse.
+ * The Class CFGResponse.
  * <p>
- * Corresponding object to the jsonrpc response JSON for cfgs request.
+ * Corresponding object to the jsonrpc response JSON for cfg request.
  *
  * @author Karoliine Holter
  * @since 0.0.3
  */
 
-public class CFGsResponse extends Response {
-
-    // method: "cfgs" response:
+public class CFGResponse extends Response {
+    // method: "cfg" response:
     // {"id":0,"jsonrpc":"2.0","result":{"cfg":"digraph cfg {\n\tnode [id=\"\\N\", ... }}
 
     private GoblintCFG result;

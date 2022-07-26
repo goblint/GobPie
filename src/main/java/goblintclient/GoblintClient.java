@@ -111,11 +111,11 @@ public class GoblintClient {
     }
 
 
-    public CFGsResponse readCFGsResponseFromSocket() throws IOException {
+    public CFGResponse readCFGResponseFromSocket() throws IOException {
         String response = inputReader.readLine();
-        CFGsResponse cfgsResponse = new Gson().fromJson(response, CFGsResponse.class);
-        log.info("Response " + cfgsResponse.getId() + " read from socket.");
-        return cfgsResponse;
+        CFGResponse cfgResponse = new Gson().fromJson(response, CFGResponse.class);
+        log.info("Response " + cfgResponse.getId() + " read from socket.");
+        return cfgResponse;
     }
 
 
