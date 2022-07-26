@@ -2,10 +2,7 @@ package analysis;
 
 import com.ibm.wala.classLoader.Module;
 import goblintclient.GoblintClient;
-import goblintclient.communication.FunctionsResponse;
-import goblintclient.communication.MessagesResponse;
-import goblintclient.communication.Request;
-import goblintclient.communication.Response;
+import goblintclient.communication.*;
 import goblintclient.messages.GoblintFunctions;
 import goblintclient.messages.GoblintMessages;
 import goblintserver.GoblintServer;
@@ -25,6 +22,7 @@ import org.eclipse.lsp4j.MessageType;
 import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
+import org.zeroturnaround.process.UnixProcess;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -33,10 +31,25 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * The Class GoblintAnalysis.
+ * <p>
+ * Implementation of the ServerAnalysis interface.
+ * The class that is responsible for analyzing when an analysis event is triggered.
+ * Sends the requests to Goblint server, reads the corresponding responses,
+ * converts the results and passes them to MagpieBridge server.
+ *
+ * @author Karoliine Holter
+ * @since 0.0.1
+ */
 
 public class GoblintAnalysis implements ServerAnalysis {
 
@@ -45,6 +58,10 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final GoblintClient goblintClient;
     private final GobPieConfiguration gobpieConfiguration;
     private final FileAlterationObserver goblintConfObserver;
+    private final int SIGINT = 2;
+    private static Future<?> lastAnalysisTask;
+    private static final ExecutorService execService = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean analysisRunning = new AtomicBoolean(false);
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
@@ -74,23 +91,26 @@ public class GoblintAnalysis implements ServerAnalysis {
      *
      * @param files    the files that have been opened in the editor (not using due to using the compilation database).
      * @param consumer the server which consumes the analysis results.
-     * @param rerun    tells if the analysis should be reran.
+     * @param rerun    tells if the analysis should be rerun.
      */
 
     @Override
     public void analyze(Collection<? extends Module> files, AnalysisConsumer consumer, boolean rerun) {
-        if (rerun) {
-            if (consumer instanceof MagpieServer server) {
-
-                goblintConfObserver.checkAndNotify();
-                preAnalyse();
-
-                System.err.println("\n---------------------- Analysis started ----------------------");
-                Collection<AnalysisResult> response = reanalyse();
-                if (response != null) server.consume(new ArrayList<>(response), source());
-                System.err.println("--------------------- Analysis finished ----------------------\n");
-
+        if (consumer instanceof MagpieServer server) {
+            if (analysisRunning.get()) {
+                abortAnalysis();
             }
+            goblintConfObserver.checkAndNotify();
+            preAnalyse();
+            log.info("---------------------- Analysis started ----------------------");
+            Runnable analysisTask = () -> {
+                Collection<AnalysisResult> response = reanalyse();
+                if (response != null) {
+                    server.consume(new ArrayList<>(response), source());
+                    log.info("--------------------- Analysis finished ----------------------");
+                }
+            };
+            lastAnalysisTask = execService.submit(analysisTask);
         }
     }
 
@@ -117,6 +137,22 @@ public class GoblintAnalysis implements ServerAnalysis {
     }
 
 
+    private void abortAnalysis() {
+        if (lastAnalysisTask != null && !lastAnalysisTask.isDone()) {
+            Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
+            int pid = Math.toIntExact(goblintProcess.pid());
+            UnixProcess unixProcess = new UnixProcess(pid);
+            try {
+                unixProcess.kill(SIGINT);
+                log.info("--------------- This analysis has been aborted -------------");
+            } catch (IOException e) {
+                log.error("Aborting analysis failed.");
+            }
+        }
+
+    }
+
+
     /**
      * Sends the requests to Goblint server and reads their results.
      *
@@ -131,15 +167,18 @@ public class GoblintAnalysis implements ServerAnalysis {
 
         try {
             // Analyze
-            getResponse(analyzeRequest);
+            analysisRunning.set(true);
+            AnalyzeResponse analyzeResponse = (AnalyzeResponse) getResponse(analyzeRequest);
+            analysisRunning.set(false);
+            if (analyzeResponse.getResult().getStatus().contains("Aborted"))
+                return null;
             // Get warning messages
             MessagesResponse messagesResponse = (MessagesResponse) getResponse(messagesRequest);
             // Get list of functions
             FunctionsResponse functionsResponse = (FunctionsResponse) getResponse(functionsRequest);
             return Stream.concat(convertResultsFromJson(messagesResponse).stream(), convertResultsFromJson(functionsResponse).stream()).collect(Collectors.toList());
         } catch (IOException e) {
-            log.info("Sending the request to or receiving result from the server failed: " + e);
-            return null;
+            throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }
     }
 

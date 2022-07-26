@@ -76,7 +76,7 @@ public class GoblintClient {
     public void writeRequestToSocket(Request request) throws IOException {
         String requestString = new GsonBuilder().create().toJson(request) + "\n";
         outputStream.write(requestString.getBytes());
-        log.info("Request " + request.getId() + " written to socket.");
+        log.info("Request (" + request.getMethod() + ") " + request.getId() + " written to socket.");
     }
 
 
@@ -89,7 +89,7 @@ public class GoblintClient {
     public AnalyzeResponse readAnalyzeResponseFromSocket() throws IOException {
         String response = inputReader.readLine();
         AnalyzeResponse analyzeResponse = new Gson().fromJson(response, AnalyzeResponse.class);
-        log.info("Response " + analyzeResponse.getId() + " read from socket.");
+        log.info("Response (analyze) " + analyzeResponse.getId() + " read from socket.");
         return analyzeResponse;
     }
 
@@ -107,7 +107,7 @@ public class GoblintClient {
         builder.registerTypeAdapter(GoblintMessages.tag.class, new GoblintTagInterfaceAdapter());
         Gson gson = builder.create();
         MessagesResponse messagesResponse = gson.fromJson(response, MessagesResponse.class);
-        log.info("Response " + messagesResponse.getId() + " read from socket.");
+        log.info("Response (messages) " + messagesResponse.getId() + " read from socket.");
         return messagesResponse;
     }
 

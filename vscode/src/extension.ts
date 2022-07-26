@@ -37,7 +37,7 @@ export function activate(context: ExtensionContext) {
 			socket.on("connect", () => resolve(result))
 			socket.on("error", _ =>
 				window.showErrorMessage(
-					"Failed to connect to TaintBench language server. Make sure that the language server is running " +
+					"Failed to connect to the language server. Make sure that the language server is running " +
 					"-or- configure the extension to connect via standard IO."))
 		})
     }*/
