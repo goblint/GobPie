@@ -37,6 +37,9 @@ public class Main {
         try {
             createMagpieServer();
             addAnalysis();
+            // launch magpieServer
+            magpieServer.launchOnStdio();
+            log.info("MagpieBridge server launched.");
             magpieServer.doAnalysis("c", true);
         } catch (GobPieException e) {
             String message = e.getMessage();
@@ -62,19 +65,10 @@ public class Main {
      */
 
     private static void createMagpieServer() {
-
         // set up configuration for MagpieServer
         ServerConfiguration serverConfig = new ServerConfiguration();
         serverConfig.setDoAnalysisByFirstOpen(false);
         magpieServer = new MagpieServer(serverConfig);
-
-        magpieServer.addHttpServer(cfgHttpServer);
-        magpieServer.addCommand("showcfg", new ShowCFGCommand());
-
-        // launch magpieServer
-        magpieServer.launchOnStdio();
-        log.info("MagpieBridge server launched.");
-
     }
 
 
@@ -110,6 +104,10 @@ public class Main {
         ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintClient, gobpieConfiguration);
         Either<ServerAnalysis, ToolAnalysis> analysis = Either.forLeft(serverAnalysis);
         magpieServer.addAnalysis(analysis, language);
+
+        // TODO: move into separate function?
+        magpieServer.addHttpServer(cfgHttpServer);
+        magpieServer.addCommand("showcfg", new ShowCFGCommand(goblintClient));
     }
 
 

@@ -34,10 +34,7 @@ public class GoblintCFGAnalysisResult implements AnalysisResult {
 
     @Override
     public Iterable<Command> command() {
-        // TODO: "hardcoded" (currently needs manually executing the --html)
-        // TODO: Ask cfg from Goblint with a request instead
-        String cfgPath = "http://localhost:8080/cfgs/src%252F" + fileName + "/" + funName + ".svg";
-        Command command = new Command("show cfg", "showcfg", Collections.singletonList(cfgPath));
+        Command command = new Command("show cfg", "showcfg", Collections.singletonList(funName));
         return Collections.singleton(command);
     }
 

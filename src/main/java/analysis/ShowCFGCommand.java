@@ -1,6 +1,12 @@
 package analysis;
 
 import com.google.gson.JsonPrimitive;
+import goblintclient.GoblintClient;
+import goblintclient.communication.CFGsResponse;
+import goblintclient.communication.Request;
+import goblintclient.messages.GoblintCFG;
+import gobpie.GobPieException;
+import gobpie.GobPieExceptionType;
 import magpiebridge.core.MagpieClient;
 import magpiebridge.core.MagpieServer;
 import magpiebridge.core.WorkspaceCommand;
@@ -14,23 +20,40 @@ import java.net.URISyntaxException;
 
 public class ShowCFGCommand implements WorkspaceCommand {
 
+    private final GoblintClient goblintClient;
     private final Logger log = LogManager.getLogger(ShowCFGCommand.class);
+
+    public ShowCFGCommand(GoblintClient goblintClient) {
+        this.goblintClient = goblintClient;
+    }
 
     @Override
     public void execute(ExecuteCommandParams params, MagpieServer server, LanguageClient client) {
         try {
-            String uri;
+            String funName;
             Object uriJson = params.getArguments().get(0);
             if (uriJson instanceof JsonPrimitive) {
-                uri = ((JsonPrimitive) uriJson).getAsString();
+                funName = ((JsonPrimitive) uriJson).getAsString();
             } else {
-                uri = (String) uriJson;
+                funName = (String) uriJson;
             }
-            log.info("Showing CFG from: " + uri);
-            showHTMLinClientOrBrowser(server, client, uri);
+            log.info("Showing CFG for function: " + funName);
+            String cfg = getCFG(funName);
+            showHTMLinClientOrBrowser(server, client, cfg);
         } catch (IOException | URISyntaxException e) {
             MagpieServer.ExceptionLogger.log(e);
             e.printStackTrace();
+        }
+    }
+
+    public String getCFG(String funName) {
+        Request cfgRequest = new Request("cfgs", funName);
+        try {
+            goblintClient.writeRequestToSocket(cfgRequest);
+            CFGsResponse cfGsResponse = goblintClient.readCFGsResponseFromSocket();
+            return cfGsResponse.getResult().getCfg();
+        } catch (IOException e) {
+            throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }
     }
 
@@ -60,7 +83,7 @@ public class ShowCFGCommand implements WorkspaceCommand {
                                 "       </style>\n" +
                                 "   </head>\n" +
                                 "   <body>\n" +
-                                "       <iframe src=\"" + cfg + "\"></iframe>\n" +
+                                "       <p>" + cfg + "</p>\n" +
                                 "   </body>\n" +
                                 "</html>";
                 ((MagpieClient) client).showHTML(content);

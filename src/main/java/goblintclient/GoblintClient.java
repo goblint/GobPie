@@ -2,10 +2,7 @@ package goblintclient;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import goblintclient.communication.AnalyzeResponse;
-import goblintclient.communication.FunctionsResponse;
-import goblintclient.communication.MessagesResponse;
-import goblintclient.communication.Request;
+import goblintclient.communication.*;
 import goblintclient.messages.GoblintMessages;
 import goblintclient.messages.GoblintTagInterfaceAdapter;
 import gobpie.GobPieException;
@@ -81,7 +78,7 @@ public class GoblintClient {
 
 
     /**
-     * Method for reading the response from Goblint server.
+     * Methods for reading the responses from Goblint server.
      *
      * @return JsonObject of the results read from Goblint socket.
      */
@@ -94,12 +91,6 @@ public class GoblintClient {
     }
 
 
-    /**
-     * Method for reading the response from Goblint server.
-     *
-     * @return JsonObject of the results read from Goblint socket.
-     */
-
     public MessagesResponse readMessagesResponseFromSocket() throws IOException {
         String response = inputReader.readLine();
         GsonBuilder builder = new GsonBuilder();
@@ -111,17 +102,20 @@ public class GoblintClient {
         return messagesResponse;
     }
 
-    /**
-     * Method for reading the response from Goblint server.
-     *
-     * @return JsonObject of the results read from Goblint socket.
-     */
 
     public FunctionsResponse readFunctionsResponseFromSocket() throws IOException {
         String response = inputReader.readLine();
         FunctionsResponse functionsResponse = new Gson().fromJson(response, FunctionsResponse.class);
         log.info("Response " + functionsResponse.getId() + " read from socket.");
         return functionsResponse;
+    }
+
+
+    public CFGsResponse readCFGsResponseFromSocket() throws IOException {
+        String response = inputReader.readLine();
+        CFGsResponse cfgsResponse = new Gson().fromJson(response, CFGsResponse.class);
+        log.info("Response " + cfgsResponse.getId() + " read from socket.");
+        return cfgsResponse;
     }
 
 
