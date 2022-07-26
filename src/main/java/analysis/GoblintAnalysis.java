@@ -2,15 +2,15 @@ package analysis;
 
 import com.ibm.wala.classLoader.Module;
 import goblintclient.GoblintClient;
-import goblintclient.communication.AnalyzeResponse;
-import goblintclient.communication.MessagesResponse;
-import goblintclient.communication.Request;
+import goblintclient.communication.*;
+import goblintclient.messages.GoblintFunctions;
 import goblintclient.messages.GoblintMessages;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
 import gobpie.GobPieExceptionType;
 import magpiebridge.core.AnalysisConsumer;
+import magpiebridge.core.AnalysisResult;
 import magpiebridge.core.MagpieServer;
 import magpiebridge.core.ServerAnalysis;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
@@ -27,7 +27,6 @@ import org.zeroturnaround.process.UnixProcess;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -37,7 +36,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+/**
+ * The Class GoblintAnalysis.
+ * <p>
+ * Implementation of the ServerAnalysis interface.
+ * The class that is responsible for analyzing when an analysis event is triggered.
+ * Sends the requests to Goblint server, reads the corresponding responses,
+ * converts the results and passes them to MagpieBridge server.
+ *
+ * @author Karoliine Holter
+ * @since 0.0.1
+ */
 
 public class GoblintAnalysis implements ServerAnalysis {
 
@@ -79,7 +91,7 @@ public class GoblintAnalysis implements ServerAnalysis {
      *
      * @param files    the files that have been opened in the editor (not using due to using the compilation database).
      * @param consumer the server which consumes the analysis results.
-     * @param rerun    tells if the analysis should be reran.
+     * @param rerun    tells if the analysis should be rerun.
      */
 
     @Override
@@ -92,7 +104,7 @@ public class GoblintAnalysis implements ServerAnalysis {
             preAnalyse();
             log.info("---------------------- Analysis started ----------------------");
             Runnable analysisTask = () -> {
-                Collection<GoblintAnalysisResult> response = reanalyse();
+                Collection<AnalysisResult> response = reanalyse();
                 if (response != null) {
                     server.consume(new ArrayList<>(response), source());
                     log.info("--------------------- Analysis finished ----------------------");
@@ -142,33 +154,54 @@ public class GoblintAnalysis implements ServerAnalysis {
 
 
     /**
-     * Sends the request to Goblint server to reanalyse and reads the result.
+     * Sends the requests to Goblint server and reads their results.
      *
-     * @return returns a collection of analysis results if the request was sucessful, null otherwise
+     * @return a collection of warning messages and cfg code lenses if request was successful, null otherwise.
      */
 
-    private Collection<GoblintAnalysisResult> reanalyse() {
+    private Collection<AnalysisResult> reanalyse() {
 
         Request analyzeRequest = new Request("analyze");
         Request messagesRequest = new Request("messages");
+        Request functionsRequest = new Request("functions");
 
         try {
+            // Analyze
             analysisRunning.set(true);
-            goblintClient.writeRequestToSocket(analyzeRequest);
-            AnalyzeResponse analyzeResponse = goblintClient.readAnalyzeResponseFromSocket();
+            AnalyzeResponse analyzeResponse = (AnalyzeResponse) getResponse(analyzeRequest);
             analysisRunning.set(false);
-            if (!analyzeRequest.getId().equals(analyzeResponse.getId()))
-                throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
             if (analyzeResponse.getResult().getStatus().contains("Aborted"))
                 return null;
-            goblintClient.writeRequestToSocket(messagesRequest);
-            MessagesResponse messagesResponse = goblintClient.readMessagesResponseFromSocket();
-            if (!messagesRequest.getId().equals(messagesResponse.getId()))
-                throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
-            return convertResultsFromJson(messagesResponse);
+            // Get warning messages
+            MessagesResponse messagesResponse = (MessagesResponse) getResponse(messagesRequest);
+            // Get list of functions
+            FunctionsResponse functionsResponse = (FunctionsResponse) getResponse(functionsRequest);
+            return Stream.concat(convertResultsFromJson(messagesResponse).stream(), convertResultsFromJson(functionsResponse).stream()).collect(Collectors.toList());
         } catch (IOException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }
+    }
+
+    /**
+     * Writes the request to the socket and reads its response according to the request that was sent.
+     *
+     * @param request The request to be written into socket.
+     * @return the response to the request that was sent.
+     * @throws GobPieException if the request and response ID do not match.
+     */
+
+    private Response getResponse(Request request) throws IOException {
+        goblintClient.writeRequestToSocket(request);
+        Response response;
+        if (request.getMethod().equals("analyze"))
+            response = goblintClient.readAnalyzeResponseFromSocket();
+        else if (request.getMethod().equals("messages"))
+            response = goblintClient.readMessagesResponseFromSocket();
+        else
+            response = goblintClient.readFunctionsResponseFromSocket();
+        if (!request.getId().equals(response.getId()))
+            throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
+        return response;
     }
 
 
@@ -192,31 +225,26 @@ public class GoblintAnalysis implements ServerAnalysis {
 
 
     /**
-     * Deserializes json to GoblintResult objects and then converts the information
-     * into GoblintAnalysisResult objects, which Magpie uses to generate IDE
-     * messages.
+     * Deserializes json from the response and converts the information
+     * into AnalysisResult objects, which Magpie uses to generate IDE messages.
      *
-     * @return A collection of GoblintAnalysisResult objects.
+     * @param response that was read from the socket and needs to be converted to AnalysisResults.
+     * @return A collection of AnalysisResult objects.
      */
 
-    private Collection<GoblintAnalysisResult> convertResultsFromJson(MessagesResponse messagesResponse) {
+    private Collection<AnalysisResult> convertResultsFromJson(MessagesResponse response) {
+        return response.getResult().stream().map(GoblintMessages::convert).flatMap(List::stream).collect(Collectors.toList());
+    }
 
-        Collection<GoblintAnalysisResult> results = new ArrayList<>();
-        try {
-            List<GoblintMessages> messagesArray = messagesResponse.getResult();
-            for (GoblintMessages msg : messagesArray) {
-                results.addAll(msg.convert());
-            }
-            return results;
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+    private Collection<AnalysisResult> convertResultsFromJson(FunctionsResponse response) {
+        return response.getResult().stream().map(GoblintFunctions::convert).collect(Collectors.toList());
     }
 
 
     /**
      * Method for creating an observer for Goblint configuration file.
      * So that the server could be restarted when the configuration file is changed.
+     * TODO: instead of restarting the server, send new configuration with a request to the server #32
      *
      * @return The FileAlterationObserver of project root directory.
      */

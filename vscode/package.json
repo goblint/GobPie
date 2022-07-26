@@ -1,71 +1,72 @@
 {
-	"name": "gobpie",
-	"displayName": "GobPie",
-	"description": "The interactive Goblint analyzer extension",
-	"author": "Karoliine Holter",
-	"license": "EPL-2.0",
-	"version": "0.0.2",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/karoliineh/MagpieBridge-Goblint.git"
-	},
-	"publisher": "karoliineh",
-	"categories": [],
-	"keywords": [
-		"multi-root ready"
-	],
-	"engines": {
-		"vscode": "^1.30.0"
-	},
-	"activationEvents": [
-		"onLanguage:c"
-	],
-	"main": "./out/extension",
-	"contributes": {
-		"configuration": {
-			"type": "object",
-			"title": "GobPie",
-			"properties": {
-				"gobpie.trace.server": {
-					"scope": "window",
-					"type": "string",
-					"enum": [
-						"off",
-						"messages",
-						"verbose"
-					],
-					"default": "off",
-					"description": "Traces the communication between VS Code and the language server."
-				}
-			}
-		},
-		"languages": [
-			{
-				"id": "c",
-				"aliases": [
-					"C",
-					"c"
-				],
-				"extensions": [
-					".c"
-				]
-			}
-		]
-	},
-	"scripts": {
-		"vscode:prepublish": "cp ../target/gobpie-0.0.2-SNAPSHOT.jar gobpie-0.0.2-SNAPSHOT.jar && npm run compile",
-		"compile": "tsc -b",
-		"watch": "tsc -b -w",
-		"postinstall": "node ./node_modules/vscode/bin/install"
-	},
-	"dependencies": {
-		"vscode-languageclient": "^5.2.1"
-	},
-	"devDependencies": {
-		"vscode": "^1.1.33",
-		"@types/mocha": "^5.2.6",
-		"@types/node": "^11.13.0",
-		"tslint": "^5.15.0",
-		"typescript": "^3.4.2"
-	}
+  "name": "gobpie",
+  "displayName": "GobPie",
+  "description": "The interactive Goblint analyzer extension",
+  "author": "Karoliine Holter",
+  "license": "EPL-2.0",
+  "version": "0.0.3",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/karoliineh/MagpieBridge-Goblint.git"
+  },
+  "publisher": "karoliineh",
+  "categories": [],
+  "keywords": [
+    "multi-root ready"
+  ],
+  "engines": {
+    "vscode": "^1.30.0"
+  },
+  "activationEvents": [
+    "onLanguage:c"
+  ],
+  "main": "./out/extension",
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "GobPie",
+      "properties": {
+        "gobpie.trace.server": {
+          "scope": "window",
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "c",
+        "aliases": [
+          "C",
+          "c"
+        ],
+        "extensions": [
+          ".c"
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "cp ../target/gobpie-0.0.3-SNAPSHOT.jar gobpie-0.0.3-SNAPSHOT.jar && npm run compile",
+    "compile": "tsc -b",
+    "watch": "tsc -b -w"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^5.2.1",
+    "xmlhttprequest-ts": "^1.0.1"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "^2.1.4",
+    "@types/vscode": "^1.1.37",
+    "@types/mocha": "^9.1.1",
+    "@types/node": "^18.6.1",
+    "tslint": "^6.1.3",
+    "typescript": "^4.7.4"
+  }
 }

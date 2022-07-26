@@ -4,6 +4,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.*;
 
+import analysis.ShowCFGCommand;
 import magpiebridge.core.MagpieServer;
 import magpiebridge.core.ServerAnalysis;
 import magpiebridge.core.ServerConfiguration;
@@ -27,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 public class Main {
 
     private static final String gobPieConfFileName = "gobpie.json";
+    private static final String cfgHttpServer = "http://localhost:8080/";
     private static final Logger log = LogManager.getLogger(Main.class);
     private static MagpieServer magpieServer;
 
@@ -35,6 +37,9 @@ public class Main {
         try {
             createMagpieServer();
             addAnalysis();
+            // launch magpieServer
+            magpieServer.launchOnStdio();
+            log.info("MagpieBridge server launched.");
             magpieServer.doAnalysis("c", true);
         } catch (GobPieException e) {
             String message = e.getMessage();
@@ -60,22 +65,15 @@ public class Main {
      */
 
     private static void createMagpieServer() {
-
         // set up configuration for MagpieServer
         ServerConfiguration serverConfig = new ServerConfiguration();
         serverConfig.setDoAnalysisByFirstOpen(false);
         magpieServer = new MagpieServer(serverConfig);
-
-        // launch magpieServer
-        magpieServer.launchOnStdio();
-        log.info("MagpieBridge server launched.");
-
     }
 
 
     /**
-     * Method for creating and adding GoblintAnalysis to MagpieBridge server
-     * and doing the initial analysis.
+     * Method for creating and adding Goblint analysis to MagpieBridge server.
      * <p>
      * Creates GoblintServer, GoblintClient and the GoblintAnalysis classes.
      *
@@ -105,6 +103,10 @@ public class Main {
         ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintClient, gobpieConfiguration);
         Either<ServerAnalysis, ToolAnalysis> analysis = Either.forLeft(serverAnalysis);
         magpieServer.addAnalysis(analysis, language);
+
+        // add HTTP server for showing CFGs
+        magpieServer.addHttpServer(cfgHttpServer);
+        magpieServer.addCommand("showcfg", new ShowCFGCommand(goblintClient));
     }
 
 
