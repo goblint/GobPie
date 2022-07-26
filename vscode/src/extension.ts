@@ -1,4 +1,5 @@
 'use strict';
+import * as vscode from 'vscode';
 import {ExtensionContext, ViewColumn, window, workspace} from 'vscode';
 import {
     ClientCapabilities,
@@ -14,6 +15,8 @@ import {
 } from 'vscode-languageclient';
 import {XMLHttpRequest} from 'xmlhttprequest-ts';
 
+// Track currently webview panel
+let panel: vscode.WebviewPanel | undefined = undefined;
 
 export function activate(context: ExtensionContext) {
     let script = 'java';
@@ -77,10 +80,27 @@ export class MagpieBridgeSupport implements DynamicFeature<undefined> {
     }
 
     createWebView(content: string) {
-        let panel = window.createWebviewPanel("Customized Web View", "GobPie", ViewColumn.Beside, {
-            retainContextWhenHidden: true,
-            enableScripts: true
-        });
+        const columnToShowIn = ViewColumn.Beside;
+        
+        if (panel) {
+            // If we already have a panel, show it in the target column
+            panel.reveal(columnToShowIn);
+        } else {
+            // Otherwise, create a new panel
+            panel = window.createWebviewPanel("Customized Web View", "GobPie", columnToShowIn, {
+                retainContextWhenHidden: true,
+                enableScripts: true
+            });
+
+            // Reset when the current panel is closed
+            panel.onDidDispose(
+                () => {
+                    panel = undefined;
+                },
+                null,
+            );
+        }
+
         panel.webview.html = content;
         panel.webview.onDidReceiveMessage(
             message => {
