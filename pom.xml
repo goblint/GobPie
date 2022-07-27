@@ -7,6 +7,14 @@
     <version>0.0.3-SNAPSHOT</version>
     <dependencies>
 
+        <!-- lsp4j json rpc -->
+        <dependency>
+            <groupId>org.eclipse.lsp4j</groupId>
+            <artifactId>org.eclipse.lsp4j.jsonrpc</artifactId>
+            <version>0.14.0</version>
+        </dependency>
+
+
         <!-- magpiebridge -->
         <dependency>
             <groupId>com.github.magpiebridge</groupId>
