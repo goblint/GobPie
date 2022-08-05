@@ -42,11 +42,11 @@ public class GoblintSocketMessageConsumer implements MessageConsumer, MessageCon
     public void consume(Message message) {
         try {
             String content = jsonHandler.serialize(message) + "\n";
-            log.info(content);
             byte[] contentBytes = content.getBytes(encoding);
             synchronized (outputLock) {
                 output.write(contentBytes);
                 output.flush();
+                log.info("Request written to socket.");
             }
         } catch (IOException exception) {
             throw new JsonRpcException(exception);
