@@ -1,8 +1,8 @@
 import analysis.GoblintAnalysis;
 import analysis.ShowCFGCommand;
 import com.google.gson.*;
-import goblintclient.GoblintClient;
-import goblintclient.GoblintServiceLauncher;
+import api.GoblintClient;
+import api.GoblintServiceLauncher;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;

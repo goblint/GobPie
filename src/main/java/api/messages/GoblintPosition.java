@@ -1,4 +1,4 @@
-package goblintclient.messages;
+package api.messages;
 
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.classLoader.IMethod;

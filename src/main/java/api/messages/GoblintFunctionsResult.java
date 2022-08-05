@@ -1,4 +1,4 @@
-package goblintclient.messages;
+package api.messages;
 
 import analysis.GoblintCFGAnalysisResult;
 import magpiebridge.core.AnalysisResult;
@@ -7,7 +7,7 @@ import java.io.File;
 import java.net.MalformedURLException;
 
 /**
- * The Class GoblintFunctions.
+ * The Class GoblintFunctionsResult.
  * <p>
  * Corresponding object to the Goblint functions request response results in JSON.
  * Converts the results from JSON to AnalysisResult requested by MagpieBridge.
@@ -16,7 +16,7 @@ import java.net.MalformedURLException;
  * @since 0.0.3
  */
 
-public class GoblintFunctions {
+public class GoblintFunctionsResult {
 
     String type = getClass().getName();
 

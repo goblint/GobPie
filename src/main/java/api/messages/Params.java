@@ -1,4 +1,4 @@
-package goblintclient.messages;
+package api.messages;
 
 public class Params {
 

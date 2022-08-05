@@ -2,7 +2,7 @@ package analysis;
 
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
-import goblintclient.messages.GoblintPosition;
+import api.messages.GoblintPosition;
 import magpiebridge.core.AnalysisResult;
 import magpiebridge.core.Kind;
 import org.eclipse.lsp4j.DiagnosticSeverity;

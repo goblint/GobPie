@@ -1,7 +1,7 @@
-package goblintclient;
+package api;
 
 import com.google.gson.JsonObject;
-import goblintclient.messages.*;
+import api.messages.*;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 
 import java.util.List;
@@ -38,15 +38,15 @@ public interface GoblintService {
     CompletableFuture<JsonObject> ping();
 
     @JsonRequest
-    CompletableFuture<GoblintAnalyzeResult> analyze(Params params);
+    CompletableFuture<GoblintAnalysisResult> analyze(Params params);
 
     @JsonRequest
-    CompletableFuture<List<GoblintMessages>> messages();
+    CompletableFuture<List<GoblintMessagesResult>> messages();
 
     @JsonRequest
-    CompletableFuture<List<GoblintFunctions>> functions();
+    CompletableFuture<List<GoblintFunctionsResult>> functions();
 
     @JsonRequest
-    CompletableFuture<GoblintCFG> cfg(Params params);
+    CompletableFuture<GoblintCFGResult> cfg(Params params);
 
 }

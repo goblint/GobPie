@@ -1,4 +1,4 @@
-package goblintclient;
+package api.json;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -11,7 +11,6 @@ import org.eclipse.lsp4j.jsonrpc.messages.Message;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 
 /**

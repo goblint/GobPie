@@ -1,8 +1,7 @@
-package goblintclient;
+package api.json;
 
 import com.google.gson.GsonBuilder;
-import goblintclient.messages.GoblintMessages;
-import goblintclient.messages.GoblintTagInterfaceAdapter;
+import api.messages.GoblintMessagesResult;
 import org.eclipse.lsp4j.jsonrpc.json.JsonRpcMethod;
 import org.eclipse.lsp4j.jsonrpc.json.MessageJsonHandler;
 import org.eclipse.lsp4j.jsonrpc.json.adapters.*;
@@ -31,7 +30,7 @@ public class GoblintMessageJsonHandler extends MessageJsonHandler {
                 .registerTypeAdapterFactory(new TupleTypeAdapters.TwoTypeAdapterFactory())
                 .registerTypeAdapterFactory(new EnumTypeAdapter.Factory())
                 .registerTypeAdapterFactory(new GoblintMessageTypeAdapter.Factory(this))
-                .registerTypeAdapter(GoblintMessages.tag.class, new GoblintTagInterfaceAdapter());
+                .registerTypeAdapter(GoblintMessagesResult.tag.class, new GoblintTagInterfaceAdapter());
     }
 
 }

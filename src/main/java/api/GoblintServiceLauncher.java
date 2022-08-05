@@ -1,5 +1,8 @@
-package goblintclient;
+package api;
 
+import api.json.GoblintMessageJsonHandler;
+import api.json.GoblintSocketMessageConsumer;
+import api.json.GoblintSocketMessageProducer;
 import gobpie.GobPieException;
 import gobpie.GobPieExceptionType;
 import org.apache.logging.log4j.LogManager;

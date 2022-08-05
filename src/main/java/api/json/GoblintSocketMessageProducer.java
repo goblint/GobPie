@@ -1,4 +1,4 @@
-package goblintclient;
+package api.json;
 
 import org.apache.logging.log4j.LogManager;
 import org.eclipse.lsp4j.jsonrpc.*;

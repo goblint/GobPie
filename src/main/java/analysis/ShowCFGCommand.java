@@ -1,9 +1,9 @@
 package analysis;
 
 import com.google.gson.JsonPrimitive;
-import goblintclient.GoblintService;
-import goblintclient.messages.GoblintCFG;
-import goblintclient.messages.Params;
+import api.GoblintService;
+import api.messages.GoblintCFGResult;
+import api.messages.Params;
 import gobpie.GobPieException;
 import gobpie.GobPieExceptionType;
 import guru.nidi.graphviz.engine.Format;
@@ -60,7 +60,7 @@ public class ShowCFGCommand implements WorkspaceCommand {
     public String getCFG(String funName) {
         Params params = new Params(funName);
         try {
-            GoblintCFG cfgResponse = goblintService.cfg(params).get();
+            GoblintCFGResult cfgResponse = goblintService.cfg(params).get();
             return cfgResponse.getCfg();
         } catch (ExecutionException | InterruptedException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);

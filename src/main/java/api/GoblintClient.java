@@ -1,4 +1,4 @@
-package goblintclient;
+package api;
 
 /**
  * The Class {@link GoblintClient}.

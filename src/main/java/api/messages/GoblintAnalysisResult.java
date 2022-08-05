@@ -1,10 +1,10 @@
-package goblintclient.messages;
+package api.messages;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Class GoblintAnalyzeResult.
+ * The Class GoblintAnalysisResult.
  * <p>
  * Corresponding object to the Goblint analyze request response results in JSON.
  *
@@ -12,7 +12,7 @@ import java.util.List;
  * @since 0.0.3
  */
 
-public class GoblintAnalyzeResult {
+public class GoblintAnalysisResult {
 
     private final List<String> status = new ArrayList<>();
 

@@ -1,14 +1,11 @@
 package analysis;
 
 import com.ibm.wala.classLoader.Module;
-import com.ibm.wala.util.processes.Launcher;
-import goblintclient.GoblintClient;
-import goblintclient.GoblintService;
-import goblintclient.GoblintServiceLauncher;
-import goblintclient.messages.GoblintAnalyzeResult;
-import goblintclient.messages.GoblintFunctions;
-import goblintclient.messages.GoblintMessages;
-import goblintclient.messages.Params;
+import api.GoblintService;
+import api.messages.GoblintAnalysisResult;
+import api.messages.GoblintFunctionsResult;
+import api.messages.GoblintMessagesResult;
+import api.messages.Params;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
@@ -165,14 +162,14 @@ public class GoblintAnalysis implements ServerAnalysis {
         try {
             // Analyze
             analysisRunning.set(true);
-            GoblintAnalyzeResult analyzeResult = goblintService.analyze(new Params()).get();
+            GoblintAnalysisResult analyzeResult = goblintService.analyze(new Params()).get();
             analysisRunning.set(false);
             if (analyzeResult.getStatus().contains("Aborted"))
                 return null;
             // Get warning messages
-            List<GoblintMessages> messages = goblintService.messages().get();
+            List<GoblintMessagesResult> messages = goblintService.messages().get();
             // Get list of functions
-            List<GoblintFunctions> functions = goblintService.functions().get();
+            List<GoblintFunctionsResult> functions = goblintService.functions().get();
             return Stream.concat(convertMessagesFromJson(messages).stream(), convertFunctionsFromJson(functions).stream()).collect(Collectors.toList());
         } catch (ExecutionException | InterruptedException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
@@ -207,12 +204,12 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @return A collection of AnalysisResult objects.
      */
 
-    private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessages> response) {
-        return response.stream().map(GoblintMessages::convert).flatMap(List::stream).collect(Collectors.toList());
+    private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessagesResult> response) {
+        return response.stream().map(GoblintMessagesResult::convert).flatMap(List::stream).collect(Collectors.toList());
     }
 
-    private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctions> response) {
-        return response.stream().map(GoblintFunctions::convert).collect(Collectors.toList());
+    private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctionsResult> response) {
+        return response.stream().map(GoblintFunctionsResult::convert).collect(Collectors.toList());
     }
 
 
