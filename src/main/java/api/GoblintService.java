@@ -49,4 +49,7 @@ public interface GoblintService {
     @JsonRequest
     CompletableFuture<GoblintCFGResult> cfg(Params params);
 
+    @JsonRequest
+    CompletableFuture<Void> read_config(Params params);
+
 }

@@ -1,11 +1,11 @@
 package analysis;
 
-import com.ibm.wala.classLoader.Module;
 import api.GoblintService;
 import api.messages.GoblintAnalysisResult;
 import api.messages.GoblintFunctionsResult;
 import api.messages.GoblintMessagesResult;
 import api.messages.Params;
+import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
@@ -215,10 +215,10 @@ public class GoblintAnalysis implements ServerAnalysis {
 
     /**
      * Method for creating an observer for Goblint configuration file.
-     * So that the server could be restarted when the configuration file is changed.
-     * TODO: instead of restarting the server, send new configuration with a request to the server #32
+     * So that a request to read in the configuration file would be sent to Goblint
+     * when the configuration file is changed.
      *
-     * @return The FileAlterationObserver of project root directory.
+     * @return The FileAlterationObserver of the project's root directory.
      */
 
     public FileAlterationObserver createGoblintConfObserver() {
@@ -229,25 +229,14 @@ public class GoblintAnalysis implements ServerAnalysis {
         observer.addListener(new FileAlterationListenerAdaptor() {
             @Override
             public void onFileChange(File file) {
-                try {
-                    goblintServer.restartGoblintServer();
-                    // TODO: doesn't work (does not connect to new socket)
-                } catch (GobPieException e) {
-                    String message = "Unable to restart GobPie extension: " + e.getMessage();
-                    magpieServer.forwardMessageToClient(
-                            new MessageParams(MessageType.Error, message + " Please check the output terminal of GobPie extension for more information.")
-                    );
-                    if (e.getCause() == null) log.error(message);
-                    else log.error(message + " Cause: " + e.getCause().getMessage());
-                }
+                Params params = new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath());
+                goblintService.read_config(params);
             }
         });
 
         try {
             observer.initialize();
         } catch (Exception e) {
-            this.magpieServer.forwardMessageToClient(
-                    new MessageParams(MessageType.Warning, "After changing the files list in Goblint configuration the server will not be automatically restarted. Close and reopen the IDE to restart the server manually if needed."));
             log.error("Initializing goblintConfObserver failed: " + e.getMessage());
         }
         return observer;

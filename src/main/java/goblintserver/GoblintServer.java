@@ -1,30 +1,32 @@
 package goblintserver;
-import java.util.Arrays;
-import java.util.concurrent.TimeoutException;
 
-import static gobpie.GobPieExceptionType.*;
-
-import java.io.*;
-import java.nio.file.*;
-
+import gobpie.GobPieException;
+import magpiebridge.core.MagpieServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
-import org.zeroturnaround.exec.*;
+import org.zeroturnaround.exec.InvalidExitValueException;
+import org.zeroturnaround.exec.ProcessExecutor;
+import org.zeroturnaround.exec.StartedProcess;
 import org.zeroturnaround.exec.listener.ProcessListener;
 
-import gobpie.GobPieException;
-import magpiebridge.core.MagpieServer;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.Arrays;
+import java.util.concurrent.TimeoutException;
+
+import static gobpie.GobPieExceptionType.GOBLINT_EXCEPTION;
 
 /**
  * The Class GoblintServer.
- * 
- * Reads the configuration for GobPie extension, including Goblint's configuration file name.
+ * <p>
+ * Reads the configuration for GobPie extension, including Goblint configuration file name.
  * Starts Goblint Server and waits for the unix socket to be created.
- * 
- * @author      Karoliine Holter
- * @since       0.0.2
+ *
+ * @author Karoliine Holter
+ * @since 0.0.2
  */
 
 public class GoblintServer {
@@ -64,11 +66,11 @@ public class GoblintServer {
 
     private String[] constructGoblintRunCommand() {
         return Arrays.stream(new String[]{
-                "goblint", "--conf", new File(goblintConf).getAbsolutePath(),
-                "--enable", "server.enabled",
-                "--enable", "server.reparse",
-                "--set", "server.mode", "unix",
-                "--set", "server.unix-socket", new File(goblintSocket).getAbsolutePath()})
+                        "goblint", "--conf", new File(goblintConf).getAbsolutePath(),
+                        "--enable", "server.enabled",
+                        "--enable", "server.reparse",
+                        "--set", "server.mode", "unix",
+                        "--set", "server.unix-socket", new File(goblintSocket).getAbsolutePath()})
                 .toArray(String[]::new);
     }
 
@@ -94,38 +96,17 @@ public class GoblintServer {
             WatchKey key;
             while ((key = watchService.take()) != null) {
                 for (WatchEvent<?> event : key.pollEvents()) {
-                    if (((Path) event.context()).equals(Paths.get(goblintSocket))) {
+                    if ((event.context()).equals(Paths.get(goblintSocket))) {
                         log.info("Goblint server started.");
                         return;
                     }
                 }
                 key.reset();
             }
-            
+
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
             throw new GobPieException("Running Goblint failed.", e, GOBLINT_EXCEPTION);
         }
-    }
-
-
-    /**
-    * Method to stop the Goblint server.
-    */
-
-    public void stopGoblintServer() {
-        goblintRunProcess.getProcess().destroy();
-    }
-
-
-    /**
-     * Method to restart the Goblint server.
-     *
-     * @throws GobPieException if starting Goblint Server throws an exception.
-     */
-
-    public void restartGoblintServer() {
-        stopGoblintServer();
-        startGoblintServer();
     }
 
 
@@ -151,16 +132,15 @@ public class GoblintServer {
                 }
             }
         };
-        
-        log.debug("Waiting for command: " + command.toString() + " to run...");
-        StartedProcess process = new ProcessExecutor()
+
+        log.debug("Waiting for command: " + Arrays.toString(command) + " to run...");
+        return new ProcessExecutor()
                 .directory(dirPath)
                 .command(command)
                 .redirectOutput(System.err)
                 .redirectError(System.err)
                 .addListener(listener)
                 .start();
-        return process;
     }
 
 }
