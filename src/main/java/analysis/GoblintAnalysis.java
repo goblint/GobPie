@@ -1,10 +1,14 @@
 package analysis;
 
 import com.ibm.wala.classLoader.Module;
+import com.ibm.wala.util.processes.Launcher;
 import goblintclient.GoblintClient;
-import goblintclient.communication.*;
+import goblintclient.GoblintService;
+import goblintclient.GoblintServiceLauncher;
+import goblintclient.messages.GoblintAnalyzeResult;
 import goblintclient.messages.GoblintFunctions;
 import goblintclient.messages.GoblintMessages;
+import goblintclient.messages.Params;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
@@ -31,10 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -55,7 +56,7 @@ public class GoblintAnalysis implements ServerAnalysis {
 
     private final MagpieServer magpieServer;
     private final GoblintServer goblintServer;
-    private final GoblintClient goblintClient;
+    private final GoblintService goblintService;
     private final GobPieConfiguration gobpieConfiguration;
     private final FileAlterationObserver goblintConfObserver;
     private final int SIGINT = 2;
@@ -66,10 +67,10 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
 
-    public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintClient goblintClient, GobPieConfiguration gobpieConfiguration) {
+    public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintService goblintService, GobPieConfiguration gobpieConfiguration) {
         this.magpieServer = magpieServer;
         this.goblintServer = goblintServer;
-        this.goblintClient = goblintClient;
+        this.goblintService = goblintService;
         this.gobpieConfiguration = gobpieConfiguration;
         this.goblintConfObserver = createGoblintConfObserver();
     }
@@ -154,54 +155,28 @@ public class GoblintAnalysis implements ServerAnalysis {
 
 
     /**
-     * Sends the requests to Goblint server and reads their results.
+     * Sends the requests to Goblint server and gets their results.
      *
      * @return a collection of warning messages and cfg code lenses if request was successful, null otherwise.
      */
 
     private Collection<AnalysisResult> reanalyse() {
 
-        Request analyzeRequest = new Request("analyze");
-        Request messagesRequest = new Request("messages");
-        Request functionsRequest = new Request("functions");
-
         try {
             // Analyze
             analysisRunning.set(true);
-            AnalyzeResponse analyzeResponse = (AnalyzeResponse) getResponse(analyzeRequest);
+            GoblintAnalyzeResult analyzeResult = goblintService.analyze(new Params()).get();
             analysisRunning.set(false);
-            if (analyzeResponse.getResult().getStatus().contains("Aborted"))
+            if (analyzeResult.getStatus().contains("Aborted"))
                 return null;
             // Get warning messages
-            MessagesResponse messagesResponse = (MessagesResponse) getResponse(messagesRequest);
+            List<GoblintMessages> messages = goblintService.messages().get();
             // Get list of functions
-            FunctionsResponse functionsResponse = (FunctionsResponse) getResponse(functionsRequest);
-            return Stream.concat(convertResultsFromJson(messagesResponse).stream(), convertResultsFromJson(functionsResponse).stream()).collect(Collectors.toList());
-        } catch (IOException e) {
+            List<GoblintFunctions> functions = goblintService.functions().get();
+            return Stream.concat(convertMessagesFromJson(messages).stream(), convertFunctionsFromJson(functions).stream()).collect(Collectors.toList());
+        } catch (ExecutionException | InterruptedException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }
-    }
-
-    /**
-     * Writes the request to the socket and reads its response according to the request that was sent.
-     *
-     * @param request The request to be written into socket.
-     * @return the response to the request that was sent.
-     * @throws GobPieException if the request and response ID do not match.
-     */
-
-    private Response getResponse(Request request) throws IOException {
-        goblintClient.writeRequestToSocket(request);
-        Response response;
-        if (request.getMethod().equals("analyze"))
-            response = goblintClient.readAnalyzeResponseFromSocket();
-        else if (request.getMethod().equals("messages"))
-            response = goblintClient.readMessagesResponseFromSocket();
-        else
-            response = goblintClient.readFunctionsResponseFromSocket();
-        if (!request.getId().equals(response.getId()))
-            throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
-        return response;
     }
 
 
@@ -232,12 +207,12 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @return A collection of AnalysisResult objects.
      */
 
-    private Collection<AnalysisResult> convertResultsFromJson(MessagesResponse response) {
-        return response.getResult().stream().map(GoblintMessages::convert).flatMap(List::stream).collect(Collectors.toList());
+    private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessages> response) {
+        return response.stream().map(GoblintMessages::convert).flatMap(List::stream).collect(Collectors.toList());
     }
 
-    private Collection<AnalysisResult> convertResultsFromJson(FunctionsResponse response) {
-        return response.getResult().stream().map(GoblintFunctions::convert).collect(Collectors.toList());
+    private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctions> response) {
+        return response.stream().map(GoblintFunctions::convert).collect(Collectors.toList());
     }
 
 
@@ -259,7 +234,7 @@ public class GoblintAnalysis implements ServerAnalysis {
             public void onFileChange(File file) {
                 try {
                     goblintServer.restartGoblintServer();
-                    goblintClient.connectGoblintClient();
+                    // TODO: doesn't work (does not connect to new socket)
                 } catch (GobPieException e) {
                     String message = "Unable to restart GobPie extension: " + e.getMessage();
                     magpieServer.forwardMessageToClient(

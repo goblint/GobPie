@@ -14,7 +14,6 @@ import org.eclipse.lsp4j.MessageType;
 import org.zeroturnaround.exec.*;
 import org.zeroturnaround.exec.listener.ProcessListener;
 
-import goblintclient.GoblintClient;
 import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
 
@@ -37,7 +36,7 @@ public class GoblintServer {
 
     private StartedProcess goblintRunProcess;
 
-    private final Logger log = LogManager.getLogger(GoblintClient.class);
+    private final Logger log = LogManager.getLogger(GoblintServer.class);
 
 
     public GoblintServer(String goblintConfName, MagpieServer magpieServer) {
