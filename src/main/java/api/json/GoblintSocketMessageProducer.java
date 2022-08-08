@@ -23,7 +23,7 @@ public class GoblintSocketMessageProducer implements MessageProducer, Closeable,
 
     private final MessageJsonHandler jsonHandler;
     private final MessageIssueHandler issueHandler;
-    private final InputStream input;
+    private final BufferedReader inputReader;
 
     private MessageConsumer callback;
     private boolean keepRunning;
@@ -35,9 +35,9 @@ public class GoblintSocketMessageProducer implements MessageProducer, Closeable,
     }
 
     public GoblintSocketMessageProducer(InputStream input, MessageJsonHandler jsonHandler, MessageIssueHandler issueHandler) {
-        this.input = input;
         this.jsonHandler = jsonHandler;
         this.issueHandler = issueHandler;
+        this.inputReader = new BufferedReader(new InputStreamReader(input));
     }
 
     @Override
@@ -49,7 +49,7 @@ public class GoblintSocketMessageProducer implements MessageProducer, Closeable,
         this.callback = callback;
         try {
             while (keepRunning) {
-                boolean result = handleMessage(input);
+                boolean result = handleMessage();
                 if (!result)
                     keepRunning = false;
             } // while (keepRunning)
@@ -88,12 +88,11 @@ public class GoblintSocketMessageProducer implements MessageProducer, Closeable,
      *
      * @return {@code true} if we should continue reading from the input stream, {@code false} if we should stop
      */
-    protected boolean handleMessage(InputStream input) throws IOException {
+    protected boolean handleMessage() throws IOException {
         if (callback == null)
             callback = message -> LOG.log(Level.INFO, "Received message: " + message);
 
         try {
-            BufferedReader inputReader = new BufferedReader(new InputStreamReader(input));
             String content = inputReader.readLine();
             log.info("Response read from socket.");
             try {
