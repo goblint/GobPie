@@ -1,29 +1,27 @@
+import analysis.GoblintAnalysis;
+import analysis.ShowCFGCommand;
+import com.google.gson.*;
+import api.GoblintClient;
+import api.GoblintServiceLauncher;
+import goblintserver.GoblintServer;
+import gobpie.GobPieConfiguration;
+import gobpie.GobPieException;
+import gobpie.GobPieExceptionType;
+import magpiebridge.core.MagpieServer;
+import magpiebridge.core.ServerAnalysis;
+import magpiebridge.core.ServerConfiguration;
+import magpiebridge.core.ToolAnalysis;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.eclipse.lsp4j.MessageParams;
+import org.eclipse.lsp4j.MessageType;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.*;
-
-import analysis.ShowCFGCommand;
-import magpiebridge.core.MagpieServer;
-import magpiebridge.core.ServerAnalysis;
-import magpiebridge.core.ServerConfiguration;
-import magpiebridge.core.ToolAnalysis;
-
-import com.google.gson.*;
-
-import analysis.GoblintAnalysis;
-import goblintclient.GoblintClient;
-import goblintserver.GoblintServer;
-import gobpie.GobPieConfiguration;
-import gobpie.GobPieException;
-import gobpie.GobPieExceptionType;
-
-import org.eclipse.lsp4j.jsonrpc.messages.Either;
-import org.eclipse.lsp4j.MessageParams;
-import org.eclipse.lsp4j.MessageType;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class Main {
 
@@ -95,18 +93,22 @@ public class Main {
         GoblintServer goblintServer = new GoblintServer(gobpieConfiguration.getGoblintConf(), magpieServer);
         goblintServer.startGoblintServer();
 
-        // connect GoblintClient
-        GoblintClient goblintClient = new GoblintClient();
-        goblintClient.connectGoblintClient();
+        // create GoblintClient
+        GoblintClient localEndpoint = new GoblintClient();
+
+        // launch GoblintService
+        GoblintServiceLauncher.Builder builder = new GoblintServiceLauncher.Builder();
+        GoblintServiceLauncher goblintServiceLauncher = builder.create(localEndpoint);
+        goblintServiceLauncher.startListening();
 
         // add analysis to the MagpieServer
-        ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintClient, gobpieConfiguration);
+        ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, localEndpoint.getServer(), gobpieConfiguration);
         Either<ServerAnalysis, ToolAnalysis> analysis = Either.forLeft(serverAnalysis);
         magpieServer.addAnalysis(analysis, language);
 
         // add HTTP server for showing CFGs
         magpieServer.addHttpServer(cfgHttpServer);
-        magpieServer.addCommand("showcfg", new ShowCFGCommand(goblintClient));
+        magpieServer.addCommand("showcfg", new ShowCFGCommand(localEndpoint.getServer()));
     }
 
 
@@ -175,7 +177,7 @@ public class Main {
         } catch (FileNotFoundException e) {
             throw new GobPieException("Could not locate GobPie configuration file.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
         } catch (JsonSyntaxException e) {
-            throw new GobPieException("Gobpie configuration file syntax is wrong.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
+            throw new GobPieException("GobPie configuration file syntax is wrong.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
         }
     }
 

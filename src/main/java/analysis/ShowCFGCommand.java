@@ -1,9 +1,9 @@
 package analysis;
 
 import com.google.gson.JsonPrimitive;
-import goblintclient.GoblintClient;
-import goblintclient.communication.CFGResponse;
-import goblintclient.communication.Request;
+import api.GoblintService;
+import api.messages.GoblintCFGResult;
+import api.messages.Params;
 import gobpie.GobPieException;
 import gobpie.GobPieExceptionType;
 import guru.nidi.graphviz.engine.Format;
@@ -19,14 +19,15 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.concurrent.ExecutionException;
 
 public class ShowCFGCommand implements WorkspaceCommand {
 
-    private final GoblintClient goblintClient;
+    private final GoblintService goblintService;
     private final Logger log = LogManager.getLogger(ShowCFGCommand.class);
 
-    public ShowCFGCommand(GoblintClient goblintClient) {
-        this.goblintClient = goblintClient;
+    public ShowCFGCommand(GoblintService goblintService) {
+        this.goblintService = goblintService;
     }
 
     @Override
@@ -49,7 +50,7 @@ public class ShowCFGCommand implements WorkspaceCommand {
     }
 
     /**
-     * Writes the request to the socket to get the cfg for the given function.
+     * Sends the request to get the cfg for the given function.
      *
      * @param funName The function name for which the CFG was requested.
      * @return the CFG of the given function as a dot language string.
@@ -57,14 +58,11 @@ public class ShowCFGCommand implements WorkspaceCommand {
      */
 
     public String getCFG(String funName) {
-        Request cfgRequest = new Request("cfg", funName);
+        Params params = new Params(funName);
         try {
-            goblintClient.writeRequestToSocket(cfgRequest);
-            CFGResponse cfgResponse = goblintClient.readCFGResponseFromSocket();
-            if (!cfgRequest.getId().equals(cfgResponse.getId()))
-                throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
-            return cfgResponse.getResult().getCfg();
-        } catch (IOException e) {
+            GoblintCFGResult cfgResponse = goblintService.cfg(params).get();
+            return cfgResponse.getCfg();
+        } catch (ExecutionException | InterruptedException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }
     }

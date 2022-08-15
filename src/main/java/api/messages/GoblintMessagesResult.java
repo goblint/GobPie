@@ -1,4 +1,4 @@
-package goblintclient.messages;
+package api.messages;
 
 import analysis.GoblintMessagesAnalysisResult;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * The Class GoblintMessages.
+ * The Class GoblintMessagesResult.
  * <p>
  * Corresponding object to the Goblint messages request response results in JSON.
  * Converts the results from JSON to AnalysisResult requested by MagpieBridge.
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * @since 0.0.1
  */
 
-public class GoblintMessages {
+public class GoblintMessagesResult {
 
     String type = getClass().getName();
 

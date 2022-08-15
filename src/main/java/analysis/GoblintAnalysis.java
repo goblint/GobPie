@@ -1,10 +1,10 @@
 package analysis;
 
+import api.GoblintService;
+import api.messages.GoblintFunctionsResult;
+import api.messages.GoblintMessagesResult;
+import api.messages.Params;
 import com.ibm.wala.classLoader.Module;
-import goblintclient.GoblintClient;
-import goblintclient.communication.*;
-import goblintclient.messages.GoblintFunctions;
-import goblintclient.messages.GoblintMessages;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
@@ -31,11 +31,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -55,21 +53,19 @@ public class GoblintAnalysis implements ServerAnalysis {
 
     private final MagpieServer magpieServer;
     private final GoblintServer goblintServer;
-    private final GoblintClient goblintClient;
+    private final GoblintService goblintService;
     private final GobPieConfiguration gobpieConfiguration;
     private final FileAlterationObserver goblintConfObserver;
     private final int SIGINT = 2;
     private static Future<?> lastAnalysisTask;
-    private static final ExecutorService execService = Executors.newSingleThreadExecutor();
-    private final AtomicBoolean analysisRunning = new AtomicBoolean(false);
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
 
-    public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintClient goblintClient, GobPieConfiguration gobpieConfiguration) {
+    public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintService goblintService, GobPieConfiguration gobpieConfiguration) {
         this.magpieServer = magpieServer;
         this.goblintServer = goblintServer;
-        this.goblintClient = goblintClient;
+        this.goblintService = goblintService;
         this.gobpieConfiguration = gobpieConfiguration;
         this.goblintConfObserver = createGoblintConfObserver();
     }
@@ -97,20 +93,38 @@ public class GoblintAnalysis implements ServerAnalysis {
     @Override
     public void analyze(Collection<? extends Module> files, AnalysisConsumer consumer, boolean rerun) {
         if (consumer instanceof MagpieServer server) {
-            if (analysisRunning.get()) {
-                abortAnalysis();
-            }
+            abortAnalysis();
             goblintConfObserver.checkAndNotify();
             preAnalyse();
             log.info("---------------------- Analysis started ----------------------");
-            Runnable analysisTask = () -> {
-                Collection<AnalysisResult> response = reanalyse();
-                if (response != null) {
-                    server.consume(new ArrayList<>(response), source());
-                    log.info("--------------------- Analysis finished ----------------------");
-                }
-            };
-            lastAnalysisTask = execService.submit(analysisTask);
+            lastAnalysisTask = reanalyse().thenAccept(response -> {
+                server.consume(new ArrayList<>(response), source());
+                log.info("--------------------- Analysis finished ----------------------");
+            }).exceptionally(ex -> {
+                log.info(ex.getMessage());
+                return null;
+            });
+        }
+    }
+
+
+    /**
+     * The method that, when a new analysis is triggered,
+     * aborts the previous running analysis by sending a SIGINT signal to Goblint.
+     */
+
+    private void abortAnalysis() {
+        if (lastAnalysisTask != null && !lastAnalysisTask.isDone()) {
+            lastAnalysisTask.cancel(true);
+            Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
+            int pid = Math.toIntExact(goblintProcess.pid());
+            UnixProcess unixProcess = new UnixProcess(pid);
+            try {
+                unixProcess.kill(SIGINT);
+                log.info("--------------- This analysis has been aborted -------------");
+            } catch (IOException e) {
+                log.error("Aborting analysis failed.");
+            }
         }
     }
 
@@ -137,71 +151,50 @@ public class GoblintAnalysis implements ServerAnalysis {
     }
 
 
-    private void abortAnalysis() {
-        if (lastAnalysisTask != null && !lastAnalysisTask.isDone()) {
-            Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
-            int pid = Math.toIntExact(goblintProcess.pid());
-            UnixProcess unixProcess = new UnixProcess(pid);
-            try {
-                unixProcess.kill(SIGINT);
-                log.info("--------------- This analysis has been aborted -------------");
-            } catch (IOException e) {
-                log.error("Aborting analysis failed.");
-            }
-        }
+    /**
+     * Sends the requests to Goblint server and gets their results.
+     *
+     * @return a CompletableFuture of a collection of warning messages and cfg code lenses if request was successful.
+     * @throws GobPieException in case the analysis was aborted or returned a VerifyError.
+     */
+
+    private CompletableFuture<Collection<AnalysisResult>> reanalyse() {
+
+        return goblintService.analyze(new Params())
+                .thenCompose(analysisResult -> {
+                    // Make sure that analysis succeeded
+                    if (analysisResult.getStatus().contains("Aborted"))
+                        throw new GobPieException("The running analysis has been aborted.", GobPieExceptionType.GOBLINT_EXCEPTION);
+                    else if (analysisResult.getStatus().contains("VerifyError"))
+                        throw new GobPieException("Analysis returned VerifyError.", GobPieExceptionType.GOBLINT_EXCEPTION);
+                    // Get warning messages
+                    CompletableFuture<List<GoblintMessagesResult>> messagesTask = goblintService.messages();
+                    // Get list of functions
+                    CompletableFuture<List<GoblintFunctionsResult>> functionsTask = goblintService.functions();
+                    return messagesTask.thenCombine(functionsTask, (messages, functions) ->
+                            Stream.concat(
+                                            convertMessagesFromJson(messages).stream(),
+                                            convertFunctionsFromJson(functions).stream())
+                                    .collect(Collectors.toList()));
+                });
 
     }
 
 
     /**
-     * Sends the requests to Goblint server and reads their results.
+     * Deserializes json from the response and converts the information
+     * into AnalysisResult objects, which Magpie uses to generate IDE messages.
      *
-     * @return a collection of warning messages and cfg code lenses if request was successful, null otherwise.
+     * @param response that was read from the socket and needs to be converted to AnalysisResults.
+     * @return A collection of AnalysisResult objects.
      */
 
-    private Collection<AnalysisResult> reanalyse() {
-
-        Request analyzeRequest = new Request("analyze");
-        Request messagesRequest = new Request("messages");
-        Request functionsRequest = new Request("functions");
-
-        try {
-            // Analyze
-            analysisRunning.set(true);
-            AnalyzeResponse analyzeResponse = (AnalyzeResponse) getResponse(analyzeRequest);
-            analysisRunning.set(false);
-            if (analyzeResponse.getResult().getStatus().contains("Aborted"))
-                return null;
-            // Get warning messages
-            MessagesResponse messagesResponse = (MessagesResponse) getResponse(messagesRequest);
-            // Get list of functions
-            FunctionsResponse functionsResponse = (FunctionsResponse) getResponse(functionsRequest);
-            return Stream.concat(convertResultsFromJson(messagesResponse).stream(), convertResultsFromJson(functionsResponse).stream()).collect(Collectors.toList());
-        } catch (IOException e) {
-            throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
-        }
+    private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessagesResult> response) {
+        return response.stream().map(GoblintMessagesResult::convert).flatMap(List::stream).collect(Collectors.toList());
     }
 
-    /**
-     * Writes the request to the socket and reads its response according to the request that was sent.
-     *
-     * @param request The request to be written into socket.
-     * @return the response to the request that was sent.
-     * @throws GobPieException if the request and response ID do not match.
-     */
-
-    private Response getResponse(Request request) throws IOException {
-        goblintClient.writeRequestToSocket(request);
-        Response response;
-        if (request.getMethod().equals("analyze"))
-            response = goblintClient.readAnalyzeResponseFromSocket();
-        else if (request.getMethod().equals("messages"))
-            response = goblintClient.readMessagesResponseFromSocket();
-        else
-            response = goblintClient.readFunctionsResponseFromSocket();
-        if (!request.getId().equals(response.getId()))
-            throw new GobPieException("Response ID does not match request ID.", GobPieExceptionType.GOBLINT_EXCEPTION);
-        return response;
+    private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctionsResult> response) {
+        return response.stream().map(GoblintFunctionsResult::convert).collect(Collectors.toList());
     }
 
 
@@ -225,28 +218,11 @@ public class GoblintAnalysis implements ServerAnalysis {
 
 
     /**
-     * Deserializes json from the response and converts the information
-     * into AnalysisResult objects, which Magpie uses to generate IDE messages.
-     *
-     * @param response that was read from the socket and needs to be converted to AnalysisResults.
-     * @return A collection of AnalysisResult objects.
-     */
-
-    private Collection<AnalysisResult> convertResultsFromJson(MessagesResponse response) {
-        return response.getResult().stream().map(GoblintMessages::convert).flatMap(List::stream).collect(Collectors.toList());
-    }
-
-    private Collection<AnalysisResult> convertResultsFromJson(FunctionsResponse response) {
-        return response.getResult().stream().map(GoblintFunctions::convert).collect(Collectors.toList());
-    }
-
-
-    /**
      * Method for creating an observer for Goblint configuration file.
-     * So that the server could be restarted when the configuration file is changed.
-     * TODO: instead of restarting the server, send new configuration with a request to the server #32
+     * So that a request to read in the configuration file would be sent to Goblint
+     * when the configuration file is changed.
      *
-     * @return The FileAlterationObserver of project root directory.
+     * @return The FileAlterationObserver of the project's root directory.
      */
 
     public FileAlterationObserver createGoblintConfObserver() {
@@ -257,25 +233,14 @@ public class GoblintAnalysis implements ServerAnalysis {
         observer.addListener(new FileAlterationListenerAdaptor() {
             @Override
             public void onFileChange(File file) {
-                try {
-                    goblintServer.restartGoblintServer();
-                    goblintClient.connectGoblintClient();
-                } catch (GobPieException e) {
-                    String message = "Unable to restart GobPie extension: " + e.getMessage();
-                    magpieServer.forwardMessageToClient(
-                            new MessageParams(MessageType.Error, message + " Please check the output terminal of GobPie extension for more information.")
-                    );
-                    if (e.getCause() == null) log.error(message);
-                    else log.error(message + " Cause: " + e.getCause().getMessage());
-                }
+                Params params = new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath());
+                goblintService.read_config(params);
             }
         });
 
         try {
             observer.initialize();
         } catch (Exception e) {
-            this.magpieServer.forwardMessageToClient(
-                    new MessageParams(MessageType.Warning, "After changing the files list in Goblint configuration the server will not be automatically restarted. Close and reopen the IDE to restart the server manually if needed."));
             log.error("Initializing goblintConfObserver failed: " + e.getMessage());
         }
         return observer;

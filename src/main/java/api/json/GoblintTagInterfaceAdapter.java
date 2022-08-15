@@ -1,7 +1,8 @@
-package goblintclient.messages;
+package api.json;
 
 import java.lang.reflect.Type;
 
+import api.messages.GoblintMessagesResult;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
@@ -24,9 +25,9 @@ public class GoblintTagInterfaceAdapter implements JsonDeserializer<Object> {
     public Object deserialize(JsonElement jsonElement, Type type, JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
         JsonObject jsonObject = jsonElement.getAsJsonObject();
         if (jsonObject.has("Category"))
-            return jsonDeserializationContext.deserialize(jsonObject, GoblintMessages.tag.Category.class);
+            return jsonDeserializationContext.deserialize(jsonObject, GoblintMessagesResult.tag.Category.class);
         if (jsonObject.has("CWE"))
-            return jsonDeserializationContext.deserialize(jsonObject, GoblintMessages.tag.CWE.class);
+            return jsonDeserializationContext.deserialize(jsonObject, GoblintMessagesResult.tag.CWE.class);
         return null;
     }
 
