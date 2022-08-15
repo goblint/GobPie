@@ -60,6 +60,7 @@ public class GoblintSocketMessageProducer implements MessageProducer, Closeable,
                     fireStreamClosed(exception);
             } else
                 throw new JsonRpcException(exception);
+            this.keepRunning = false;
         } finally {
             this.callback = null;
             this.keepRunning = false;
@@ -96,20 +97,26 @@ public class GoblintSocketMessageProducer implements MessageProducer, Closeable,
             String content = inputReader.readLine();
             log.info("Response read from socket.");
             try {
-                Message message = jsonHandler.parseMessage(content);
-                callback.consume(message);
+                if (content != null) {
+                    Message message = jsonHandler.parseMessage(content);
+                    callback.consume(message);
+                } else {
+                    return false;
+                }
             } catch (MessageIssueException exception) {
                 // An issue was found while parsing or validating the message
                 if (issueHandler != null)
                     issueHandler.handle(exception.getRpcMessage(), exception.getIssues());
                 else
                     fireError(exception);
+                return false;
             }
         } catch (Exception exception) {
             // UnsupportedEncodingException can be thrown by String constructor
             // JsonParseException can be thrown by jsonHandler
             // We also catch arbitrary exceptions that are thrown by message consumers in order to keep this thread alive
             fireError(exception);
+            return false;
         }
         return true;
     }
