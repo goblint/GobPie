@@ -109,6 +109,27 @@ public class GoblintAnalysis implements ServerAnalysis {
 
 
     /**
+     * The method that, when a new analysis is triggered,
+     * aborts the previous running analysis by sending a SIGINT signal to Goblint.
+     */
+
+    private void abortAnalysis() {
+        if (lastAnalysisTask != null && !lastAnalysisTask.isDone()) {
+            lastAnalysisTask.cancel(true);
+            Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
+            int pid = Math.toIntExact(goblintProcess.pid());
+            UnixProcess unixProcess = new UnixProcess(pid);
+            try {
+                unixProcess.kill(SIGINT);
+                log.info("--------------- This analysis has been aborted -------------");
+            } catch (IOException e) {
+                log.error("Aborting analysis failed.");
+            }
+        }
+    }
+
+
+    /**
      * The method that is triggered before each analysis.
      * <p>
      * preAnalyzeCommand is read from the GobPie configuration file.
@@ -130,22 +151,6 @@ public class GoblintAnalysis implements ServerAnalysis {
     }
 
 
-    private void abortAnalysis() {
-        if (lastAnalysisTask != null && !lastAnalysisTask.isDone()) {
-            lastAnalysisTask.cancel(false);
-            Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
-            int pid = Math.toIntExact(goblintProcess.pid());
-            UnixProcess unixProcess = new UnixProcess(pid);
-            try {
-                unixProcess.kill(SIGINT);
-                log.info("--------------- This analysis has been aborted -------------");
-            } catch (IOException e) {
-                log.error("Aborting analysis failed.");
-            }
-        }
-    }
-
-
     /**
      * Sends the requests to Goblint server and gets their results.
      *
@@ -157,11 +162,14 @@ public class GoblintAnalysis implements ServerAnalysis {
 
         return goblintService.analyze(new Params())
                 .thenCompose(analysisResult -> {
+                    // Make sure that analysis succeeded
                     if (analysisResult.getStatus().contains("Aborted"))
                         throw new GobPieException("The running analysis has been aborted.", GobPieExceptionType.GOBLINT_EXCEPTION);
                     else if (analysisResult.getStatus().contains("VerifyError"))
                         throw new GobPieException("Analysis returned VerifyError.", GobPieExceptionType.GOBLINT_EXCEPTION);
+                    // Get warning messages
                     CompletableFuture<List<GoblintMessagesResult>> messagesTask = goblintService.messages();
+                    // Get list of functions
                     CompletableFuture<List<GoblintFunctionsResult>> functionsTask = goblintService.functions();
                     return messagesTask.thenCombine(functionsTask, (messages, functions) ->
                             Stream.concat(
@@ -170,6 +178,23 @@ public class GoblintAnalysis implements ServerAnalysis {
                                     .collect(Collectors.toList()));
                 });
 
+    }
+
+
+    /**
+     * Deserializes json from the response and converts the information
+     * into AnalysisResult objects, which Magpie uses to generate IDE messages.
+     *
+     * @param response that was read from the socket and needs to be converted to AnalysisResults.
+     * @return A collection of AnalysisResult objects.
+     */
+
+    private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessagesResult> response) {
+        return response.stream().map(GoblintMessagesResult::convert).flatMap(List::stream).collect(Collectors.toList());
+    }
+
+    private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctionsResult> response) {
+        return response.stream().map(GoblintFunctionsResult::convert).collect(Collectors.toList());
     }
 
 
@@ -189,23 +214,6 @@ public class GoblintAnalysis implements ServerAnalysis {
                 .redirectOutput(System.err)
                 .redirectError(System.err)
                 .execute();
-    }
-
-
-    /**
-     * Deserializes json from the response and converts the information
-     * into AnalysisResult objects, which Magpie uses to generate IDE messages.
-     *
-     * @param response that was read from the socket and needs to be converted to AnalysisResults.
-     * @return A collection of AnalysisResult objects.
-     */
-
-    private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessagesResult> response) {
-        return response.stream().map(GoblintMessagesResult::convert).flatMap(List::stream).collect(Collectors.toList());
-    }
-
-    private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctionsResult> response) {
-        return response.stream().map(GoblintFunctionsResult::convert).collect(Collectors.toList());
     }
 
 
