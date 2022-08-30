@@ -66,7 +66,7 @@ public class GoblintServer {
 
     private String[] constructGoblintRunCommand() {
         return Arrays.stream(new String[]{
-                        "goblint", "--conf", new File(goblintConf).getAbsolutePath(),
+                        "goblint",
                         "--enable", "server.enabled",
                         "--enable", "server.reparse",
                         "--set", "server.mode", "unix",
@@ -84,16 +84,17 @@ public class GoblintServer {
     public void startGoblintServer() {
 
         try {
+            WatchService watchService = FileSystems.getDefault().newWatchService();
+            Path path = Paths.get(System.getProperty("user.dir"));
+            path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE);
+            WatchKey key;
+
             // run command to start goblint
             log.info("Goblint run with command: " + String.join(" ", goblintRunCommand));
 
             goblintRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand);
 
             // wait until Goblint socket is created before continuing
-            WatchService watchService = FileSystems.getDefault().newWatchService();
-            Path path = Paths.get(System.getProperty("user.dir"));
-            path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE);
-            WatchKey key;
             while ((key = watchService.take()) != null) {
                 for (WatchEvent<?> event : key.pollEvents()) {
                     if ((event.context()).equals(Paths.get(goblintSocket))) {

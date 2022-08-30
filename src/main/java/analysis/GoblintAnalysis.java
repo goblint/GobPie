@@ -233,8 +233,8 @@ public class GoblintAnalysis implements ServerAnalysis {
         observer.addListener(new FileAlterationListenerAdaptor() {
             @Override
             public void onFileChange(File file) {
-                Params params = new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath());
-                goblintService.read_config(params);
+                goblintService.reset_config();
+                goblintService.read_config(new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath()));
             }
         });
 
