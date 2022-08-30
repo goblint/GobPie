@@ -50,6 +50,9 @@ public interface GoblintService {
     CompletableFuture<GoblintCFGResult> cfg(Params params);
 
     @JsonRequest
+    CompletableFuture<Void> reset_config();
+
+    @JsonRequest
     CompletableFuture<Void> read_config(Params params);
 
 }

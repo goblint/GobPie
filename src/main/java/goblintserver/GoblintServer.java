@@ -66,7 +66,7 @@ public class GoblintServer {
 
     private String[] constructGoblintRunCommand() {
         return Arrays.stream(new String[]{
-                        "goblint", "--conf", new File(goblintConf).getAbsolutePath(),
+                        "goblint",
                         "--enable", "server.enabled",
                         "--enable", "server.reparse",
                         "--set", "server.mode", "unix",
@@ -90,20 +90,21 @@ public class GoblintServer {
             goblintRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand);
 
             // wait until Goblint socket is created before continuing
-            WatchService watchService = FileSystems.getDefault().newWatchService();
-            Path path = Paths.get(System.getProperty("user.dir"));
-            path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE);
-            WatchKey key;
-            while ((key = watchService.take()) != null) {
-                for (WatchEvent<?> event : key.pollEvents()) {
-                    if ((event.context()).equals(Paths.get(goblintSocket))) {
-                        log.info("Goblint server started.");
-                        return;
+            if (!new File(goblintSocket).exists()) {
+                WatchService watchService = FileSystems.getDefault().newWatchService();
+                Path path = Paths.get(System.getProperty("user.dir"));
+                path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE);
+                WatchKey key;
+                while ((key = watchService.take()) != null) {
+                    for (WatchEvent<?> event : key.pollEvents()) {
+                        if ((event.context()).equals(Paths.get(goblintSocket))) {
+                            log.info("Goblint server started.");
+                            return;
+                        }
                     }
+                    key.reset();
                 }
-                key.reset();
             }
-
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
             throw new GobPieException("Running Goblint failed.", e, GOBLINT_EXCEPTION);
         }

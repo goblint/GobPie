@@ -1,5 +1,7 @@
 import analysis.GoblintAnalysis;
 import analysis.ShowCFGCommand;
+import api.GoblintService;
+import api.messages.Params;
 import com.google.gson.*;
 import api.GoblintClient;
 import api.GoblintServiceLauncher;
@@ -100,15 +102,19 @@ public class Main {
         GoblintServiceLauncher.Builder builder = new GoblintServiceLauncher.Builder();
         GoblintServiceLauncher goblintServiceLauncher = builder.create(localEndpoint);
         goblintServiceLauncher.startListening();
+        GoblintService goblintService = localEndpoint.getServer();
+
+        // read Goblint configurations
+        goblintService.read_config(new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath()));
 
         // add analysis to the MagpieServer
-        ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, localEndpoint.getServer(), gobpieConfiguration);
+        ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobpieConfiguration);
         Either<ServerAnalysis, ToolAnalysis> analysis = Either.forLeft(serverAnalysis);
         magpieServer.addAnalysis(analysis, language);
 
         // add HTTP server for showing CFGs
         magpieServer.addHttpServer(cfgHttpServer);
-        magpieServer.addCommand("showcfg", new ShowCFGCommand(localEndpoint.getServer()));
+        magpieServer.addCommand("showcfg", new ShowCFGCommand(goblintService));
     }
 
 
