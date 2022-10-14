@@ -1,7 +1,7 @@
 package api;
 
-import com.google.gson.JsonObject;
 import api.messages.*;
+import com.google.gson.JsonObject;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 
 import java.util.List;
@@ -48,6 +48,9 @@ public interface GoblintService {
 
     @JsonRequest
     CompletableFuture<GoblintCFGResult> cfg(Params params);
+
+    @JsonRequest
+    CompletableFuture<List<JsonObject>> node_state(Params params);
 
     @JsonRequest
     CompletableFuture<Void> reset_config();

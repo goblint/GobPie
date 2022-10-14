@@ -1,0 +1,67 @@
+<!DOCTYPE html SYSTEM "http://www.thymeleaf.org/dtd/xhtml1-strict-thymeleaf-4.dtd">
+<html lang="en"
+      xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Goblint Analysis</title>
+    <style>
+        html {
+            width: 100%;
+            height: 100%;
+            min-height: 100%;
+            display: flex;
+        }
+
+        body {
+            flex: 1;
+            display: flex;
+        }
+
+        iframe {
+            flex: 1;
+            border: none;
+        }
+    </style>
+    <script th:inline="javascript">
+        function sendPostRequest(url, data) {
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            }).then((response) => response.text())
+                .then(function (data) {
+                    console.log('Success:', data);
+                    document.getElementById("json").textContent = JSON.stringify(JSON.parse(data), null, 4);
+                }).catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        function sendGetRequest(url) {
+            fetch(url, {
+                method: 'get',
+            }).then(function (response) {
+                return response.text();
+            }).then(function (text) {
+                document.write(text)
+            }).catch(function (err) {
+                // Error :(
+            });
+        }
+
+        function show_info(node) {
+            const url = [[${url}]]
+            sendPostRequest(url, JSON.parse(JSON.stringify({node: node})));
+        }
+    </script>
+</head>
+<body>
+<div id='cfg'>
+    [(${cfgSvg})]
+</div>
+<pre id='json'></pre>
+</body>
+</html>

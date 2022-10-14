@@ -23,4 +23,6 @@ public class GobPieConfiguration {
         return this.preAnalyzeCommand;
     }
 
+    // TODO: make showCFG command optional
+
 }

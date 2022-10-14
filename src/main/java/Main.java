@@ -1,3 +1,4 @@
+import HTTPserver.GobPieHTTPServer;
 import analysis.GoblintAnalysis;
 import analysis.ShowCFGCommand;
 import api.GoblintService;
@@ -28,7 +29,6 @@ import java.nio.file.*;
 public class Main {
 
     private static final String gobPieConfFileName = "gobpie.json";
-    private static final String cfgHttpServer = "http://localhost:8080/";
     private static final Logger log = LogManager.getLogger(Main.class);
     private static MagpieServer magpieServer;
 
@@ -68,6 +68,7 @@ public class Main {
         // set up configuration for MagpieServer
         ServerConfiguration serverConfig = new ServerConfiguration();
         serverConfig.setDoAnalysisByFirstOpen(false);
+        serverConfig.setUseMagpieHTTPServer(false);
         magpieServer = new MagpieServer(serverConfig);
     }
 
@@ -113,8 +114,9 @@ public class Main {
         magpieServer.addAnalysis(analysis, language);
 
         // add HTTP server for showing CFGs
-        magpieServer.addHttpServer(cfgHttpServer);
-        magpieServer.addCommand("showcfg", new ShowCFGCommand(goblintService));
+        String httpServerAddress = new GobPieHTTPServer(goblintService).start();
+        magpieServer.addHttpServer(httpServerAddress);
+        magpieServer.addCommand("showcfg", new ShowCFGCommand(httpServerAddress));
     }
 
 
@@ -203,7 +205,7 @@ public class Main {
             WatchKey key;
             while ((key = watchService.take()) != null) {
                 for (WatchEvent<?> event : key.pollEvents()) {
-                    if (((Path) event.context()).equals(Paths.get(gobPieConfFileName))) {
+                    if ((event.context()).equals(Paths.get(gobPieConfFileName))) {
                         return;
                     }
                 }
