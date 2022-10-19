@@ -63,39 +63,33 @@ public class GobPieHttpHandler implements HttpHandler {
             return;
         }
 
-        TemplateEngine templateEngine = createTemplateEngine();
+        TemplateEngine templateEngine = createTemplateEngine("/templates/", ".html", TemplateMode.HTML);
         Context context = new Context();
 
         if (exchange.getRequestMethod().equalsIgnoreCase("post")) {
-            switch (path) {
-                case "/" -> {
-                    response = templateEngine.process("index", context);
-                    exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
-                    writeResponse(os, response);
-                }
+            response = switch (path) {
                 case "/cfg/" -> {
                     String funName = readRequestBody(is).get("funName").getAsString();
                     context.setVariable("cfgSvg", getCFG(funName));
                     context.setVariable("url", httpServerAddress + "node/");
+                    context.setVariable("jsonTreeCss", httpServerAddress + "static/jsonTree.css/");
+                    context.setVariable("jsonTreeJs", httpServerAddress + "static/jsonTree.js/");
                     log.info("Showing CFG for function: " + funName);
-                    response = templateEngine.process("base", context);
-                    exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
-                    writeResponse(os, response);
+                    yield templateEngine.process("base", context);
                 }
                 case "/node/" -> {
                     String nodeId = readRequestBody(is).get("node").getAsString();
                     List<JsonObject> states = getNodeStates(nodeId);
                     log.info("Showing state info for node with ID: " + nodeId);
-                    response = states.get(0).toString();
-                    exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
-                    writeResponse(os, response);
+                    yield states.get(0).toString();
                 }
-            }
+                default -> templateEngine.process("index", context);
+            };
         } else {
             response = templateEngine.process("index", context);
-            exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
-            writeResponse(os, response);
         }
+        exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
+        writeResponse(os, response);
     }
 
     private JsonObject readRequestBody(InputStream is) {
@@ -115,12 +109,12 @@ public class GobPieHttpHandler implements HttpHandler {
      *
      * @return TemplateEngine instance
      */
-    private TemplateEngine createTemplateEngine() {
+    private TemplateEngine createTemplateEngine(String prefix, String suffix, TemplateMode templateMode) {
         ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
-        resolver.setTemplateMode(TemplateMode.HTML);
+        resolver.setTemplateMode(templateMode);
         resolver.setCharacterEncoding("UTF-8");
-        resolver.setPrefix("/templates/");
-        resolver.setSuffix(".html");
+        resolver.setPrefix(prefix);
+        resolver.setSuffix(suffix);
 
         TemplateEngine templateEngine = new TemplateEngine();
         templateEngine.setTemplateResolver(resolver);

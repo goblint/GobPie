@@ -133,7 +133,7 @@ public class Main {
     private static GobPieConfiguration readGobPieConfiguration() {
 
         // If gobpie configuration is not present, wait for it to be created
-        if (!new File(System.getProperty("user.dir") + "/" + "gobpie.json").exists()) {
+        if (!new File(System.getProperty("user.dir") + "/" + gobPieConfFileName).exists()) {
             String message = "GobPie configuration file is not found in the project root.";
             String terminalMessage = message + "\nPlease add GobPie configuration file into the project root.";
             forwardErrorMessageToClient(message, terminalMessage);
