@@ -20,10 +20,12 @@ import java.util.concurrent.CompletableFuture;
 public interface GoblintService {
 
     // Examples of requests used in this project:
+    // {"jsonrpc":"2.0","id":0,"method":"read_config","params":{"fname":"goblint.json"}}
     // {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
     // {"jsonrpc":"2.0","id":0,"method":"messages"}
     // {"jsonrpc":"2.0","id":0,"method":"functions"}
     // {"jsonrpc":"2.0","id":0,"method":"cfg", "params":{"fname":"main"}}
+    // {"jsonrpc":"2.0","id":0,"method":"node_state","params":{"nid":"fun2783"}}
 
     // Examples of responses for the requests:
     // method: "analyze" response:

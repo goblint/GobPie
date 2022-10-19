@@ -8,6 +8,15 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+/**
+ * The Class GobPieHTTPServer.
+ * <p>
+ * The class creates a simple HTTP server.
+ *
+ * @author Karoliine Holter
+ * @since 0.0.3
+ */
+
 public class GobPieHTTPServer {
     private HttpServer httpServer;
 
@@ -18,9 +27,6 @@ public class GobPieHTTPServer {
         try {
             InetSocketAddress socket = new InetSocketAddress("0.0.0.0", 0);
             httpServer = HttpServer.create(socket, 42);
-            /*System.out.println(Arrays.toString());
-            Inet4Address.getAllByName()*/
-
 
             httpServerAddress = "http://localhost:" + this.httpServer.getAddress().getPort() + "/";
             httpServer.createContext("/", new GobPieHttpHandler(httpServerAddress, goblintService));

@@ -23,6 +23,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+/**
+ * The Class GobPieHttpHandler.
+ * <p>
+ * Implements the class {@link HttpHandler}.
+ * Handles the requests sent to the HTTP server.
+ *
+ * @author Karoliine Holter
+ * @since 0.0.3
+ */
+
 public class GobPieHttpHandler implements HttpHandler {
 
     private static final int HTTP_OK_STATUS = 200;
