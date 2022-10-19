@@ -66,31 +66,36 @@ public class GobPieHttpHandler implements HttpHandler {
         TemplateEngine templateEngine = createTemplateEngine();
         Context context = new Context();
 
-        switch (path) {
-            case "/":
-                response = templateEngine.process("index", context);
-                exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
-                writeResponse(os, response);
-                break;
-            case "/cfg/":
-                String funName = readRequestBody(is).get("funName").getAsString();
-                context.setVariable("cfgSvg", getCFG(funName));
-                context.setVariable("url", httpServerAddress + "node/");
-                log.info("Showing CFG for function: " + funName);
-
-                response = templateEngine.process("base", context);
-                exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
-                writeResponse(os, response);
-                break;
-            case "/node/":
-                List<JsonObject> states = getNodeStates(readRequestBody(is).get("node").getAsString());
-
-                response = states.get(0).toString();
-                exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
-                writeResponse(os, response);
-                break;
+        if (exchange.getRequestMethod().equalsIgnoreCase("post")) {
+            switch (path) {
+                case "/" -> {
+                    response = templateEngine.process("index", context);
+                    exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
+                    writeResponse(os, response);
+                }
+                case "/cfg/" -> {
+                    String funName = readRequestBody(is).get("funName").getAsString();
+                    context.setVariable("cfgSvg", getCFG(funName));
+                    context.setVariable("url", httpServerAddress + "node/");
+                    log.info("Showing CFG for function: " + funName);
+                    response = templateEngine.process("base", context);
+                    exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
+                    writeResponse(os, response);
+                }
+                case "/node/" -> {
+                    String nodeId = readRequestBody(is).get("node").getAsString();
+                    List<JsonObject> states = getNodeStates(nodeId);
+                    log.info("Showing state info for node with ID: " + nodeId);
+                    response = states.get(0).toString();
+                    exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
+                    writeResponse(os, response);
+                }
+            }
+        } else {
+            response = templateEngine.process("index", context);
+            exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
+            writeResponse(os, response);
         }
-
     }
 
     private JsonObject readRequestBody(InputStream is) {
@@ -148,7 +153,7 @@ public class GobPieHttpHandler implements HttpHandler {
      *
      * @param cfg The CFG as a dot language string.
      * @return The CFG of the given function as a svg.
-     * @throws GobPieException TODO: description
+     * @throws GobPieException
      */
 
     private String cfg2svg(String cfg) {
@@ -160,8 +165,7 @@ public class GobPieHttpHandler implements HttpHandler {
             // TODO: figure out something else instead of the following replace ugliness
             return svg.replaceAll("xlink:href=\"javascript:", "onclick=\"");
         } catch (IOException e) {
-            // TODO: meaningful error message
-            throw new GobPieException("", e, GobPieExceptionType.GOBPIE_EXCEPTION);
+            throw new GobPieException("Converting dot language string to svg failed.", e, GobPieExceptionType.GOBPIE_EXCEPTION);
         }
     }
 
