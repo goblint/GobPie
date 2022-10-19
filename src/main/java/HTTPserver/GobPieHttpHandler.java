@@ -164,11 +164,23 @@ public class GobPieHttpHandler implements HttpHandler {
      * @throws GobPieException if the request and response ID do not match.
      */
     private List<JsonObject> getNodeStates(String nodeId) {
-        Params params = new Params(nodeId);
+        NodeParams params = new NodeParams(nodeId);
         try {
             return goblintService.node_state(params).get();
         } catch (ExecutionException | InterruptedException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
+        }
+    }
+
+    public static class NodeParams {
+
+        private String nid;
+
+        public NodeParams() {
+        }
+
+        public NodeParams(String nid) {
+            this.nid = nid;
         }
     }
 

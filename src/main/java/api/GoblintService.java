@@ -1,5 +1,6 @@
 package api;
 
+import HTTPserver.GobPieHttpHandler;
 import api.messages.*;
 import com.google.gson.JsonObject;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
@@ -50,7 +51,7 @@ public interface GoblintService {
     CompletableFuture<GoblintCFGResult> cfg(Params params);
 
     @JsonRequest
-    CompletableFuture<List<JsonObject>> node_state(Params params);
+    CompletableFuture<List<JsonObject>> node_state(GobPieHttpHandler.NodeParams params);
 
     @JsonRequest
     CompletableFuture<Void> reset_config();
