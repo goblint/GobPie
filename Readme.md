@@ -28,12 +28,14 @@ Example configuration file `gobpie.json`:
 ```
 {
     "goblintConf" : "goblint.json",
-    "preAnalyzeCommand" : ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"]
+    "preAnalyzeCommand" : ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"],
+    "showCfg": true
 }
 ```
 
 * `goblintConf` - the relative path from project root to the goblint configuration file (required)
 * `preAnalyzeCommand` - the command to run before analysing (e.g. command for building/updating the compilation database for some automation) (optional)
+* `showCfg` - if the code actions for showing function's CFGs are shown
 
 Goblint configuration file (e.g. `goblint.json`) must have field `files` defined:
 
@@ -63,6 +65,6 @@ vsce package
 
 ## To test the extension
 
-1. Clone the [demoproject](https://github.com/karoliineh/GoblintAnalyzer-DemoProject)
+1. Clone the [demo project](https://github.com/karoliineh/GoblintAnalyzer-DemoProject)
 2. In the repository's folder, activate the right opam switch.
 3. Open the project in VSCode.

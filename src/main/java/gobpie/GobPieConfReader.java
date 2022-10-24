@@ -24,6 +24,7 @@ public class GobPieConfReader {
         this.gobPieConfFileName = gobPieConfFileName;
     }
 
+
     /**
      * Method for reading GobPie configuration.
      * <p>
@@ -61,6 +62,7 @@ public class GobPieConfReader {
         return gobpieConfiguration;
 
     }
+
 
     /**
      * Method for waiting until GobPie configuration file is created or modified to satisfy the requirements.
@@ -118,6 +120,7 @@ public class GobPieConfReader {
             throw new GobPieException("GobPie configuration file syntax is wrong.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
         }
     }
+
 
     /**
      * Method for forwarding Error messages to MagpieServer.

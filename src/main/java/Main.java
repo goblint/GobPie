@@ -109,10 +109,12 @@ public class Main {
         Either<ServerAnalysis, ToolAnalysis> analysis = Either.forLeft(serverAnalysis);
         magpieServer.addAnalysis(analysis, language);
 
-        // add HTTP server for showing CFGs
-        String httpServerAddress = new GobPieHTTPServer(goblintService).start();
-        magpieServer.addHttpServer(httpServerAddress);
-        magpieServer.addCommand("showcfg", new ShowCFGCommand(httpServerAddress));
+        // add HTTP server for showing CFGs, only if the option is specified in the configuration
+        if (gobpieConfiguration.getshowCfg() != null && gobpieConfiguration.getshowCfg()) {
+            String httpServerAddress = new GobPieHTTPServer(goblintService).start();
+            magpieServer.addHttpServer(httpServerAddress);
+            magpieServer.addCommand("showcfg", new ShowCFGCommand(httpServerAddress));
+        }
     }
 
 
