@@ -86,7 +86,17 @@ public class GobPieHttpHandler implements HttpHandler {
                 default -> templateEngine.process("index", context);
             };
         } else {
-            response = templateEngine.process("index", context);
+            response = switch (path) {
+                case "/static/jsonTree.css/" -> {
+                    templateEngine = createTemplateEngine("/json-viewer/", ".css", TemplateMode.CSS);
+                    yield templateEngine.process("jquery.json-viewer", context);
+                }
+                case "/static/jsonTree.js/" -> {
+                    templateEngine = createTemplateEngine("/json-viewer/", ".js", TemplateMode.JAVASCRIPT);
+                    yield templateEngine.process("jquery.json-viewer", context);
+                }
+                default -> templateEngine.process("index", context);
+            };
         }
         exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
         writeResponse(os, response);

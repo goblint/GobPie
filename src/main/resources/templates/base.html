@@ -23,7 +23,11 @@
             border: none;
         }
     </style>
+    <link th:href="${jsonTreeCss}" type="text/css" rel="stylesheet"/>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+    <script th:src="${jsonTreeJs}" type="text/javascript"></script>
     <script th:inline="javascript">
+
         function sendPostRequest(url, data) {
             fetch(url, {
                 method: 'POST',
@@ -34,7 +38,7 @@
             }).then((response) => response.text())
                 .then(function (data) {
                     console.log('Success:', data);
-                    document.getElementById("json").textContent = JSON.stringify(JSON.parse(data), null, 4);
+                    $('#json').jsonViewer(JSON.parse(data));
                 }).catch((error) => {
                 console.error('Error:', error);
             });
