@@ -13,6 +13,7 @@ public class GobPieConfiguration {
 
     private String goblintConf;
     private String[] preAnalyzeCommand;
+    private Boolean showCfg;
 
     public String getGoblintConf() {
         return this.goblintConf;
@@ -21,6 +22,10 @@ public class GobPieConfiguration {
     public String[] getPreAnalyzeCommand() {
         if (preAnalyzeCommand == null || preAnalyzeCommand.length == 0) return null;
         return this.preAnalyzeCommand;
+    }
+
+    public Boolean getshowCfg() {
+        return this.showCfg;
     }
 
 }
