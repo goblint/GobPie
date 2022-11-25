@@ -53,6 +53,16 @@ public class GoblintMessagesResult {
         }
     }
 
+    static class loc {
+
+        private String file;
+        private int line;
+        private int column;
+        private int endLine;
+        private int endColumn;
+
+    }
+
     static class multipiece {
 
         private loc loc;
@@ -60,29 +70,11 @@ public class GoblintMessagesResult {
         private String group_text;
         private final List<pieces> pieces = new ArrayList<>();
 
-        static class loc {
-
-            private String file;
-            private int line;
-            private int column;
-            private int endLine;
-            private int endColumn;
-
-        }
-
         static class pieces {
 
             private String text;
             private loc loc;
 
-            static class loc {
-
-                private String file;
-                private int line;
-                private int column;
-                private int endLine;
-                private int endColumn;
-            }
         }
     }
 
