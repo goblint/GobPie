@@ -113,17 +113,25 @@ public class GoblintMessagesResult {
         return results;
     }
 
+    public GoblintPosition locationToPosition(loc loc) {
+        try {
+            return new GoblintPosition(
+                    loc.line,
+                    loc.endLine,
+                    loc.column < 0 ? 0 : loc.column - 1,
+                    loc.endColumn < 0 ? 10000 : loc.endColumn - 1,
+                    new File(loc.file).toURI().toURL());
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     public GoblintMessagesAnalysisResult createGoblintAnalysisResult() {
         try {
             GoblintPosition pos = multipiece.loc == null
                     ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
-                    : new GoblintPosition(
-                    multipiece.loc.line,
-                    multipiece.loc.endLine,
-                    multipiece.loc.column < 0 ? 0 : multipiece.loc.column - 1,
-                    multipiece.loc.endColumn < 0 ? 10000 : multipiece.loc.endColumn - 1,
-                    new File(multipiece.loc.file).toURI().toURL());
+                    : locationToPosition(multipiece.loc);
             String msg = tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
             return new GoblintMessagesAnalysisResult(pos, msg, severity);
         } catch (MalformedURLException e) {
@@ -136,12 +144,7 @@ public class GoblintMessagesResult {
         try {
             GoblintPosition pos = piece.loc == null
                     ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
-                    : new GoblintPosition(
-                    piece.loc.line,
-                    piece.loc.endLine,
-                    piece.loc.column < 0 ? 0 : piece.loc.column - 1,
-                    piece.loc.endColumn < 0 ? 10000 : piece.loc.endColumn - 1,
-                    new File(piece.loc.file).toURI().toURL());
+                    : locationToPosition(piece.loc);
             return new GoblintMessagesAnalysisResult(pos,
                     tags.stream().map(tag::toString).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
                     piece.text, severity);
