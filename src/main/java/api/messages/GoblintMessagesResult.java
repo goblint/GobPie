@@ -29,6 +29,8 @@ public class GoblintMessagesResult {
     private String severity;
     private multipiece multipiece;
 
+    private locs locs;
+
     public interface tag {
 
         String toString();
@@ -60,6 +62,13 @@ public class GoblintMessagesResult {
         private int column;
         private int endLine;
         private int endColumn;
+
+    }
+
+    static class locs {
+
+        private final List<loc> original = new ArrayList<>();
+        private final List<loc> related = new ArrayList<>();
 
     }
 
@@ -126,6 +135,10 @@ public class GoblintMessagesResult {
         }
     }
 
+    public Pair<Position, String> locationToRelated(loc loc, String message) {
+        return Pair.make(locationToPosition(loc), message);
+    }
+
 
     public GoblintMessagesAnalysisResult createGoblintAnalysisResult() {
         try {
@@ -133,7 +146,10 @@ public class GoblintMessagesResult {
                     ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
                     : locationToPosition(multipiece.loc);
             String msg = tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
-            return new GoblintMessagesAnalysisResult(pos, msg, severity);
+            List<Pair<Position, String>> related = new ArrayList<>();
+            related.addAll(locs.original.stream().map(loc -> locationToRelated(loc, "original")).toList());
+            related.addAll(locs.related.stream().map(loc -> locationToRelated(loc, "related")).toList());
+            return new GoblintMessagesAnalysisResult(pos, msg, severity, related);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
