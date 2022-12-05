@@ -2,13 +2,13 @@
 
 [![build workflow status](https://github.com/goblint/GobPie/actions/workflows/build.yml/badge.svg)](https://github.com/goblint/GobPie/actions/workflows/build.yml)
 
-The Integration of the static analyzer Goblint into IDEs with MagpieBridge.
+The Integration of the static analyzer [Goblint](https://github.com/goblint/analyzer) into IDEs with [MagpieBridge](https://github.com/MagpieBridge/MagpieBridge).
 
 ## Installing
 
 1. Install [Goblint](https://github.com/goblint/analyzer#installing).
-2. Download [GobPie](https://nightly.link/goblint/GobPie/workflows/build/master/plugin.zip) and unzip the archive.
-3. Install the extension into VSCode with `code --install-extension goblintanalyzer-0.0.1.vsix`.
+2. Download [GobPie plugin](https://nightly.link/goblint/GobPie/workflows/build/master/plugin.zip) and unzip the archive.
+3. Install the extension into VSCode with `code --install-extension gobpie-0.0.3.vsix`.
 
 When installing goblint locally (as recommended), **make sure that the right opam switch is activated when starting vscode**:
 ```
@@ -23,8 +23,9 @@ The project must have:
 1. GobPie configuration file in project root with name "`gobpie.json`"
 2. Goblint configuration file ([see examples](https://github.com/goblint/analyzer/tree/master/conf))
 
+#### GobPie configuration
 
-Example configuration file `gobpie.json`:
+Example GobPie configuration file `gobpie.json`:
 ```
 {
     "goblintConf" : "goblint.json",
@@ -36,6 +37,8 @@ Example configuration file `gobpie.json`:
 * `goblintConf` - the relative path from project root to the goblint configuration file (required)
 * `preAnalyzeCommand` - the command to run before analysing (e.g. command for building/updating the compilation database for some automation) (optional)
 * `showCfg` - if the code actions for showing function's CFGs are shown
+
+#### Goblint configuration
 
 Goblint configuration file (e.g. `goblint.json`) must have field `files` defined:
 
@@ -51,6 +54,8 @@ Example values for `files`:
   * `["./01-assert.c", "extra.c"]` (multiple files for analysis without database)
 
 ## Developing
+
+Make sure the following are installed: `JDK 17`, `mvn`, `npm`, `nodejs`, `@vscode/vsce`.
 
 To build this extension, run the commands:
 
