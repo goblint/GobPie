@@ -1,7 +1,6 @@
 package api.messages;
 
 import analysis.GoblintMessagesAnalysisResult;
-import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
 import magpiebridge.core.AnalysisResult;
 
@@ -82,35 +81,36 @@ public class GoblintMessagesResult {
         return type;
     }
 
-    public List<AnalysisResult> convert() {
-        List<AnalysisResult> results = new ArrayList<>();
+    public List<AnalysisResult> convertSingle() {
+        GoblintMessagesAnalysisResult result = createGoblintAnalysisResult();
+        return new ArrayList<>(List.of(result));
+    }
 
-        if (multipiece.group_text == null) {
-            GoblintMessagesAnalysisResult result = createGoblintAnalysisResult();
-            results.add(result);
-        } else {
-            List<GoblintMessagesAnalysisResult> intermresults = new ArrayList<>();
-            List<multipiece.pieces> pieces = multipiece.pieces;
-            for (multipiece.pieces piece : pieces) {
-                GoblintMessagesAnalysisResult result = createGoblintAnalysisResult(piece);
-                intermresults.add(result);
-            }
-            // Add related warnings to all the group elements
-            List<GoblintMessagesAnalysisResult> addedRelated = new ArrayList<>();
-            for (GoblintMessagesAnalysisResult res1 : intermresults) {
-                List<Pair<Position, String>> related = new ArrayList<>();
-                for (GoblintMessagesAnalysisResult res2 : intermresults) {
-                    if (res1 != res2) {
-                        related.add(Pair.make(res2.position(), res2.text()));
-                    }
-                }
-                addedRelated.add(new GoblintMessagesAnalysisResult(res1.position(), res1.group_text() + "\n" + res1.text(),
-                        res1.severityStr(), related));
-            }
-            results.addAll(addedRelated);
+    public List<AnalysisResult> convertGroupToSeparateWarnings() {
+        List<GoblintMessagesAnalysisResult> resultsWithoutRelated =
+                multipiece.pieces.stream().map(this::createGoblintAnalysisResult).toList();
+        // Add related warnings to all the pieces in the group
+        List<GoblintMessagesAnalysisResult> resultsWithRelated = new ArrayList<>();
+        for (GoblintMessagesAnalysisResult result : resultsWithoutRelated) {
+            resultsWithRelated.add(
+                    new GoblintMessagesAnalysisResult(
+                            result.position(),
+                            result.group_text() + "\n" + result.text(),
+                            result.severityStr(),
+                            resultsWithoutRelated.stream()
+                                    .filter(res -> res != result)
+                                    .map(res -> Pair.make(res.position(), res.text()))
+                                    .toList()));
         }
+        return new ArrayList<>(resultsWithRelated);
+    }
 
-        return results;
+    public List<AnalysisResult> convert() {
+        if (multipiece.group_text == null) {
+            return convertSingle();
+        } else {
+            return convertGroupToSeparateWarnings();
+        }
     }
 
     public GoblintPosition locationToPosition(loc loc) {
@@ -126,7 +126,6 @@ public class GoblintMessagesResult {
         }
     }
 
-
     public GoblintMessagesAnalysisResult createGoblintAnalysisResult() {
         try {
             GoblintPosition pos = multipiece.loc == null
@@ -138,7 +137,6 @@ public class GoblintMessagesResult {
             throw new RuntimeException(e);
         }
     }
-
 
     public GoblintMessagesAnalysisResult createGoblintAnalysisResult(multipiece.pieces piece) {
         try {
@@ -152,15 +150,4 @@ public class GoblintMessagesResult {
             throw new RuntimeException(e);
         }
     }
-
-
-    // public List<String> getFiles() {
-    //     Set<String> allFiles = new HashSet<>();
-    //     for (Entry<String, List<String>> entry : files.entrySet()) {
-    //         allFiles.add(entry.getKey());
-    //         allFiles.addAll(entry.getValue());
-    //     }
-    //     return new ArrayList<>(allFiles);
-    // }
-
 }
