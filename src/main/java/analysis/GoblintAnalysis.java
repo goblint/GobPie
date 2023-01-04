@@ -169,7 +169,7 @@ public class GoblintAnalysis implements ServerAnalysis {
                         throw new GobPieException("Analysis returned VerifyError.", GobPieExceptionType.GOBLINT_EXCEPTION);
                     // Get warning messages
                     CompletableFuture<List<GoblintMessagesResult>> messagesTask = goblintService.messages();
-                    if (gobpieConfiguration.getshowCfg() != null && gobpieConfiguration.getshowCfg()) {
+                    if (gobpieConfiguration.showCfg() != null && gobpieConfiguration.showCfg()) {
                         // Get list of functions
                         CompletableFuture<List<GoblintFunctionsResult>> functionsTask = goblintService.functions();
                         return messagesTask.thenCombine(functionsTask, (messages, functions) ->
@@ -193,7 +193,9 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
 
     private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessagesResult> response) {
-        return response.stream().map(GoblintMessagesResult::convert).flatMap(List::stream).collect(Collectors.toList());
+        return gobpieConfiguration.explodeGroupWarnings()
+                ? response.stream().map(GoblintMessagesResult::convertExplode).flatMap(List::stream).toList()
+                : response.stream().map(GoblintMessagesResult::convertNonExplode).flatMap(List::stream).toList();
     }
 
     private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctionsResult> response) {

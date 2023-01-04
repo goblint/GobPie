@@ -2,6 +2,7 @@ package api.messages;
 
 import analysis.GoblintMessagesAnalysisResult;
 import com.ibm.wala.util.collections.Pair;
+import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import magpiebridge.core.AnalysisResult;
 
 import java.io.File;
@@ -88,7 +89,7 @@ public class GoblintMessagesResult {
 
     public List<AnalysisResult> convertGroupToSeparateWarnings() {
         List<GoblintMessagesAnalysisResult> resultsWithoutRelated =
-                multipiece.pieces.stream().map(this::createGoblintAnalysisResult).toList();
+                multipiece.pieces.stream().map(piece -> createGoblintAnalysisResult(piece, true)).toList();
         // Add related warnings to all the pieces in the group
         List<GoblintMessagesAnalysisResult> resultsWithRelated = new ArrayList<>();
         for (GoblintMessagesAnalysisResult result : resultsWithoutRelated) {
@@ -105,11 +106,29 @@ public class GoblintMessagesResult {
         return new ArrayList<>(resultsWithRelated);
     }
 
-    public List<AnalysisResult> convert() {
+    public List<AnalysisResult> convertGroup() {
+        List<Pair<Position, String>> relatedFromPieces =
+                multipiece.pieces.stream()
+                        .map(piece -> createGoblintAnalysisResult(piece, false))
+                        .map(result -> Pair.make(result.position(), result.text()))
+                        .toList();
+        GoblintMessagesAnalysisResult result = createGoblintAnalysisResult(multipiece, relatedFromPieces);
+        return new ArrayList<>(List.of(result));
+    }
+
+    public List<AnalysisResult> convertExplode() {
         if (multipiece.group_text == null) {
             return convertSingle();
         } else {
             return convertGroupToSeparateWarnings();
+        }
+    }
+
+    public List<AnalysisResult> convertNonExplode() {
+        if (multipiece.group_text == null) {
+            return convertSingle();
+        } else {
+            return convertGroup();
         }
     }
 
@@ -126,28 +145,49 @@ public class GoblintMessagesResult {
         }
     }
 
-    public GoblintMessagesAnalysisResult createGoblintAnalysisResult() {
+    public GoblintPosition getLocation(loc loc) {
         try {
-            GoblintPosition pos = multipiece.loc == null
+            return loc == null
                     ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
-                    : locationToPosition(multipiece.loc);
-            String msg = tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
-            return new GoblintMessagesAnalysisResult(pos, msg, severity);
+                    : locationToPosition(loc);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(multipiece.pieces piece) {
-        try {
-            GoblintPosition pos = piece.loc == null
-                    ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
-                    : locationToPosition(piece.loc);
-            return new GoblintMessagesAnalysisResult(pos,
-                    tags.stream().map(tag::toString).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
-                    piece.text, severity);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
+    public GoblintPosition getRandomLocation(multipiece multipiece) {
+        for (GoblintMessagesResult.multipiece.pieces piece : multipiece.pieces) {
+            if (piece.loc != null) return getLocation(piece.loc);
         }
+        return getLocation(multipiece.loc);
+    }
+
+    public GoblintMessagesAnalysisResult createGoblintAnalysisResult() {
+        GoblintPosition pos = getLocation(multipiece.loc);
+        String msg = tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
+        return new GoblintMessagesAnalysisResult(pos, msg, severity);
+
+    }
+
+    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(multipiece.pieces piece, boolean addGroupText) {
+        GoblintPosition pos = getLocation(piece.loc);
+        return new GoblintMessagesAnalysisResult(
+                pos,
+                addGroupText
+                        ? tags.stream().map(tag::toString).collect(Collectors.joining("")) + " Group: " + multipiece.group_text
+                        : "",
+                piece.text,
+                severity);
+    }
+
+    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(multipiece multipiece, List<Pair<Position, String>> related) {
+        GoblintPosition pos = multipiece.loc != null
+                ? getLocation(multipiece.loc)
+                : getRandomLocation(multipiece);
+        return new GoblintMessagesAnalysisResult(
+                pos,
+                tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + this.multipiece.group_text,
+                severity,
+                related);
     }
 }
