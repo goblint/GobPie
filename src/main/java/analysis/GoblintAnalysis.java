@@ -1,10 +1,7 @@
 package analysis;
 
 import api.GoblintService;
-import api.messages.GoblintAnalysisResult;
-import api.messages.GoblintFunctionsResult;
-import api.messages.GoblintMessagesResult;
-import api.messages.Params;
+import api.messages.*;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
@@ -35,7 +32,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -159,43 +155,58 @@ public class GoblintAnalysis implements ServerAnalysis {
 
     /**
      * Sends the requests to Goblint server and gets their results.
+     * Checks if analysis succeeded.
+     * If analysis succeeds, requests the messages from the Goblint server.
+     * If showCfg option is turned on, asks for the function names for code lenses.
      *
      * @return a CompletableFuture of a collection of warning messages and cfg code lenses if request was successful.
      * @throws GobPieException in case the analysis was aborted or returned a VerifyError.
      */
 
     private CompletableFuture<Collection<AnalysisResult>> reanalyse() {
+        return goblintService.analyze(new Params())
+                .thenCompose(this::getComposedAnalysisResults)
+                .applyToEither(didGoblintCrash(), res -> res);
+    }
 
-        CompletableFuture<Collection<AnalysisResult>> goblintExit = CompletableFuture.supplyAsync(() -> {
+    private void didAnalysisNotSucceed(GoblintAnalysisResult analysisResult) {
+        if (analysisResult.getStatus().contains("Aborted"))
+            throw new GobPieException("The running analysis has been aborted.", GobPieExceptionType.GOBLINT_EXCEPTION);
+        else if (analysisResult.getStatus().contains("VerifyError"))
+            throw new GobPieException("Analysis returned VerifyError.", GobPieExceptionType.GOBLINT_EXCEPTION);
+    }
+
+    private CompletableFuture<Collection<AnalysisResult>> didGoblintCrash() {
+        return CompletableFuture.supplyAsync(() -> {
             try {
                 goblintServer.getGoblintRunProcess().getProcess().waitFor();
             } catch (InterruptedException ignored) {
             }
             throw new GobPieException("Goblint has exited.", GobPieExceptionType.GOBLINT_EXCEPTION);
         });
+    }
 
-        Function<GoblintAnalysisResult, CompletableFuture<Collection<AnalysisResult>>> composeAnalysisResults = analysisResult -> {
-            // Make sure that analysis succeeded
-            if (analysisResult.getStatus().contains("Aborted"))
-                throw new GobPieException("The running analysis has been aborted.", GobPieExceptionType.GOBLINT_EXCEPTION);
-            else if (analysisResult.getStatus().contains("VerifyError"))
-                throw new GobPieException("Analysis returned VerifyError.", GobPieExceptionType.GOBLINT_EXCEPTION);
-            // Get warning messages
-            CompletableFuture<List<GoblintMessagesResult>> messagesTask = goblintService.messages();
-            if (gobpieConfiguration.getshowCfg() != null && gobpieConfiguration.getshowCfg()) {
-                // Get list of functions
-                CompletableFuture<List<GoblintFunctionsResult>> functionsTask = goblintService.functions();
-                return messagesTask.thenCombine(functionsTask, (messages, functions) ->
+    private CompletableFuture<Collection<AnalysisResult>> convertAndCombineResults(
+            CompletableFuture<List<GoblintMessagesResult>> messagesCompletableFuture,
+            CompletableFuture<List<GoblintFunctionsResult>> functionsCompletableFuture) {
+        return messagesCompletableFuture
+                .thenCombine(functionsCompletableFuture, (messages, functions) ->
                         Stream.concat(
-                                        convertMessagesFromJson(messages).stream(),
-                                        convertFunctionsFromJson(functions).stream())
-                                .collect(Collectors.toList()));
-            }
-            return messagesTask.thenApply(this::convertMessagesFromJson);
-        };
+                                convertMessagesFromJson(messages).stream(),
+                                convertFunctionsFromJson(functions).stream()
+                        ).collect(Collectors.toList()));
+    }
 
-        return goblintService.analyze(new Params()).thenCompose(composeAnalysisResults).applyToEither(goblintExit, res -> res);
-
+    private CompletableFuture<Collection<AnalysisResult>> getComposedAnalysisResults(GoblintAnalysisResult analysisResult) {
+        didAnalysisNotSucceed(analysisResult);
+        // Get warning messages
+        CompletableFuture<List<GoblintMessagesResult>> messagesCompletableFuture = goblintService.messages();
+        if (gobpieConfiguration.getshowCfg() == null || !gobpieConfiguration.getshowCfg()) {
+            return messagesCompletableFuture.thenApply(this::convertMessagesFromJson);
+        }
+        // Get list of functions
+        CompletableFuture<List<GoblintFunctionsResult>> functionsCompletableFuture = goblintService.functions();
+        return convertAndCombineResults(messagesCompletableFuture, functionsCompletableFuture);
     }
 
 
@@ -244,9 +255,7 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
 
     public FileAlterationObserver createGoblintConfObserver() {
-
         FileFilter fileFilter = file -> file.getName().equals(gobpieConfiguration.getGoblintConf());
-
         FileAlterationObserver observer = new FileAlterationObserver(System.getProperty("user.dir"), fileFilter);
         observer.addListener(new FileAlterationListenerAdaptor() {
             @Override
