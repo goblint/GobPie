@@ -14,6 +14,7 @@ public class GobPieConfiguration {
     private String goblintConf;
     private String[] preAnalyzeCommand;
     private Boolean showCfg;
+    private Boolean explodeGroupWarnings;
 
     public String getGoblintConf() {
         return this.goblintConf;
@@ -24,8 +25,11 @@ public class GobPieConfiguration {
         return this.preAnalyzeCommand;
     }
 
-    public Boolean getshowCfg() {
+    public Boolean showCfg() {
         return this.showCfg;
     }
 
+    public Boolean explodeGroupWarnings() {
+        return explodeGroupWarnings == null || explodeGroupWarnings;
+    }
 }

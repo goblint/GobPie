@@ -32,7 +32,7 @@ jobs:
         run: npm install
 
       - name: Set up VSCE
-        run: npm install -g vsce
+        run: npm install -g @vscode/vsce
 
       - name: Build with VSCE
         working-directory: ./vscode

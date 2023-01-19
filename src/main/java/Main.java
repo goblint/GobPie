@@ -110,7 +110,7 @@ public class Main {
         magpieServer.addAnalysis(analysis, language);
 
         // add HTTP server for showing CFGs, only if the option is specified in the configuration
-        if (gobpieConfiguration.getshowCfg() != null && gobpieConfiguration.getshowCfg()) {
+        if (gobpieConfiguration.showCfg() != null && gobpieConfiguration.showCfg()) {
             String httpServerAddress = new GobPieHTTPServer(goblintService).start();
             magpieServer.addHttpServer(httpServerAddress);
             magpieServer.addCommand("showcfg", new ShowCFGCommand(httpServerAddress));
