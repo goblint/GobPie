@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import static gobpie.GobPieExceptionType.GOBLINT_EXCEPTION;
@@ -131,6 +132,8 @@ public class GoblintServer {
                     magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error. Please check the output terminal of GobPie extension for more information."));
                     log.error("Goblint server exited due to an error (code: " + process.exitValue() + "). Please fix the issue reported above and restart the extension.");
                 }
+                magpieServer.cleanUp();
+                // TODO: throw an exception? where (and how) can it be caught to be handled though?
             }
         };
 
