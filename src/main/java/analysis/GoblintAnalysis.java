@@ -152,7 +152,6 @@ public class GoblintAnalysis implements ServerAnalysis {
         }
     }
 
-
     /**
      * Sends the requests to Goblint server and gets their results.
      * Checks if analysis succeeded.
@@ -264,9 +263,12 @@ public class GoblintAnalysis implements ServerAnalysis {
                     magpieServer.exit();
                 } else {
                     goblintService.reset_config();
-                    goblintService.read_config(new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath()));
-                    // TODO: notify user when the conf was changed but not successfully read by Goblint
-                    // e.g. {"id":0,"jsonrpc":"2.0","error":{"code":-32603,"message":"Json_encoding: Unexpected object field ..."}}
+                    goblintService.read_config(new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath()))
+                            .whenComplete((res, ex) -> {
+                                String msg = "Goblint was unable to successfully read the new configuration. " + ex.getMessage();
+                                magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
+                                log.error(msg);
+                            });
                 }
             }
         });
