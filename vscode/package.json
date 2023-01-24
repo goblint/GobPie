@@ -7,7 +7,7 @@
   "version": "0.0.3",
   "repository": {
     "type": "git",
-    "url": "https://github.com/karoliineh/MagpieBridge-Goblint.git"
+    "url": "https://github.com/goblint/GobPie.git"
   },
   "publisher": "karoliineh",
   "categories": [],
@@ -20,7 +20,7 @@
   "activationEvents": [
     "onLanguage:c"
   ],
-  "main": "./out/extension",
+  "main": "./out/main.js",
   "contributes": {
     "configuration": {
       "type": "object",
