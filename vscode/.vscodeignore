@@ -1,6 +1,0 @@
-.vscode
-out/
-src/
-tsconfig.json
-webpack.config.js
-!out/extension.js
