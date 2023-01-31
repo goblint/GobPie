@@ -1,0 +1,3 @@
+installGobPie.sh
+**/*.ts
+**/tsconfig.json
