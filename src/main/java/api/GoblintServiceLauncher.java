@@ -127,7 +127,7 @@ public class GoblintServiceLauncher implements Launcher<GoblintService> {
 
         public void connectSocketStreams() {
             try {
-                AFUNIXSocket socket = AFUNIXSocket.newInstance();
+                AFUNIXSocket socket = AFUNIXSocket.newInstance(); // TODO: close after
                 socket.connect(AFUNIXSocketAddress.of(new File(goblintSocketName)));
                 outputStream = socket.getOutputStream();
                 inputStream = socket.getInputStream();
