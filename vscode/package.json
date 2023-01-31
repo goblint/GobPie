@@ -7,7 +7,7 @@
   "version": "0.0.3",
   "repository": {
     "type": "git",
-    "url": "https://github.com/karoliineh/MagpieBridge-Goblint.git"
+    "url": "https://github.com/goblint/GobPie.git"
   },
   "publisher": "karoliineh",
   "categories": [],
@@ -20,7 +20,7 @@
   "activationEvents": [
     "onLanguage:c"
   ],
-  "main": "./out/extension",
+  "main": "./out/main.js",
   "contributes": {
     "configuration": {
       "type": "object",
@@ -53,19 +53,19 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "cp ../target/gobpie-0.0.3-SNAPSHOT.jar gobpie-0.0.3-SNAPSHOT.jar && npm run compile",
-    "compile": "tsc -b",
-    "watch": "tsc -b -w"
+    "vscode:prepublish": "npm run esbuild-base -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "test-compile": "tsc -p ./"
   },
   "dependencies": {
     "vscode-languageclient": "^5.2.1",
     "xmlhttprequest-ts": "^1.0.1"
   },
   "devDependencies": {
-    "@vscode/test-electron": "^2.2.0",
     "@types/vscode": "^1.1.37",
-    "@types/mocha": "^10.0.0",
-    "@types/node": "^18.11.4",
+    "esbuild": "^0.17.4",
     "typescript": "^4.8.4"
   }
 }
