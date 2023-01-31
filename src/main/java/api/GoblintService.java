@@ -19,45 +19,39 @@ import java.util.concurrent.CompletableFuture;
 
 public interface GoblintService {
 
-    // Examples of requests used in this project:
-    // {"jsonrpc":"2.0","id":0,"method":"read_config","params":{"fname":"goblint.json"}}
-    // {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
-    // {"jsonrpc":"2.0","id":0,"method":"messages"}
-    // {"jsonrpc":"2.0","id":0,"method":"functions"}
-    // {"jsonrpc":"2.0","id":0,"method":"cfg", "params":{"fname":"main"}}
-    // {"jsonrpc":"2.0","id":0,"method":"node_state","params":{"nid":"fun2783"}}
-
-    // Examples of responses for the requests:
-    // method: "analyze" response:
-    // {"id":0,"jsonrpc":"2.0","result":{"status":["Success"]}}
-    // method: "messages" response:
-    // {"id":0,"jsonrpc":"2.0","result":[{"tags":[{"Category":["Race"]}], ... }]}
-    // method: "functions" response:
-    // {"id":0,"jsonrpc":"2.0","result":[{"funName":"qsort","location":{"file":"/home/ ... }]}
-    // method: "cfg" response:
-    // {"id":0,"jsonrpc":"2.0","result":{"cfg":"digraph cfg {\n\tnode [id=\"\\N\", ... }}
-
     @JsonRequest
     CompletableFuture<JsonObject> ping();
 
+    // request:  {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
+    // response: {"id":0,"jsonrpc":"2.0","result":{"status":["Success"]}}
     @JsonRequest
     CompletableFuture<GoblintAnalysisResult> analyze(Params params);
 
+    // request:  {"jsonrpc":"2.0","id":0,"method":"messages"}
+    // response: {"id":0,"jsonrpc":"2.0","result":[{"tags":[{"Category":["Race"]}], ... }]}
     @JsonRequest
     CompletableFuture<List<GoblintMessagesResult>> messages();
 
+    // request:  {"jsonrpc":"2.0","id":0,"method":"functions"}
+    // response: {"id":0,"jsonrpc":"2.0","result":[{"funName":"qsort","location":{"file":"/home/ ... }]}
     @JsonRequest
     CompletableFuture<List<GoblintFunctionsResult>> functions();
 
+    // request:  {"jsonrpc":"2.0","id":0,"method":"cfg", "params":{"fname":"main"}}
+    // response: {"id":0,"jsonrpc":"2.0","result":{"cfg":"digraph cfg {\n\tnode [id=\"\\N\", ... }}
     @JsonRequest
     CompletableFuture<GoblintCFGResult> cfg(Params params);
 
+    // request:  {"jsonrpc":"2.0","id":0,"method":"node_state","params":{"nid":"fun2783"}}
     @JsonRequest
     CompletableFuture<List<JsonObject>> node_state(GobPieHttpHandler.NodeParams params);
 
     @JsonRequest
     CompletableFuture<Void> reset_config();
 
+    // request:  {"jsonrpc":"2.0","id":0,"method":"read_config","params":{"fname":"goblint.json"}}
+    // response: {"id":0,"jsonrpc":"2.0","result":null}
+    //           {"id":0,"jsonrpc":"2.0","error":{"code":-32603,"message":"Json_encoding: Unexpected object field .."}}
     @JsonRequest
     CompletableFuture<Void> read_config(Params params);
 

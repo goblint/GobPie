@@ -102,7 +102,12 @@ public class Main {
         GoblintService goblintService = localEndpoint.getServer();
 
         // read Goblint configurations
-        goblintService.read_config(new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath()));
+        goblintService.read_config(new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath()))
+                .whenComplete((res, ex) -> {
+                    String msg = "Goblint was unable to successfully read the new configuration. " + ex.getMessage();
+                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
+                    log.error(msg);
+                });
 
         // add analysis to the MagpieServer
         ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobpieConfiguration);
