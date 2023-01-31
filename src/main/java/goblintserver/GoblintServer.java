@@ -1,5 +1,6 @@
 package goblintserver;
 
+import api.util.DirectoryWatchingUtility;
 import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
 import org.apache.logging.log4j.LogManager;
@@ -15,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import static gobpie.GobPieExceptionType.GOBLINT_EXCEPTION;
@@ -86,28 +88,23 @@ public class GoblintServer {
         try {
             // run command to start goblint
             log.info("Goblint run with command: " + String.join(" ", goblintRunCommand));
-
             goblintRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand);
 
             // wait until Goblint socket is created before continuing
             if (!new File(goblintSocket).exists()) {
-                WatchService watchService = FileSystems.getDefault().newWatchService();
-                Path path = Paths.get(System.getProperty("user.dir"));
-                path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE);
-                WatchKey key;
-                while ((key = watchService.take()) != null) {
-                    for (WatchEvent<?> event : key.pollEvents()) {
-                        if ((event.context()).equals(Paths.get(goblintSocket))) {
-                            log.info("Goblint server started.");
-                            return;
-                        }
-                    }
-                    key.reset();
-                }
+                watch();
             }
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
             throw new GobPieException("Running Goblint failed.", e, GOBLINT_EXCEPTION);
         }
+    }
+
+    private void watch() throws IOException, InterruptedException {
+        Path path = Paths.get(System.getProperty("user.dir"));
+        DirectoryWatchingUtility socketWatchingUtility = new DirectoryWatchingUtility(path);
+        socketWatchingUtility.watch().thenAccept(res -> {
+            log.info("Goblint server started.");
+        });
     }
 
 
@@ -131,6 +128,8 @@ public class GoblintServer {
                     magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error. Please check the output terminal of GobPie extension for more information."));
                     log.error("Goblint server exited due to an error (code: " + process.exitValue() + "). Please fix the issue reported above and restart the extension.");
                 }
+                magpieServer.cleanUp();
+                // TODO: throw an exception? where (and how) can it be caught to be handled though?
             }
         };
 

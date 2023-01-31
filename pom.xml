@@ -11,7 +11,7 @@
         <dependency>
             <groupId>org.eclipse.lsp4j</groupId>
             <artifactId>org.eclipse.lsp4j.jsonrpc</artifactId>
-            <version>0.15.0</version>
+            <version>0.19.0</version>
         </dependency>
 
 
@@ -20,6 +20,12 @@
             <groupId>com.github.magpiebridge</groupId>
             <artifactId>magpiebridge</artifactId>
             <version>0.1.5</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- graphviz-java -->
@@ -33,13 +39,13 @@
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.9.0</version>
+            <version>2.10.1</version>
         </dependency>
 
         <dependency>
             <groupId>com.kohlschutter.junixsocket</groupId>
             <artifactId>junixsocket-core</artifactId>
-            <version>2.5.1</version>
+            <version>2.6.1</version>
             <type>pom</type>
         </dependency>
 
@@ -61,7 +67,14 @@
         <dependency>
             <groupId>org.thymeleaf</groupId>
             <artifactId>thymeleaf</artifactId>
-            <version>3.0.15.RELEASE</version>
+            <version>3.1.1.RELEASE</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/io.methvin/directory-watcher -->
+        <dependency>
+            <groupId>io.methvin</groupId>
+            <artifactId>directory-watcher</artifactId>
+            <version>0.17.1</version>
         </dependency>
 
 
@@ -90,7 +103,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>2.3</version>
+                <version>3.4.1</version>
                 <executions>
                     <!-- Run shade goal on package phase -->
                     <execution>
@@ -110,9 +123,8 @@
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/*</exclude>
+                                        <exclude>about.html</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
