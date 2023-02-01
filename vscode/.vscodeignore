@@ -1,3 +1,7 @@
-installGobPie.sh
+.vscode
+node_modules
+src/
 **/*.ts
 **/tsconfig.json
+webpack.config.js
+installGobPie.sh

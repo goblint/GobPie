@@ -12,7 +12,7 @@ dependency-reduced-pom.xml
 
 .classpath
 
-vscode/out/
+vscode/dist/
 
 package-lock.json
 
