@@ -124,6 +124,7 @@
                                     <artifact>*:*</artifact>
                                     <excludes>
                                         <exclude>META-INF/*</exclude>
+                                        <exclude>META-INF/versions/**</exclude>
                                         <exclude>about.html</exclude>
                                     </excludes>
                                 </filter>
