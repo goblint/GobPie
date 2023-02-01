@@ -9,17 +9,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           java-version: '17' # TODO: what version do we want?
           distribution: 'adopt'
           cache: maven
 
       - name: Set up Node.js 18
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '18.x' # TODO: what version do we want?
           # cache: npm # TODO: requires package-lock.json
@@ -39,7 +39,7 @@ jobs:
         run: vsce package
 
       - name: Upload plugin artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v3
         with:
-          name: plugin
+          name: gobpie-plugin
           path: ./vscode/gobpie-*.vsix
