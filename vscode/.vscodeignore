@@ -4,4 +4,5 @@ src/
 **/*.ts
 **/tsconfig.json
 webpack.config.js
-installGobPie.sh
+*.sh
+*.bat
