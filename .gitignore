@@ -21,3 +21,5 @@ vscode/node_modules
 *.vsix
 
 *.jar
+
+.env
