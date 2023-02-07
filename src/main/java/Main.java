@@ -98,7 +98,7 @@ public class Main {
         // read Goblint configurations
         goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath()))
                 .exceptionally(ex -> {
-                    String msg = "Goblint was unable to successfully read the configuration. " + ex.getMessage();
+                    String msg = "Goblint was unable to successfully read the configuration: " + ex.getMessage();
                     magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
                     log.error(msg);
                     return null;

@@ -148,7 +148,7 @@ public class GoblintAnalysis implements ServerAnalysis {
                     .thenCompose(_res ->
                             goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath())))
                     .exceptionally(ex -> {
-                        String msg = "Goblint was unable to successfully read the new configuration. " + ex.getMessage();
+                        String msg = "Goblint was unable to successfully read the new configuration: " + ex.getMessage();
                         magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
                         log.error(msg);
                         return null;
