@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
  * and creates the {@link MessageConsumer} and {@link ConcurrentMessageProcessor}.
  *
  * @author Karoliine Holter
+ * @author Juhan Oskar Hennoste
  * @since 0.0.3
  */
 

@@ -7,6 +7,15 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.*;
 
+/**
+ * The Class FileWatcher.
+ * <p>
+ * A utility class for watching files for changes.
+ *
+ * @author Juhan Oskar Hennoste
+ * @since 0.0.3
+ */
+
 public class FileWatcher implements AutoCloseable {
 
     private final WatchService watchService;
@@ -61,6 +70,7 @@ public class FileWatcher implements AutoCloseable {
 
     /**
      * Checks if the target file has been modified since the last call to {@link #checkModified()} or {@link #waitForModified()}.
+     *
      * @return True if the file has been modified since the last check
      */
     public boolean checkModified() {

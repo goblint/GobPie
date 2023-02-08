@@ -46,6 +46,7 @@ import java.util.stream.Stream;
  * converts the results and passes them to MagpieBridge server.
  *
  * @author Karoliine Holter
+ * @author Juhan Oskar Hennoste
  * @since 0.0.1
  */
 

@@ -14,6 +14,16 @@ import java.io.FileReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * The Class GobPieConfReader.
+ * <p>
+ * Class for parsing and reading GobPie configuration file.
+ *
+ * @author Karoliine Holter
+ * @author Juhan Oskar Hennoste
+ * @since 0.0.2
+ */
+
 public class GobPieConfReader {
 
     private final MagpieServer magpieServer;
@@ -37,7 +47,7 @@ public class GobPieConfReader {
      */
     public GobPieConfiguration readGobPieConfiguration() {
 
-        // If gobpie configuration is not present, wait for it to be created
+        // If GobPie configuration is not present, wait for it to be created
         Path gobPieConfPath = Path.of(gobPieConfFileName);
         try (FileWatcher gobPieConfWatcher = new FileWatcher(gobPieConfPath)) {
             if (!Files.exists(gobPieConfPath)) {

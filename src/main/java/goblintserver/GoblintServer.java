@@ -25,6 +25,7 @@ import static gobpie.GobPieExceptionType.GOBLINT_EXCEPTION;
  * Starts Goblint Server and waits for the unix socket to be created.
  *
  * @author Karoliine Holter
+ * @author Juhan Oskar Hennoste
  * @since 0.0.2
  */
 

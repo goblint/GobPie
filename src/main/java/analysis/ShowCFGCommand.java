@@ -21,8 +21,6 @@ import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 
-;
-
 public class ShowCFGCommand implements WorkspaceCommand {
 
     private final String httpServerAddress;

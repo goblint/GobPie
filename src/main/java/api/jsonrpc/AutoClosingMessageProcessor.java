@@ -6,7 +6,12 @@ import org.eclipse.lsp4j.jsonrpc.MessageProducer;
 import org.eclipse.lsp4j.jsonrpc.json.ConcurrentMessageProcessor;
 
 /**
+ * The Class AutoClosingMessageProcessor.
+ * <p>
  * A ConcurrentMessageProcessor that automatically closes the provided Closeable once message processing has ended.
+ *
+ * @author Juhan Oskar Hennoste
+ * @since 0.0.3
  */
 public class AutoClosingMessageProcessor extends ConcurrentMessageProcessor {
 

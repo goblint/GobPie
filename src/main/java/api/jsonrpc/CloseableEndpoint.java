@@ -1,6 +1,7 @@
 package api.jsonrpc;
 
 import org.eclipse.lsp4j.jsonrpc.Endpoint;
+import org.eclipse.lsp4j.jsonrpc.RemoteEndpoint;
 import org.eclipse.lsp4j.jsonrpc.JsonRpcException;
 
 import java.io.IOException;
@@ -8,11 +9,17 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 
 /**
+ * The Class CloseableEndpoint.
+ * <p>
  * Endpoint that completes all requests exceptionally when closed.
- * This is useful because, for the built-in RemoteEndpoint, if the incoming pipe is broken then all already made requests will never complete.
+ * This is useful because, for the built-in {@link RemoteEndpoint},
+ * if the incoming pipe is broken then all already made requests will never complete.
  * <p>
  * Note that closing this endpoint is one-way i.e. all requests will be completed with an exception for the caller,
  * but will still reach the remote endpoint, if it is still capable of receiving requests.
+ *
+ * @author Juhan Oskar Hennoste
+ * @since 0.0.3
  */
 public class CloseableEndpoint implements Endpoint, AutoCloseable {
 
