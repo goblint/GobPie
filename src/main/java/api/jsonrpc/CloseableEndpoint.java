@@ -1,12 +1,9 @@
 package api.jsonrpc;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.jsonrpc.Endpoint;
 import org.eclipse.lsp4j.jsonrpc.JsonRpcException;
 
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 
