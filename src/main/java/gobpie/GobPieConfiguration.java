@@ -8,12 +8,11 @@ package gobpie;
  * @author Karoliine Holter
  * @since 0.0.2
  */
-
 public class GobPieConfiguration {
 
     private String goblintConf;
     private String[] preAnalyzeCommand;
-    private Boolean showCfg;
+    private boolean showCfg;
 
     public String getGoblintConf() {
         return this.goblintConf;
@@ -24,7 +23,7 @@ public class GobPieConfiguration {
         return this.preAnalyzeCommand;
     }
 
-    public Boolean getshowCfg() {
+    public boolean getShowCfg() {
         return this.showCfg;
     }
 

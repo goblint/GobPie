@@ -215,7 +215,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         didAnalysisNotSucceed(analysisResult);
         // Get warning messages
         CompletableFuture<List<GoblintMessagesResult>> messagesCompletableFuture = goblintService.messages();
-        if (gobpieConfiguration.getshowCfg() == null || !gobpieConfiguration.getshowCfg()) {
+        if (!gobpieConfiguration.getShowCfg()) {
             return messagesCompletableFuture.thenApply(this::convertMessagesFromJson);
         }
         // Get list of functions

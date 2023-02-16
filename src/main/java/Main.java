@@ -1,4 +1,5 @@
 import HTTPserver.GobPieHTTPServer;
+import abstractdebugging.AbstractDebuggingServerLauncher;
 import analysis.GoblintAnalysis;
 import analysis.ShowCFGCommand;
 import api.GoblintService;
@@ -23,7 +24,10 @@ import java.io.File;
 public class Main {
 
     private static final String gobPieConfFileName = "gobpie.json";
+    private static final String abstractDebuggingServerSocket = "gobpie_adb.sock";
+
     private static final Logger log = LogManager.getLogger(Main.class);
+
     private static MagpieServer magpieServer;
 
     public static void main(String... args) {
@@ -35,6 +39,9 @@ public class Main {
             magpieServer.launchOnStdio();
             log.info("MagpieBridge server launched.");
             magpieServer.doAnalysis("c", true);
+
+            launchAbstractDebuggingServer();
+            log.info("Abstract debugging adapter launched");
         } catch (GobPieException e) {
             String message = e.getMessage();
             String terminalMessage;
@@ -111,11 +118,17 @@ public class Main {
         magpieServer.addAnalysis(analysis, language);
 
         // add HTTP server for showing CFGs, only if the option is specified in the configuration
-        if (gobpieConfiguration.getshowCfg() != null && gobpieConfiguration.getshowCfg()) {
+        if (gobpieConfiguration.getShowCfg()) {
             String httpServerAddress = new GobPieHTTPServer(goblintService).start();
             magpieServer.addHttpServer(httpServerAddress);
             magpieServer.addCommand("showcfg", new ShowCFGCommand(httpServerAddress));
         }
+    }
+
+
+    private static void launchAbstractDebuggingServer() {
+        AbstractDebuggingServerLauncher launcher = new AbstractDebuggingServerLauncher(goblintService);
+        launcher.launchOnDomainSocket(abstractDebuggingServerSocket);
     }
 
 
