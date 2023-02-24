@@ -3,6 +3,7 @@ package abstractdebugging;
 import api.GoblintService;
 import gobpie.GobPieException;
 import gobpie.GobPieExceptionType;
+import magpiebridge.core.MagpieServer;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,6 +21,7 @@ import java.util.concurrent.Executors;
 
 public class AbstractDebuggingServerLauncher {
 
+    private final MagpieServer magpieServer;
     private final GoblintService goblintService;
 
     private final ExecutorService executorService = Executors.newCachedThreadPool(runnable -> {
@@ -30,7 +32,8 @@ public class AbstractDebuggingServerLauncher {
 
     private final Logger log = LogManager.getLogger(AbstractDebuggingServerLauncher.class);
 
-    public AbstractDebuggingServerLauncher(GoblintService goblintService) {
+    public AbstractDebuggingServerLauncher(MagpieServer magpieServer, GoblintService goblintService) {
+        this.magpieServer = magpieServer;
         this.goblintService = goblintService;
     }
 
@@ -38,6 +41,7 @@ public class AbstractDebuggingServerLauncher {
      * Launch abstract debugging server on domain socket.
      * For each new connection to the domain socket a new AbstractDebuggingServer instance will be created and initialized.
      * @param socketAddress address for the domain socket to bind to. the socket file will be created and cleaned up automatically
+     * @throws GobPieException if creating domain socket fails
      */
     public void launchOnDomainSocket(String socketAddress) {
         // TODO: Maybe lsp4j has built-in support for listening on domain socket. If so then that should be used instead.

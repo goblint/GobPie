@@ -28,26 +28,37 @@ public class Main {
 
     private static final Logger log = LogManager.getLogger(Main.class);
 
-    private static MagpieServer magpieServer;
-
     public static void main(String... args) {
 
+        MagpieServer magpieServer = createMagpieServer();
+
         try {
-            createMagpieServer();
-            addAnalysis();
-            // launch magpieServer
+            // Read GobPie configuration file
+            GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
+            GobPieConfiguration gobpieConfiguration = gobPieConfReader.readGobPieConfiguration();
+
+            // Start GoblintServer
+            GoblintServer goblintServer = startGoblintServer(magpieServer);
+
+            // Connect GoblintService and read configuration
+            GoblintService goblintService = connectGoblintService(magpieServer, gobpieConfiguration, goblintServer);
+
+            // Add analysis
+            addAnalysis(magpieServer, gobpieConfiguration, goblintServer, goblintService);
+
+            // Launch magpieServer
             magpieServer.launchOnStdio();
             log.info("MagpieBridge server launched.");
-            magpieServer.doAnalysis("c", true);
 
-            launchAbstractDebuggingServer();
-            log.info("Abstract debugging adapter launched");
+            // Launch abstract debugging server
+            launchAbstractDebuggingServer(magpieServer, goblintService);
+            log.info("Abstract debugging server launched");
         } catch (GobPieException e) {
             String message = e.getMessage();
             String terminalMessage;
             if (e.getCause() == null) terminalMessage = message;
             else terminalMessage = message + " Cause: " + e.getCause().getMessage();
-            forwardErrorMessageToClient(message, terminalMessage);
+            forwardErrorMessageToClient(magpieServer, message, terminalMessage);
             switch (e.getType()) {
                 case GOBLINT_EXCEPTION:
                     break;
@@ -65,44 +76,35 @@ public class Main {
      * Method for creating and launching MagpieBridge server.
      */
 
-    private static void createMagpieServer() {
+    private static MagpieServer createMagpieServer() {
         // set up configuration for MagpieServer
         ServerConfiguration serverConfig = new ServerConfiguration();
-        serverConfig.setDoAnalysisByFirstOpen(false);
+        serverConfig.setDoAnalysisByFirstOpen(true);
         serverConfig.setUseMagpieHTTPServer(false);
-        magpieServer = new MagpieServer(serverConfig);
+        return new MagpieServer(serverConfig);
     }
 
 
     /**
-     * Method for creating and adding Goblint analysis to MagpieBridge server.
-     * <p>
-     * Creates GoblintServer, GoblintClient and the GoblintAnalysis classes.
-     *
-     * @throws GobPieException if something goes wrong with creating any of the classes:
-     *                         <ul>
-     *                             <li>GoblintServer;</li>
-     *                             <li>GoblintClient.</li>
-     *                         </ul>
+     * Starts Goblint server.
+     * @throws GobPieException if running the server start command fails
      */
-
-    private static void addAnalysis() {
-        // define language
-        String language = "c";
-
-        // read GobPie configuration file
-        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
-        GobPieConfiguration gobpieConfiguration = gobPieConfReader.readGobPieConfiguration();
-
-        // start GoblintServer
+    private static GoblintServer startGoblintServer(MagpieServer magpieServer) {
         GoblintServer goblintServer = new GoblintServer(magpieServer);
         goblintServer.startGoblintServer();
+        return goblintServer;
+    }
 
-        // launch GoblintService
+
+    /**
+     * Connects the Goblint service to the Goblint server and reads the Goblint configuration file.
+     * @throws GobPieException if connecting fails
+     */
+    private static GoblintService connectGoblintService(MagpieServer magpieServer, GobPieConfiguration gobpieConfiguration, GoblintServer goblintServer) {
         GoblintServiceLauncher launcher = new GoblintServiceLauncher();
         GoblintService goblintService = launcher.connect(goblintServer.getGoblintSocket());
 
-        // read Goblint configurations
+        // Read Goblint configurations
         goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath()))
                 .exceptionally(ex -> {
                     String msg = "Goblint was unable to successfully read the configuration: " + ex.getMessage();
@@ -111,6 +113,20 @@ public class Main {
                     return null;
                 })
                 .join();
+
+        return goblintService;
+    }
+
+
+    /**
+     * Method for creating and adding Goblint analysis to MagpieBridge server.
+     * <p>
+     * Creates the GoblintAnalysis classes.
+     */
+    private static void addAnalysis(MagpieServer magpieServer, GobPieConfiguration gobpieConfiguration,
+                                    GoblintServer goblintServer, GoblintService goblintService) {
+        // define language
+        String language = "c";
 
         // add analysis to the MagpieServer
         ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobpieConfiguration);
@@ -126,8 +142,12 @@ public class Main {
     }
 
 
-    private static void launchAbstractDebuggingServer() {
-        AbstractDebuggingServerLauncher launcher = new AbstractDebuggingServerLauncher(goblintService);
+    /**
+     * Launch abstract debugging server
+     * @throws GobPieException if creating domain socket for server fails
+     */
+    private static void launchAbstractDebuggingServer(MagpieServer magpieServer, GoblintService goblintService) {
+        AbstractDebuggingServerLauncher launcher = new AbstractDebuggingServerLauncher(magpieServer, goblintService);
         launcher.launchOnDomainSocket(abstractDebuggingServerSocket);
     }
 
@@ -139,7 +159,7 @@ public class Main {
      * @param terminalMessage The message shown in the terminal.
      */
 
-    private static void forwardErrorMessageToClient(String popUpMessage, String terminalMessage) {
+    private static void forwardErrorMessageToClient(MagpieServer magpieServer, String popUpMessage, String terminalMessage) {
         magpieServer.forwardMessageToClient(
                 new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Please check the output terminal of GobPie extension for more information.")
         );

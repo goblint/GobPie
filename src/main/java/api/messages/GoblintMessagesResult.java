@@ -25,15 +25,15 @@ public class GoblintMessagesResult {
 
     String type = getClass().getName();
 
-    private final List<tag> tags = new ArrayList<>();
+    private final List<Tag> tags = new ArrayList<>();
     private String severity;
-    private multipiece multipiece;
+    private Multipiece multipiece;
 
-    public interface tag {
+    public interface Tag {
 
         String toString();
 
-        class Category implements tag {
+        class Category implements Tag {
             private final List<String> Category = new ArrayList<>();
 
             @Override
@@ -43,7 +43,7 @@ public class GoblintMessagesResult {
 
         }
 
-        class CWE implements tag {
+        class CWE implements Tag {
             private Integer CWE;
 
             @Override
@@ -53,27 +53,17 @@ public class GoblintMessagesResult {
         }
     }
 
-    static class loc {
+    static class Multipiece {
 
-        private String file;
-        private int line;
-        private int column;
-        private int endLine;
-        private int endColumn;
-
-    }
-
-    static class multipiece {
-
-        private loc loc;
+        private GoblintLocation loc;
         private String text;
         private String group_text;
-        private final List<pieces> pieces = new ArrayList<>();
+        private final List<Piece> pieces = new ArrayList<>();
 
-        static class pieces {
+        static class Piece {
 
             private String text;
-            private loc loc;
+            private GoblintLocation loc;
 
         }
     }
@@ -90,8 +80,8 @@ public class GoblintMessagesResult {
             results.add(result);
         } else {
             List<GoblintMessagesAnalysisResult> intermresults = new ArrayList<>();
-            List<multipiece.pieces> pieces = multipiece.pieces;
-            for (multipiece.pieces piece : pieces) {
+            List<Multipiece.Piece> pieces = multipiece.pieces;
+            for (Multipiece.Piece piece : pieces) {
                 GoblintMessagesAnalysisResult result = createGoblintAnalysisResult(piece);
                 intermresults.add(result);
             }
@@ -113,26 +103,12 @@ public class GoblintMessagesResult {
         return results;
     }
 
-    public GoblintPosition locationToPosition(loc loc) {
-        try {
-            return new GoblintPosition(
-                    loc.line,
-                    loc.endLine,
-                    loc.column < 0 ? 0 : loc.column - 1,
-                    loc.endColumn < 0 ? 10000 : loc.endColumn - 1,
-                    new File(loc.file).toURI().toURL());
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
     public GoblintMessagesAnalysisResult createGoblintAnalysisResult() {
         try {
             GoblintPosition pos = multipiece.loc == null
                     ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
-                    : locationToPosition(multipiece.loc);
-            String msg = tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
+                    : multipiece.loc.toPosition();
+            String msg = tags.stream().map(Tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
             return new GoblintMessagesAnalysisResult(pos, msg, severity);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
@@ -140,13 +116,13 @@ public class GoblintMessagesResult {
     }
 
 
-    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(multipiece.pieces piece) {
+    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(Multipiece.Piece piece) {
         try {
             GoblintPosition pos = piece.loc == null
                     ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
-                    : locationToPosition(piece.loc);
+                    : piece.loc.toPosition();
             return new GoblintMessagesAnalysisResult(pos,
-                    tags.stream().map(tag::toString).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
+                    tags.stream().map(Tag::toString).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
                     piece.text, severity);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);

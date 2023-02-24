@@ -42,9 +42,15 @@ public interface GoblintService {
     @JsonRequest
     CompletableFuture<GoblintCFGResult> cfg(Params params);
 
+    @JsonRequest("cfg/lookup")
+    CompletableFuture<JsonObject> cfg_lookup(LookupParams params);
+
+    @JsonRequest("arg/lookup")
+    CompletableFuture<JsonObject> arg_lookup(LookupParams params);
+
     // request:  {"jsonrpc":"2.0","id":0,"method":"node_state","params":{"nid":"fun2783"}}
     @JsonRequest
-    CompletableFuture<List<JsonObject>> node_state(GobPieHttpHandler.NodeParams params);
+    CompletableFuture<List<JsonObject>> node_state(NodeParams params);
 
     @JsonRequest
     CompletableFuture<Void> reset_config();

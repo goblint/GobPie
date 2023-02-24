@@ -1,11 +1,9 @@
 package analysis;
 
 import api.GoblintService;
-import api.messages.GoblintAnalysisResult;
-import api.messages.GoblintFunctionsResult;
-import api.messages.GoblintMessagesResult;
-import api.messages.Params;
+import api.messages.*;
 import com.ibm.wala.classLoader.Module;
+import com.ibm.wala.classLoader.ModuleEntry;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
@@ -27,10 +25,7 @@ import util.FileWatcher;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
@@ -94,6 +89,12 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
     @Override
     public void analyze(Collection<? extends Module> files, AnalysisConsumer consumer, boolean rerun) {
+        if (!rerun) {
+            // As far as I can tell rerun is false iff you open a file with doAnalysisByOpen = false and doAnalysisByFirstOpen = true
+            // TODO: Should anything more be done here?
+            return;
+        }
+
         if (!goblintServer.getGoblintRunProcess().getProcess().isAlive()) {
             // Goblint server has crashed. Exit GobPie because without the server no analysis is possible.
             magpieServer.exit();

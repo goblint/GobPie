@@ -2,6 +2,7 @@ package HTTPserver;
 
 import api.GoblintService;
 import api.messages.GoblintCFGResult;
+import api.messages.NodeParams;
 import api.messages.Params;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -187,18 +188,6 @@ public class GobPieHttpHandler implements HttpHandler {
             return goblintService.node_state(params).get();
         } catch (ExecutionException | InterruptedException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
-        }
-    }
-
-    public static class NodeParams {
-
-        private String nid;
-
-        public NodeParams() {
-        }
-
-        public NodeParams(String nid) {
-            this.nid = nid;
         }
     }
 
