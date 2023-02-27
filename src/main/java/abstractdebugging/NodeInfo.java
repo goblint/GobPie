@@ -25,4 +25,10 @@ public record NodeInfo(
                 new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
     }
 
+    public NodeInfo withLocation(GoblintLocation location) {
+        return new NodeInfo(nodeId, cfgNodeId, location,
+                incomingCFGEdges, incomingEntryEdges, incomingReturnEdges,
+                outgoingCFGEdges, outgoingEntryEdges, outgoingReturnEdges);
+    }
+
 }

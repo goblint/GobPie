@@ -3,6 +3,7 @@ package abstractdebugging;
 import api.GoblintService;
 import api.messages.GoblintARGLookupResult;
 import api.messages.GoblintLocation;
+import api.messages.GoblintPosition;
 import api.messages.LookupParams;
 import goblintserver.GoblintServer;
 import magpiebridge.core.MagpieServer;
@@ -18,6 +19,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -25,6 +27,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class AbstractDebuggingServer implements IDebugProtocolServer {
 
@@ -39,8 +42,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     private final AtomicInteger nextThreadId = new AtomicInteger(0);
 
-    private List<GoblintLocation> breakpoints = List.of();
-    private int activeBreakpoint;
+    private final List<GoblintLocation> breakpoints = new ArrayList<>();
+    private int activeBreakpoint = -1;
     private Map<Integer, ThreadState> threads = Map.of();
 
     private final ExecutorService backgroundExecutorService = Executors.newSingleThreadExecutor(runnable -> {
@@ -68,15 +71,39 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     public CompletableFuture<Capabilities> initialize(InitializeRequestArguments args) {
         Capabilities capabilities = new Capabilities();
         capabilities.setSupportsConfigurationDoneRequest(true);
+        capabilities.setSupportsStepInTargetsRequest(true);
         return CompletableFuture.completedFuture(capabilities);
     }
 
     @Override
     public CompletableFuture<SetBreakpointsResponse> setBreakpoints(SetBreakpointsArguments args) {
-        log.info("Setting breakpoints");
-        // TODO
+        // TODO: Handle cases where Goblint expected path is not relative to current working directory
+        String sourcePath = Path.of(System.getProperty("user.dir")).relativize(Path.of(args.getSource().getPath())).toString();
+        log.info("Setting breakpoints for " + args.getSource().getPath() + " (" + sourcePath + ")");
+
+        List<GoblintLocation> newBreakpoints = Arrays.stream(args.getBreakpoints())
+                .map(breakpoint -> new GoblintLocation(
+                        sourcePath,
+                        breakpoint.getLine(),
+                        breakpoint.getColumn() == null ? 0 : breakpoint.getColumn()
+                ))
+                .toList();
+
+        breakpoints.removeIf(b -> b.getFile().equals(sourcePath));
+        breakpoints.addAll(newBreakpoints);
+
         var response = new SetBreakpointsResponse();
-        response.setBreakpoints(new Breakpoint[0]);
+        var setBreakpoints = newBreakpoints.stream()
+                .map(location -> {
+                    var breakpoint = new Breakpoint();
+                    breakpoint.setLine(location.getLine());
+                    breakpoint.setColumn(location.getColumn());
+                    breakpoint.setSource(args.getSource());
+                    breakpoint.setVerified(true);
+                    return breakpoint;
+                })
+                .toArray(Breakpoint[]::new);
+        response.setBreakpoints(setBreakpoints);
         return CompletableFuture.completedFuture(response);
     }
 
@@ -111,7 +138,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return configurationDoneFuture
                 .thenRun(() -> {
                     log.info("Debug adapter launched");
-                    runToNextBreakpoint(true);
+                    activeBreakpoint = -1;
+                    runToNextBreakpoint();
                 });
     }
 
@@ -122,9 +150,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<ContinueResponse> continue_(ContinueArguments args) {
-        runToNextBreakpoint(false);
+        runToNextBreakpoint();
         return CompletableFuture.completedFuture(new ContinueResponse());
     }
+
+    // TODO: Figure out if entry and return nodes contain any meaningful info and if not then skip them in all step methods
 
     @Override
     public CompletableFuture<Void> next(NextArguments args) {
@@ -137,7 +167,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             return stepOut(stepOutArgs);
         }
         if (targetThread.currentNode.outgoingCFGEdges().size() > 1) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step due to branching. Use step in to choose the desired branch."));
+            return CompletableFuture.failedFuture(userFacingError("Branching control flow. Use step into target to choose the desired branch."));
         }
         var targetEdge = targetThread.currentNode.outgoingCFGEdges().get(0);
         stepAllThreadsAlongEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges);
@@ -147,88 +177,138 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<Void> stepIn(StepInArguments args) {
         var targetThread = threads.get(args.getThreadId());
-        if (args.getTargetId() >= ENTRY_STEP_OFFSET) {
-            int targetIndex = args.getTargetId() - ENTRY_STEP_OFFSET;
+
+        int targetId;
+        if (args.getTargetId() != null) {
+            targetId = args.getTargetId();
+        } else if (targetThread.currentNode.outgoingEntryEdges().size() == 1) {
+            targetId = ENTRY_STEP_OFFSET;
+        } else if (targetThread.currentNode.outgoingCFGEdges().size() > 1) {
+            return CompletableFuture.failedFuture(userFacingError("Ambiguous function call. Use step into target to choose the desired call"));
+        } else {
+            var nextArgs = new NextArguments();
+            nextArgs.setThreadId(args.getThreadId());
+            nextArgs.setSingleThread(args.getSingleThread());
+            nextArgs.setGranularity(args.getGranularity());
+            return next(nextArgs);
+        }
+
+        if (targetId >= ENTRY_STEP_OFFSET) {
+            int targetIndex = targetId - ENTRY_STEP_OFFSET;
             var targetEdge = targetThread.currentNode.outgoingEntryEdges().get(targetIndex);
             stepAllThreadsAlongEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingEntryEdges);
-        } else if (args.getTargetId() >= CFG_STEP_OFFSET) {
-            int targetIndex = args.getTargetId() - CFG_STEP_OFFSET;
+        } else if (targetId >= CFG_STEP_OFFSET) {
+            int targetIndex = targetId - CFG_STEP_OFFSET;
             var targetEdge = targetThread.currentNode.outgoingCFGEdges().get(targetIndex);
             stepAllThreadsAlongEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges);
         }
-        return CompletableFuture.failedFuture(new IllegalStateException("Unknown step in target: " + args.getTargetId()));
+        return CompletableFuture.failedFuture(new IllegalStateException("Unknown step in target: " + targetId));
+    }
+
+    @Override
+    public CompletableFuture<StepInTargetsResponse> stepInTargets(StepInTargetsArguments args) {
+        var thread = threads.get(args.getFrameId());
+
+        List<StepInTarget> targets = new ArrayList<>();
+        if (thread.currentNode != null) {
+            // Only show CFG edges as step in targets if there is branching
+            if (thread.currentNode.outgoingEntryEdges().size() > 1) {
+                List<EdgeInfo> cfgEdges = thread.currentNode.outgoingCFGEdges();
+                for (int i = 0; i < cfgEdges.size(); i++) {
+                    EdgeInfo edge = cfgEdges.get(i);
+                    NodeInfo node = lookupNode(edge.otherNodeId());
+
+                    var target = new StepInTarget();
+                    target.setId(CFG_STEP_OFFSET + i);
+                    target.setLabel("branch: " + edge.data());
+                    target.setLine(node.location().getLine());
+                    target.setColumn(node.location().getColumn());
+                    target.setEndLine(node.location().getEndLine());
+                    target.setEndColumn(node.location().getEndColumn());
+                    targets.add(target);
+                }
+            }
+
+            List<EdgeInfo> entryEdges = thread.currentNode.outgoingEntryEdges();
+            for (int i = 0; i < entryEdges.size(); i++) {
+                EdgeInfo edge = entryEdges.get(i);
+
+                var target = new StepInTarget();
+                target.setId(ENTRY_STEP_OFFSET + i);
+                target.setLabel("call: " + edge.otherNodeId()); // TODO: Show some approximation of the actual function call
+                target.setLine(thread.currentNode.location().getLine());
+                target.setColumn(thread.currentNode.location().getColumn());
+                target.setEndLine(thread.currentNode.location().getEndLine());
+                target.setEndColumn(thread.currentNode.location().getEndColumn());
+                targets.add(target);
+            }
+        }
+
+        var response = new StepInTargetsResponse();
+        response.setTargets(targets.toArray(StepInTarget[]::new));
+        return CompletableFuture.completedFuture(response);
     }
 
     @Override
     public CompletableFuture<Void> stepOut(StepOutArguments args) {
         // TODO
-        return CompletableFuture.failedFuture(new NotSupportedException("Step out not implemented"));
+        return CompletableFuture.failedFuture(userFacingError("Unsupported operation: Step out not implemented"));
     }
 
-    @Override
-    public CompletableFuture<StepInTargetsResponse> stepInTargets(StepInTargetsArguments args) {
-        var response = new StepInTargetsResponse();
-        response.setTargets(new StepInTarget[0]);
-        return CompletableFuture.completedFuture(response);
-    }
-
-    private void runToNextBreakpoint(boolean isLaunch) {
+    private void runToNextBreakpoint() {
         // Note: We treat breaking on entry as the only breakpoint if no breakpoints are set.
-
-        if (isLaunch) {
-            activeBreakpoint = 0;
-        } else {
+        while (activeBreakpoint + 1 < Math.max(1, breakpoints.size())) {
             activeBreakpoint += 1;
-            if (activeBreakpoint >= breakpoints.size()) {
-                var event = new TerminatedEventArguments();
-                client.terminated(event);
+
+            GoblintLocation targetLocation;
+            List<NodeInfo> targetNodes;
+            String stopReason;
+            if (breakpoints.size() == 0) {
+                targetLocation = null;
+                targetNodes = lookupNodes(new LookupParams());
+                stopReason = "entry";
+            } else {
+                targetLocation = breakpoints.get(activeBreakpoint);
+                targetNodes = lookupNodes(new LookupParams(targetLocation)).stream()
+                        .filter(n -> n.location().getLine() <= targetLocation.getLine() && targetLocation.getLine() <= n.location().getEndLine())
+                        .toList();
+                stopReason = "breakpoint";
+            }
+
+            if (!targetNodes.isEmpty()) {
+                threads = new LinkedHashMap<>();
+                for (var node : targetNodes) {
+                    var state = new ThreadState();
+                    state.name = node.nodeId(); // TODO: Use context info to construct name
+                    state.currentNode = node;
+                    threads.put(newThreadId(), state);
+                }
+
+                var event = new StoppedEventArguments();
+                event.setReason(stopReason);
+                event.setThreadId(threads.keySet().stream().findFirst().orElse(null));
+                event.setAllThreadsStopped(true);
+                client.stopped(event);
+
+                log.info("Stopped on breakpoint " + activeBreakpoint + " (" + targetLocation + ")");
                 return;
             }
+
+            // TODO: Should somehow notify the client that the breakpoint is unreachable?
+            log.info("Skipped unreachable breakpoint " + activeBreakpoint + " (" + targetLocation + ")");
         }
 
-        List<NodeInfo> targetNodes;
-        String stopReason;
-        if (breakpoints.size() == 0) {
-            targetNodes = lookupNodes(new LookupParams());
-            stopReason = "entry";
-        } else {
-            targetNodes = lookupNodes(new LookupParams(breakpoints.get(activeBreakpoint)));
-            stopReason = "breakpoint";
-        }
-
-        for (var threadEntry : threads.entrySet()) {
-            var event = new ThreadEventArguments();
-            event.setThreadId(threadEntry.getKey());
-            event.setReason("exited");
-            client.thread(event);
-        }
-
-        threads = new LinkedHashMap<>();
-        for (var node : targetNodes) {
-            var state = new ThreadState();
-            state.name = node.nodeId(); // TODO: Use context info to construct name
-            state.currentNode = node;
-            threads.put(newThreadId(), state);
-        }
-
-        for (var threadEntry : threads.entrySet()) {
-            var event = new ThreadEventArguments();
-            event.setThreadId(threadEntry.getKey());
-            event.setReason("started");
-            client.thread(event);
-        }
-
-        var event = new StoppedEventArguments();
-        event.setReason(stopReason);
-        event.setThreadId(threads.keySet().stream().findFirst().orElse(null));
-        //event.setAllThreadsStopped(true);
-        client.stopped(event);
-
-        log.info("Stopped on breakpoint " + activeBreakpoint);
+        log.info("All breakpoints visited. Terminating debugger.");
+        var event = new TerminatedEventArguments();
+        client.terminated(event);
     }
 
     private void stepAllThreadsAlongEdge(int primaryThreadId, EdgeInfo targetEdge, Function<NodeInfo, List<EdgeInfo>> candidateEdges) {
         for (var thread : threads.values()) {
+            if (thread.currentNode == null) {
+                // TODO: Try to recover thread if branches join
+                continue;
+            }
             // TODO: Comparing edge parameters in this way is probably fairly inefficient.
             //  Also it might be unsound if some edges have the same fields in a different order in the parameters.
             String nextNodeId = candidateEdges.apply(thread.currentNode).stream()
@@ -239,20 +319,16 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
 
         // Sending the stopped event before the response to the step request is a violation of the DAP spec.
-        // There is no clean way to do the operations in the correct order (see https://github.com/eclipse/lsp4j/issues/229),
+        // There is no clean way to do the operations in the correct order with lsp4j (see https://github.com/eclipse/lsp4j/issues/229),
         // multiple debug adapters seem to have the same issue, including the official https://github.com/microsoft/vscode-mock-debug,
         // and this has caused no issues in testing with VSCode.
         // Given all these considerations doing this in the wrong order is considered acceptable for now.
-        // TODO: If ever gets resolved do this in the correct order.
-        {
-            // TODO: Why does stepping cause selected thread to lose focus in VSCode
-            var event = new StoppedEventArguments();
-            event.setReason("step");
-            event.setThreadId(primaryThreadId);
-            //event.setAllThreadsStopped(true);
-            event.setPreserveFocusHint(true);
-            client.stopped(event);
-        }
+        // TODO: If https://github.com/eclipse/lsp4j/issues/229 ever gets resolved do this in the correct order.
+        var event = new StoppedEventArguments();
+        event.setReason("step");
+        event.setThreadId(primaryThreadId);
+        event.setAllThreadsStopped(true);
+        client.stopped(event);
     }
 
     @Override
@@ -273,6 +349,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<StackTraceResponse> stackTrace(StackTraceArguments args) {
         var thread = threads.get(args.getThreadId());
+        if (thread.currentNode == null) {
+            return CompletableFuture.failedFuture(userFacingError("Unreachable"));
+        }
         var location = thread.currentNode.location();
         // TODO: Track and return multiple stack frames
         var stackFrame = new StackFrame();
@@ -318,6 +397,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return nextThreadId.getAndIncrement();
     }
 
+    private String getAbsolutePath(String path) {
+        return new File(path).getAbsolutePath();
+    }
+
     /**
      * Returns an exception that will be shown in the IDE as the message with no modifications and no additional context.
      */
@@ -329,7 +412,26 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     private List<NodeInfo> lookupNodes(LookupParams params) {
         return goblintService.arg_lookup(params)
-                .thenApply(result -> result.stream().map(GoblintARGLookupResult::toNodeInfo).toList())
+                .exceptionally(e -> {
+                    // TODO: Goblint should eventually return an empty list when no node is found. Remove this when that happens.
+                    log.info("Error looking up nodes: " + e);
+                    return List.of();
+                })
+                .thenApply(result -> result.stream()
+                        .map(lookupResult -> {
+                            NodeInfo nodeInfo = lookupResult.toNodeInfo();
+                            if (!nodeInfo.outgoingReturnEdges().isEmpty() && nodeInfo.outgoingCFGEdges().isEmpty()) {
+                                GoblintLocation oldLocation = nodeInfo.location();
+                                return nodeInfo.withLocation(new GoblintLocation(
+                                        nodeInfo.location().getFile(),
+                                        oldLocation.getEndLine(), oldLocation.getEndColumn(),
+                                        oldLocation.getEndLine(), oldLocation.getEndColumn()
+                                ));
+                            } else {
+                                return nodeInfo;
+                            }
+                        })
+                        .toList())
                 .join();
     }
 

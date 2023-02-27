@@ -71,4 +71,10 @@ public class GoblintLocation {
         }
     }
 
+    @Override
+    public String toString() {
+        return file + " " +
+                line + ":" + column +
+                (endLine == null && endColumn == null ? "" : "-" + endLine + ":" + endColumn);
+    }
 }
