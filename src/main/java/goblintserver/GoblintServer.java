@@ -11,6 +11,7 @@ import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.StartedProcess;
 import org.zeroturnaround.exec.listener.ProcessListener;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -58,17 +59,24 @@ public class GoblintServer {
     /**
      * Method for constructing the command to run Goblint server.
      * Files to analyse must be defined in goblint conf.
-     *
-     * @throws GobPieException when running Goblint failed.
      */
     private String[] constructGoblintRunCommand() {
-        return Arrays.stream(new String[]{
-                        "goblint",
-                        "--enable", "server.enabled",
-                        "--enable", "server.reparse",
-                        "--set", "server.mode", "unix",
-                        "--set", "server.unix-socket", new File(getGoblintSocket()).getAbsolutePath()})
-                .toArray(String[]::new);
+        return new String[]{
+                "goblint",
+                "--enable", "exp.arg",
+                "--enable", "server.enabled",
+                "--enable", "server.reparse",
+                "--set", "server.mode", "unix",
+                "--set", "server.unix-socket", new File(getGoblintSocket()).getAbsolutePath()
+        };
+    }
+
+
+    private String[] constructGoblintVersionCheckCommand() {
+        return new String[]{
+                "goblint",
+                "--version"
+        };
     }
 
 
@@ -89,13 +97,40 @@ public class GoblintServer {
 
 
     /**
+     * Checks Goblint command reported version.
+     *
+     * @throws GobPieException when running Goblint fails.
+     */
+    public String checkGoblintVersion() {
+        File dirPath = new File(System.getProperty("user.dir"));
+        String[] command = constructGoblintVersionCheckCommand();
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        try {
+            log.debug("Waiting for command: " + Arrays.toString(command) + " to run...");
+            new ProcessExecutor()
+                    .directory(dirPath)
+                    .command(command)
+                    .redirectOutput(output)
+                    .redirectError(output)
+                    .execute();
+        } catch (IOException | InterruptedException | TimeoutException e) {
+            throw new GobPieException("Checking version failed.", e, GOBLINT_EXCEPTION);
+        }
+
+        return output.toString();
+    }
+
+
+    /**
      * Method for running a command.
      *
      * @param dirPath The directory in which the command will run.
      * @param command The command to run.
      * @return An object that represents a process that has started. It may or may not have finished.
      */
-    private StartedProcess runCommand(File dirPath, String[] command) throws IOException, InterruptedException, InvalidExitValueException, TimeoutException {
+    private StartedProcess runCommand(File dirPath, String[] command) throws IOException, InterruptedException, TimeoutException {
         ProcessListener listener = new ProcessListener() {
 
             public void afterStop(Process process) {

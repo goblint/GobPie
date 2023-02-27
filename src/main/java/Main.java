@@ -87,17 +87,23 @@ public class Main {
 
     /**
      * Starts Goblint server.
+     *
      * @throws GobPieException if running the server start command fails
      */
     private static GoblintServer startGoblintServer(MagpieServer magpieServer) {
         GoblintServer goblintServer = new GoblintServer(magpieServer);
+        if (log.isDebugEnabled()) {
+            log.debug("Goblint version info:\n" + goblintServer.checkGoblintVersion());
+        }
         goblintServer.startGoblintServer();
+
         return goblintServer;
     }
 
 
     /**
      * Connects the Goblint service to the Goblint server and reads the Goblint configuration file.
+     *
      * @throws GobPieException if connecting fails
      */
     private static GoblintService connectGoblintService(MagpieServer magpieServer, GobPieConfiguration gobpieConfiguration, GoblintServer goblintServer) {
@@ -144,6 +150,7 @@ public class Main {
 
     /**
      * Launch abstract debugging server
+     *
      * @throws GobPieException if creating domain socket for server fails
      */
     private static void launchAbstractDebuggingServer(MagpieServer magpieServer, GoblintService goblintService) {
