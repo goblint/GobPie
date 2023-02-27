@@ -50,6 +50,30 @@
           ".c"
         ]
       }
+    ],
+    "debuggers": [
+      {
+        "type": "c_adb",
+        "languages": [
+          "c"
+        ],
+        "label": "C (GobPie Abstract Debugger)",
+        "configurationAttributes": {
+          "launch": {
+            "required": [],
+            "properties": {}
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "c_adb",
+            "request": "launch",
+            "name": "C (GobPie Abstract Debugger)"
+          }
+        ],
+        "configurationSnippets": [],
+        "variables": {}
+      }
     ]
   },
   "scripts": {

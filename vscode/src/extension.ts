@@ -57,6 +57,8 @@ export function activate(context: ExtensionContext) {
     let lc: LanguageClient = new LanguageClient('GobPie', 'GobPie', serverOptions, clientOptions);
     lc.registerFeature(new MagpieBridgeSupport(lc));
     lc.start();
+
+    context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('c_adb', new AbstractDebuggingAdapterDescriptorFactory()))
 }
 
 
@@ -81,7 +83,7 @@ export class MagpieBridgeSupport implements DynamicFeature<undefined> {
 
     createWebView(content: string) {
         const columnToShowIn = ViewColumn.Beside;
-        
+
         if (panel) {
             // If we already have a panel, show it in the target column
             panel.reveal(columnToShowIn);
@@ -124,6 +126,15 @@ export class MagpieBridgeSupport implements DynamicFeature<undefined> {
     }
 
     dispose(): void {
+    }
+
+}
+
+class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDescriptorFactory {
+
+    createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+        // TODO: Make sure that GobPie is actually guaranteed to run and create a socket in the workspace folder (in particular multiple workspaces might violate this assumption)
+        return new vscode.DebugAdapterNamedPipeServer(session.workspaceFolder.uri.path + '/gobpie_adb.sock');
     }
 
 }

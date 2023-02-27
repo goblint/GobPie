@@ -10,12 +10,14 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.debug.launch.DSPLauncher;
 import org.eclipse.lsp4j.debug.services.IDebugProtocolClient;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
+import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher;
 import org.newsclub.net.unix.AFUNIXServerSocket;
 import org.newsclub.net.unix.AFUNIXSocket;
 import org.newsclub.net.unix.AFUNIXSocketAddress;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,6 +42,7 @@ public class AbstractDebuggingServerLauncher {
     /**
      * Launch abstract debugging server on domain socket.
      * For each new connection to the domain socket a new AbstractDebuggingServer instance will be created and initialized.
+     *
      * @param socketAddress address for the domain socket to bind to. the socket file will be created and cleaned up automatically
      * @throws GobPieException if creating domain socket fails
      */
@@ -68,13 +71,15 @@ public class AbstractDebuggingServerLauncher {
                 AFUNIXSocket clientSocket = serverSocket.accept();
 
                 AbstractDebuggingServer abstractDebuggingServer = new AbstractDebuggingServer(magpieServer, goblintService);
-                Launcher<IDebugProtocolClient> launcher = DSPLauncher.createServerLauncher(
-                        abstractDebuggingServer,
-                        clientSocket.getInputStream(),
-                        clientSocket.getOutputStream(),
-                        executorService,
-                        null
-                );
+                Launcher<IDebugProtocolClient> launcher = new DebugLauncher.Builder<IDebugProtocolClient>()
+                        .setLocalService(abstractDebuggingServer)
+                        .setRemoteInterface(IDebugProtocolClient.class)
+                        .setInput(clientSocket.getInputStream())
+                        .setOutput(clientSocket.getOutputStream())
+                        .setExecutorService(executorService)
+                        .traceMessages(log.isDebugEnabled() ? new PrintWriter(System.err) : null)
+                        .create();
+                abstractDebuggingServer.connectClient(launcher.getRemoteProxy());
                 launcher.startListening();
             } catch (Throwable e) {
                 log.error("Error accepting connection to abstract debugging server:", e);
