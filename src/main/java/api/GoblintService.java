@@ -2,6 +2,7 @@ package api;
 
 import HTTPserver.GobPieHttpHandler;
 import api.messages.*;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 
@@ -43,10 +44,10 @@ public interface GoblintService {
     CompletableFuture<GoblintCFGResult> cfg(Params params);
 
     @JsonRequest("cfg/lookup")
-    CompletableFuture<JsonObject> cfg_lookup(LookupParams params);
+    CompletableFuture<JsonElement> cfg_lookup(LookupParams params);
 
     @JsonRequest("arg/lookup")
-    CompletableFuture<JsonObject> arg_lookup(LookupParams params);
+    CompletableFuture<List<GoblintARGLookupResult>> arg_lookup(LookupParams params);
 
     // request:  {"jsonrpc":"2.0","id":0,"method":"node_state","params":{"nid":"fun2783"}}
     @JsonRequest

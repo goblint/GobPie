@@ -5,6 +5,12 @@ import com.google.gson.annotations.SerializedName;
 import java.io.File;
 import java.net.MalformedURLException;
 
+/**
+ * Goblint CIL location.
+ *
+ * @author Juhan Oskar Hennoste
+ * @since 0.0.3
+ */
 public class GoblintLocation {
 
     private String file;
@@ -30,6 +36,26 @@ public class GoblintLocation {
         this.column = column;
         this.endLine = endLine;
         this.endColumn = endColumn;
+    }
+
+    public String getFile() {
+        return file;
+    }
+
+    public int getLine() {
+        return line;
+    }
+
+    public int getColumn() {
+        return column;
+    }
+
+    public Integer getEndLine() {
+        return endLine;
+    }
+
+    public Integer getEndColumn() {
+        return endColumn;
     }
 
     public GoblintPosition toPosition() {

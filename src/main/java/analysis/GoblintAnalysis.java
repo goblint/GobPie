@@ -1,9 +1,11 @@
 package analysis;
 
 import api.GoblintService;
-import api.messages.*;
+import api.messages.GoblintAnalysisResult;
+import api.messages.GoblintFunctionsResult;
+import api.messages.GoblintMessagesResult;
+import api.messages.Params;
 import com.ibm.wala.classLoader.Module;
-import com.ibm.wala.classLoader.ModuleEntry;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
@@ -25,7 +27,10 @@ import util.FileWatcher;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
