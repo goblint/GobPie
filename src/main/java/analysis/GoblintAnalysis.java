@@ -1,7 +1,10 @@
 package analysis;
 
 import api.GoblintService;
-import api.messages.*;
+import api.messages.GoblintAnalysisResult;
+import api.messages.GoblintFunctionsResult;
+import api.messages.GoblintMessagesResult;
+import api.messages.Params;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
@@ -11,8 +14,6 @@ import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.AnalysisResult;
 import magpiebridge.core.MagpieServer;
 import magpiebridge.core.ServerAnalysis;
-import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
-import org.apache.commons.io.monitor.FileAlterationObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
@@ -21,10 +22,11 @@ import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 import org.zeroturnaround.process.UnixProcess;
+import util.FileWatcher;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -44,17 +46,20 @@ import java.util.stream.Stream;
  * converts the results and passes them to MagpieBridge server.
  *
  * @author Karoliine Holter
+ * @author Juhan Oskar Hennoste
  * @since 0.0.1
  */
 
 public class GoblintAnalysis implements ServerAnalysis {
 
+    private final static int SIGINT = 2;
+
     private final MagpieServer magpieServer;
     private final GoblintServer goblintServer;
     private final GoblintService goblintService;
     private final GobPieConfiguration gobpieConfiguration;
-    private final FileAlterationObserver goblintConfObserver;
-    private final int SIGINT = 2;
+    private final FileWatcher goblintConfWatcher;
+
     private static Future<?> lastAnalysisTask;
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
@@ -65,7 +70,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         this.goblintServer = goblintServer;
         this.goblintService = goblintService;
         this.gobpieConfiguration = gobpieConfiguration;
-        this.goblintConfObserver = createGoblintConfObserver();
+        this.goblintConfWatcher = new FileWatcher(Path.of(gobpieConfiguration.getGoblintConf()));
     }
 
 
@@ -74,7 +79,7 @@ public class GoblintAnalysis implements ServerAnalysis {
      *
      * @return the string
      */
-
+    @Override
     public String source() {
         return "GobPie";
     }
@@ -87,46 +92,69 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @param consumer the server which consumes the analysis results.
      * @param rerun    tells if the analysis should be rerun.
      */
-
     @Override
     public void analyze(Collection<? extends Module> files, AnalysisConsumer consumer, boolean rerun) {
-        if (consumer instanceof MagpieServer server) {
-            abortAnalysis();
-            goblintConfObserver.checkAndNotify();
-            preAnalyse();
-            log.info("---------------------- Analysis started ----------------------");
-            lastAnalysisTask = reanalyse().thenAccept(response -> {
-                server.consume(new ArrayList<>(response), source());
-                log.info("--------------------- Analysis finished ----------------------");
-            }).exceptionally(ex -> {
-                // TODO: handle closed socket exceptions:
-                //      org.eclipse.lsp4j.jsonrpc.JsonRpcException: java.net.SocketException: Broken pipe; errno=32
-                //  and org.eclipse.lsp4j.jsonrpc.JsonRpcException: org.newsclub.net.unix.SocketClosedException: Not open
-                log.error("--------------------- Analysis failed  ----------------------");
-                log.error(ex.getMessage());
-                return null;
-            });
+        if (!goblintServer.getGoblintRunProcess().getProcess().isAlive()) {
+            // Goblint server has crashed. Exit GobPie because without the server no analysis is possible.
+            magpieServer.exit();
+            return;
         }
-    }
 
-
-    /**
-     * The method that, when a new analysis is triggered,
-     * aborts the previous running analysis by sending a SIGINT signal to Goblint.
-     */
-
-    private void abortAnalysis() {
         if (lastAnalysisTask != null && !lastAnalysisTask.isDone()) {
             lastAnalysisTask.cancel(true);
-            Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
-            int pid = Math.toIntExact(goblintProcess.pid());
-            UnixProcess unixProcess = new UnixProcess(pid);
             try {
-                unixProcess.kill(SIGINT);
+                abortAnalysis();
                 log.info("--------------- This analysis has been aborted -------------");
             } catch (IOException e) {
                 log.error("Aborting analysis failed.");
             }
+        }
+
+        refreshGoblintConfig();
+
+        preAnalyse();
+
+        log.info("---------------------- Analysis started ----------------------");
+        lastAnalysisTask = reanalyse().thenAccept(response -> {
+            consumer.consume(new ArrayList<>(response), source());
+            log.info("--------------------- Analysis finished ----------------------");
+        }).exceptionally(ex -> {
+            // TODO: handle closed socket exceptions:
+            //      org.eclipse.lsp4j.jsonrpc.JsonRpcException: java.net.SocketException: Broken pipe; errno=32
+            //  and org.eclipse.lsp4j.jsonrpc.JsonRpcException: org.newsclub.net.unix.SocketClosedException: Not open
+            log.error("--------------------- Analysis failed  ----------------------");
+            log.error(ex.getMessage());
+            return null;
+        });
+    }
+
+
+    /**
+     * Aborts the previous running analysis by sending a SIGINT signal to Goblint.
+     */
+    private void abortAnalysis() throws IOException {
+        Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
+        int pid = Math.toIntExact(goblintProcess.pid());
+        UnixProcess unixProcess = new UnixProcess(pid);
+        unixProcess.kill(SIGINT);
+    }
+
+
+    /**
+     * Reloads Goblint config if it has been changed
+     */
+    private void refreshGoblintConfig() {
+        if (goblintConfWatcher.checkModified()) {
+            goblintService.reset_config()
+                    .thenCompose(_res ->
+                            goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath())))
+                    .exceptionally(ex -> {
+                        String msg = "Goblint was unable to successfully read the new configuration: " + ex.getMessage();
+                        magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
+                        log.error(msg);
+                        return null;
+                    })
+                    .join();
         }
     }
 
@@ -137,7 +165,6 @@ public class GoblintAnalysis implements ServerAnalysis {
      * preAnalyzeCommand is read from the GobPie configuration file.
      * Can be used for automating the compilation database generation.
      */
-
     private void preAnalyse() {
         String[] preAnalyzeCommand = gobpieConfiguration.getPreAnalyzeCommand();
         if (preAnalyzeCommand != null) {
@@ -161,11 +188,9 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @return a CompletableFuture of a collection of warning messages and cfg code lenses if request was successful.
      * @throws GobPieException in case the analysis was aborted or returned a VerifyError.
      */
-
     private CompletableFuture<Collection<AnalysisResult>> reanalyse() {
         return goblintService.analyze(new Params())
-                .thenCompose(this::getComposedAnalysisResults)
-                .applyToEither(didGoblintCrash(), res -> res);
+                .thenCompose(this::getComposedAnalysisResults);
     }
 
     private void didAnalysisNotSucceed(GoblintAnalysisResult analysisResult) {
@@ -173,16 +198,6 @@ public class GoblintAnalysis implements ServerAnalysis {
             throw new GobPieException("The running analysis has been aborted.", GobPieExceptionType.GOBLINT_EXCEPTION);
         else if (analysisResult.getStatus().contains("VerifyError"))
             throw new GobPieException("Analysis returned VerifyError.", GobPieExceptionType.GOBLINT_EXCEPTION);
-    }
-
-    private CompletableFuture<Collection<AnalysisResult>> didGoblintCrash() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                goblintServer.getGoblintRunProcess().getProcess().waitFor();
-            } catch (InterruptedException ignored) {
-            }
-            throw new GobPieException("Goblint has exited.", GobPieExceptionType.GOBLINT_EXCEPTION);
-        });
     }
 
     private CompletableFuture<Collection<AnalysisResult>> convertAndCombineResults(
@@ -243,43 +258,5 @@ public class GoblintAnalysis implements ServerAnalysis {
                 .redirectError(System.err)
                 .execute();
     }
-
-
-    /**
-     * Method for creating an observer for Goblint configuration file.
-     * So that a request to read in the configuration file would be sent to Goblint
-     * when the configuration file is changed.
-     *
-     * @return The FileAlterationObserver of the project's root directory.
-     */
-
-    public FileAlterationObserver createGoblintConfObserver() {
-        FileFilter fileFilter = file -> file.getName().equals(gobpieConfiguration.getGoblintConf());
-        FileAlterationObserver observer = new FileAlterationObserver(System.getProperty("user.dir"), fileFilter);
-        observer.addListener(new FileAlterationListenerAdaptor() {
-            @Override
-            public void onFileChange(File file) {
-                if (!goblintServer.getGoblintRunProcess().getProcess().isAlive()) {
-                    magpieServer.exit();
-                } else {
-                    goblintService.reset_config();
-                    goblintService.read_config(new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath()))
-                            .whenComplete((res, ex) -> {
-                                String msg = "Goblint was unable to successfully read the new configuration. " + ex.getMessage();
-                                magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
-                                log.error(msg);
-                            });
-                }
-            }
-        });
-
-        try {
-            observer.initialize();
-        } catch (Exception e) {
-            log.error("Initializing goblintConfObserver failed: " + e.getMessage());
-        }
-        return observer;
-    }
-
 
 }

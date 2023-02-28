@@ -95,7 +95,7 @@ public class GoblintSocketMessageProducer implements MessageProducer, Closeable,
 
         try {
             String content = inputReader.readLine();
-            log.info("Response read from socket.");
+            log.debug("Response read from socket.");
             try {
                 if (content != null) {
                     Message message = jsonHandler.parseMessage(content);
