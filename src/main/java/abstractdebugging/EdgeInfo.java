@@ -1,10 +1,13 @@
 package abstractdebugging;
 
-import com.google.gson.JsonElement;
+public class EdgeInfo {
 
-public record EdgeInfo(
-        String otherNodeId,
-        JsonElement data
-) {
+    public final String nodeId;
+    public final String cfgNodeId;
+
+    public EdgeInfo(String nodeId, String cfgNodeId) {
+        this.nodeId = nodeId;
+        this.cfgNodeId = cfgNodeId;
+    }
 
 }

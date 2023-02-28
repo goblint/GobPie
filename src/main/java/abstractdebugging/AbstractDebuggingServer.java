@@ -159,18 +159,18 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<Void> next(NextArguments args) {
         var targetThread = threads.get(args.getThreadId());
-        if (targetThread.currentNode.outgoingCFGEdges().isEmpty()) {
+        if (targetThread.currentNode.outgoingCFGEdges.isEmpty()) {
             var stepOutArgs = new StepOutArguments();
             stepOutArgs.setThreadId(args.getThreadId());
             stepOutArgs.setSingleThread(args.getSingleThread());
             stepOutArgs.setGranularity(args.getGranularity());
             return stepOut(stepOutArgs);
         }
-        if (targetThread.currentNode.outgoingCFGEdges().size() > 1) {
+        if (targetThread.currentNode.outgoingCFGEdges.size() > 1) {
             return CompletableFuture.failedFuture(userFacingError("Branching control flow. Use step into target to choose the desired branch."));
         }
-        var targetEdge = targetThread.currentNode.outgoingCFGEdges().get(0);
-        stepAllThreadsAlongEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges);
+        var targetEdge = targetThread.currentNode.outgoingCFGEdges.get(0);
+        stepAllThreadsToCFGNode(args.getThreadId(), targetEdge.cfgNodeId, n -> n.outgoingCFGEdges);
         return CompletableFuture.completedFuture(null);
     }
 
@@ -181,9 +181,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         int targetId;
         if (args.getTargetId() != null) {
             targetId = args.getTargetId();
-        } else if (targetThread.currentNode.outgoingEntryEdges().size() == 1) {
+        } else if (targetThread.currentNode.outgoingEntryEdges.size() == 1) {
             targetId = ENTRY_STEP_OFFSET;
-        } else if (targetThread.currentNode.outgoingCFGEdges().size() > 1) {
+        } else if (targetThread.currentNode.outgoingEntryEdges.size() > 1) {
             return CompletableFuture.failedFuture(userFacingError("Ambiguous function call. Use step into target to choose the desired call"));
         } else {
             var nextArgs = new NextArguments();
@@ -195,14 +195,17 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
         if (targetId >= ENTRY_STEP_OFFSET) {
             int targetIndex = targetId - ENTRY_STEP_OFFSET;
-            var targetEdge = targetThread.currentNode.outgoingEntryEdges().get(targetIndex);
-            stepAllThreadsAlongEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingEntryEdges);
+            var targetEdge = targetThread.currentNode.outgoingEntryEdges.get(targetIndex);
+            stepAllThreadsToCFGNode(args.getThreadId(), targetEdge.cfgNodeId, n -> n.outgoingEntryEdges);
+            return CompletableFuture.completedFuture(null);
         } else if (targetId >= CFG_STEP_OFFSET) {
             int targetIndex = targetId - CFG_STEP_OFFSET;
-            var targetEdge = targetThread.currentNode.outgoingCFGEdges().get(targetIndex);
-            stepAllThreadsAlongEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges);
+            var targetEdge = targetThread.currentNode.outgoingCFGEdges.get(targetIndex);
+            stepAllThreadsToCFGNode(args.getThreadId(), targetEdge.cfgNodeId, n -> n.outgoingCFGEdges);
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return CompletableFuture.failedFuture(new IllegalStateException("Unknown step in target: " + targetId));
         }
-        return CompletableFuture.failedFuture(new IllegalStateException("Unknown step in target: " + targetId));
     }
 
     @Override
@@ -211,37 +214,40 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
         List<StepInTarget> targets = new ArrayList<>();
         if (thread.currentNode != null) {
+            var entryEdges = thread.currentNode.outgoingEntryEdges;
+            for (int i = 0; i < entryEdges.size(); i++) {
+                var edge = entryEdges.get(i);
+
+                var target = new StepInTarget();
+                target.setId(ENTRY_STEP_OFFSET + i);
+                target.setLabel("call: " + edge.function + "(" + String.join(", ", edge.args) + ")");
+                target.setLine(thread.currentNode.location.getLine());
+                target.setColumn(thread.currentNode.location.getColumn());
+                target.setEndLine(thread.currentNode.location.getEndLine());
+                target.setEndColumn(thread.currentNode.location.getEndColumn());
+                targets.add(target);
+            }
+
             // Only show CFG edges as step in targets if there is branching
-            if (thread.currentNode.outgoingEntryEdges().size() > 1) {
-                List<EdgeInfo> cfgEdges = thread.currentNode.outgoingCFGEdges();
+            if (thread.currentNode.outgoingCFGEdges.size() > 1) {
+                var cfgEdges = thread.currentNode.outgoingCFGEdges;
                 for (int i = 0; i < cfgEdges.size(); i++) {
-                    EdgeInfo edge = cfgEdges.get(i);
-                    NodeInfo node = lookupNode(edge.otherNodeId());
+                    var edge = cfgEdges.get(i);
+                    var node = lookupNode(edge.nodeId);
 
                     var target = new StepInTarget();
                     target.setId(CFG_STEP_OFFSET + i);
-                    target.setLabel("branch: " + edge.data());
-                    target.setLine(node.location().getLine());
-                    target.setColumn(node.location().getColumn());
-                    target.setEndLine(node.location().getEndLine());
-                    target.setEndColumn(node.location().getEndColumn());
+                    target.setLabel("branch: " + edge.statementDisplayString);
+                    target.setLine(node.location.getLine());
+                    target.setColumn(node.location.getColumn());
+                    target.setEndLine(node.location.getEndLine());
+                    target.setEndColumn(node.location.getEndColumn());
                     targets.add(target);
                 }
             }
 
-            List<EdgeInfo> entryEdges = thread.currentNode.outgoingEntryEdges();
-            for (int i = 0; i < entryEdges.size(); i++) {
-                EdgeInfo edge = entryEdges.get(i);
-
-                var target = new StepInTarget();
-                target.setId(ENTRY_STEP_OFFSET + i);
-                target.setLabel("call: " + edge.otherNodeId()); // TODO: Show some approximation of the actual function call
-                target.setLine(thread.currentNode.location().getLine());
-                target.setColumn(thread.currentNode.location().getColumn());
-                target.setEndLine(thread.currentNode.location().getEndLine());
-                target.setEndColumn(thread.currentNode.location().getEndColumn());
-                targets.add(target);
-            }
+            // Sort targets by the order they appear in code
+            targets.sort(Comparator.comparing(StepInTarget::getLine).thenComparing(StepInTarget::getColumn));
         }
 
         var response = new StepInTargetsResponse();
@@ -260,26 +266,30 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         while (activeBreakpoint + 1 < Math.max(1, breakpoints.size())) {
             activeBreakpoint += 1;
 
+            String stopReason;
             GoblintLocation targetLocation;
             List<NodeInfo> targetNodes;
-            String stopReason;
             if (breakpoints.size() == 0) {
+                stopReason = "entry";
                 targetLocation = null;
                 targetNodes = lookupNodes(new LookupParams());
-                stopReason = "entry";
             } else {
+                stopReason = "breakpoint";
                 targetLocation = breakpoints.get(activeBreakpoint);
                 targetNodes = lookupNodes(new LookupParams(targetLocation)).stream()
-                        .filter(n -> n.location().getLine() <= targetLocation.getLine() && targetLocation.getLine() <= n.location().getEndLine())
+                        .filter(n -> n.location.getLine() <= targetLocation.getLine() && targetLocation.getLine() <= n.location.getEndLine())
                         .toList();
-                stopReason = "breakpoint";
+                if (!targetNodes.isEmpty()) {
+                    String cfgNodeId = targetNodes.get(0).cfgNodeId; // TODO: Is picking the first CFG node a good way to choose which nodes to keep?
+                    targetNodes = targetNodes.stream().filter(n -> n.cfgNodeId.equals(cfgNodeId)).toList();
+                }
             }
 
             if (!targetNodes.isEmpty()) {
                 threads = new LinkedHashMap<>();
                 for (var node : targetNodes) {
                     var state = new ThreadState();
-                    state.name = node.nodeId(); // TODO: Use context info to construct name
+                    state.name = "(" + node.contextId + ")[" + node.pathId + "]"; // TODO: Add function identifier
                     state.currentNode = node;
                     threads.put(newThreadId(), state);
                 }
@@ -303,17 +313,15 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         client.terminated(event);
     }
 
-    private void stepAllThreadsAlongEdge(int primaryThreadId, EdgeInfo targetEdge, Function<NodeInfo, List<EdgeInfo>> candidateEdges) {
+    private void stepAllThreadsToCFGNode(int primaryThreadId, String targetCFGNodeId, Function<NodeInfo, List<? extends EdgeInfo>> candidateEdges) {
         for (var thread : threads.values()) {
             if (thread.currentNode == null) {
                 // TODO: Try to recover thread if branches join
                 continue;
             }
-            // TODO: Comparing edge parameters in this way is probably fairly inefficient.
-            //  Also it might be unsound if some edges have the same fields in a different order in the parameters.
             String nextNodeId = candidateEdges.apply(thread.currentNode).stream()
-                    .filter(e -> e.data().equals(targetEdge.data()))
-                    .map(EdgeInfo::otherNodeId)
+                    .filter(e -> e.cfgNodeId.equals(targetCFGNodeId))
+                    .map(e -> e.nodeId)
                     .findAny().orElse(null);
             thread.currentNode = nextNodeId == null ? null : lookupNode(nextNodeId);
         }
@@ -352,11 +360,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         if (thread.currentNode == null) {
             return CompletableFuture.failedFuture(userFacingError("Unreachable"));
         }
-        var location = thread.currentNode.location();
         // TODO: Track and return multiple stack frames
         var stackFrame = new StackFrame();
+        var location = thread.currentNode.location;
         stackFrame.setId(args.getThreadId());
-        stackFrame.setName(thread.name);
+        stackFrame.setName(thread.currentNode.nodeId);
         stackFrame.setLine(location.getLine());
         stackFrame.setColumn(location.getColumn());
         stackFrame.setEndLine(location.getEndLine());
@@ -372,7 +380,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<ScopesResponse> scopes(ScopesArguments args) {
-        // TODO
+        // TODO: Blocked by Goblint server not providing access to ARG node state
         var response = new ScopesResponse();
         response.setScopes(new Scope[0]);
         return CompletableFuture.completedFuture(response);
@@ -412,18 +420,13 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     private List<NodeInfo> lookupNodes(LookupParams params) {
         return goblintService.arg_lookup(params)
-                .exceptionally(e -> {
-                    // TODO: Goblint should eventually return an empty list when no node is found. Remove this when that happens.
-                    log.info("Error looking up nodes: " + e);
-                    return List.of();
-                })
                 .thenApply(result -> result.stream()
                         .map(lookupResult -> {
                             NodeInfo nodeInfo = lookupResult.toNodeInfo();
-                            if (!nodeInfo.outgoingReturnEdges().isEmpty() && nodeInfo.outgoingCFGEdges().isEmpty()) {
-                                GoblintLocation oldLocation = nodeInfo.location();
+                            if (!nodeInfo.outgoingReturnEdges.isEmpty() && nodeInfo.outgoingCFGEdges.isEmpty()) {
+                                GoblintLocation oldLocation = nodeInfo.location;
                                 return nodeInfo.withLocation(new GoblintLocation(
-                                        nodeInfo.location().getFile(),
+                                        nodeInfo.location.getFile(),
                                         oldLocation.getEndLine(), oldLocation.getEndColumn(),
                                         oldLocation.getEndLine(), oldLocation.getEndColumn()
                                 ));
