@@ -38,7 +38,7 @@ public final class NodeInfo {
         this.outgoingReturnEdges = outgoingReturnEdges;
     }
 
-    public NodeInfo(String nodeId, String cfgNodeId, GoblintLocation location, String contextId, String pathId) {
+    public NodeInfo(String nodeId, String cfgNodeId, String contextId, String pathId, GoblintLocation location) {
         this(nodeId, cfgNodeId, contextId, pathId, location,
                 new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
                 new ArrayList<>(), new ArrayList<>(), new ArrayList<>());

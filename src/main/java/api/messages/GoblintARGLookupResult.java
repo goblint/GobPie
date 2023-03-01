@@ -23,7 +23,12 @@ public class GoblintARGLookupResult {
 
     public static class Edge {
         private Properties edge;
+
         private String node;
+        private String cfg_node;
+        private String context;
+        private String path;
+        private GoblintLocation location;
 
         public static class Properties {
             private JsonObject cfg;
@@ -42,7 +47,7 @@ public class GoblintARGLookupResult {
     }
 
     public NodeInfo toNodeInfo() {
-        NodeInfo nodeInfo = new NodeInfo(node, cfg_node, location, context, path);
+        NodeInfo nodeInfo = new NodeInfo(node, cfg_node, context, path, location);
         mapEdges(prev, nodeInfo.incomingCFGEdges, nodeInfo.incomingReturnEdges, nodeInfo.incomingEntryEdges);
         mapEdges(next, nodeInfo.outgoingCFGEdges, nodeInfo.outgoingReturnEdges, nodeInfo.outgoingEntryEdges);
         return nodeInfo;
@@ -50,19 +55,19 @@ public class GoblintARGLookupResult {
 
     private static void mapEdges(List<Edge> edges, List<CFGEdgeInfo> cfgEdges, List<FunctionCallEdgeInfo> returnEdges, List<FunctionCallEdgeInfo> entryEdges) {
         for (var edge : edges) {
-            String cfgNode = edge.node.split("\\(")[0]; // TODO: Goblint should eventually return this itself
             if (edge.edge.cfg != null || edge.edge.inlined != null) {
                 var properties = edge.edge.cfg != null ? edge.edge.cfg : edge.edge.inlined;
-                CFGEdgeInfo edgeInfo = new CFGEdgeInfo(edge.node, cfgNode, properties.get("string").getAsString());
+                CFGEdgeInfo edgeInfo = new CFGEdgeInfo(edge.node, edge.cfg_node, edge.context, edge.path,
+                        properties.get("string").getAsString());
                 cfgEdges.add(edgeInfo);
             } else if (edge.edge.ret != null) {
                 var properties = edge.edge.ret;
-                FunctionCallEdgeInfo edgeInfo = new FunctionCallEdgeInfo(edge.node, cfgNode,
+                FunctionCallEdgeInfo edgeInfo = new FunctionCallEdgeInfo(edge.node, edge.cfg_node, edge.context, edge.path,
                         toPrettyString(properties.function), properties.args.stream().map(GoblintARGLookupResult::toPrettyString).toList());
                 returnEdges.add(edgeInfo);
             } else if (edge.edge.entry != null) {
                 var properties = edge.edge.entry;
-                FunctionCallEdgeInfo edgeInfo = new FunctionCallEdgeInfo(edge.node, cfgNode,
+                FunctionCallEdgeInfo edgeInfo = new FunctionCallEdgeInfo(edge.node, edge.cfg_node, edge.context, edge.path,
                         toPrettyString(properties.function), properties.args.stream().map(GoblintARGLookupResult::toPrettyString).toList());
                 entryEdges.add(edgeInfo);
             } else {

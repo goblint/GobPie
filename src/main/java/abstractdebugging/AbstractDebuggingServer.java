@@ -364,7 +364,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         var stackFrame = new StackFrame();
         var location = thread.currentNode.location;
         stackFrame.setId(args.getThreadId());
-        stackFrame.setName(thread.currentNode.nodeId);
+        stackFrame.setName(thread.currentNode.nodeId); // TODO: Add function identifier
         stackFrame.setLine(location.getLine());
         stackFrame.setColumn(location.getColumn());
         stackFrame.setEndLine(location.getEndLine());
@@ -424,11 +424,13 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                         .map(lookupResult -> {
                             NodeInfo nodeInfo = lookupResult.toNodeInfo();
                             if (!nodeInfo.outgoingReturnEdges.isEmpty() && nodeInfo.outgoingCFGEdges.isEmpty()) {
-                                GoblintLocation oldLocation = nodeInfo.location;
+                                // Location of return nodes is generally the entire function.
+                                // That looks strange, so we patch it to be only the end of the last line of the function.
+                                // TODO: Maybe it would be better to adjust location when returning stack so the node info retains the original location
                                 return nodeInfo.withLocation(new GoblintLocation(
                                         nodeInfo.location.getFile(),
-                                        oldLocation.getEndLine(), oldLocation.getEndColumn(),
-                                        oldLocation.getEndLine(), oldLocation.getEndColumn()
+                                        nodeInfo.location.getEndLine(), nodeInfo.location.getEndColumn(),
+                                        nodeInfo.location.getEndLine(), nodeInfo.location.getEndColumn()
                                 ));
                             } else {
                                 return nodeInfo;
