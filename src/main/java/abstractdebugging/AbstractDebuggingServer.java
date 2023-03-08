@@ -264,7 +264,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         if (targetThread.currentFrame().node == null) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step out. Location is unreachable."));
         } else if (targetThread.frames.size() <= 1) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Reached top of call stack."));
+            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Reached top of call stack.")); // TODO: Improve wording
         } else if (targetThread.frames.get(1).ambiguousFrame) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step out. Call stack is ambiguous."));
         }
@@ -321,7 +321,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 clearThreads();
                 for (var node : targetNodes) {
                     var state = new ThreadState(
-                            "ctx=" + node.contextId + " path=" + node.pathId + "",
+                            "breakpoint " + node.nodeId,
                             assembleStackTrace(node)
                     );
                     threads.put(newThreadId(), state);
@@ -408,7 +408,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
             var stackFrame = new StackFrame();
             stackFrame.setId(args.getThreadId() * FRAME_ID_THREAD_ID_MULTIPLIER + i);
-            stackFrame.setName((frame.ambiguousFrame ? "? " : "") + frame.node.nodeId); // TODO: Add function identifier
+            stackFrame.setName((frame.ambiguousFrame ? "? " : "") + frame.node.function + " " + frame.node.nodeId);
             var location = frame.node.location;
             stackFrame.setLine(location.getLine());
             stackFrame.setColumn(location.getColumn());
@@ -515,9 +515,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     private NodeInfo lookupNode(String nodeId) {
         var nodes = lookupNodes(new LookupParams(nodeId));
         return switch (nodes.size()) {
-            case 0 -> null;
+            case 0 -> throw new RuntimeException("Node with id " + nodeId + " not found");
             case 1 -> nodes.get(0);
-            default -> throw new RuntimeException("Node with id " + nodeId + " not found");
+            default -> throw new RuntimeException("Multiple nodes with id " + nodeId + " found");
         };
     }
 

@@ -1,7 +1,6 @@
 package api.messages;
 
 import abstractdebugging.CFGEdgeInfo;
-import abstractdebugging.EdgeInfo;
 import abstractdebugging.FunctionCallEdgeInfo;
 import abstractdebugging.NodeInfo;
 import com.google.gson.JsonElement;
@@ -17,6 +16,7 @@ public class GoblintARGLookupResult {
     private String context;
     private String path;
     private GoblintLocation location;
+    private String function;
 
     private List<Edge> prev;
     private List<Edge> next;
@@ -29,6 +29,7 @@ public class GoblintARGLookupResult {
         private String context;
         private String path;
         private GoblintLocation location;
+        private String function;
 
         public static class Properties {
             private JsonObject cfg;
@@ -47,7 +48,7 @@ public class GoblintARGLookupResult {
     }
 
     public NodeInfo toNodeInfo() {
-        NodeInfo nodeInfo = new NodeInfo(node, cfg_node, context, path, location);
+        NodeInfo nodeInfo = new NodeInfo(node, cfg_node, context, path, location, function);
         mapEdges(prev, nodeInfo.incomingCFGEdges, nodeInfo.incomingReturnEdges, nodeInfo.incomingEntryEdges);
         mapEdges(next, nodeInfo.outgoingCFGEdges, nodeInfo.outgoingReturnEdges, nodeInfo.outgoingEntryEdges);
         return nodeInfo;
