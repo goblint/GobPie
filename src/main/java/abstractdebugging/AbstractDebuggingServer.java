@@ -1,15 +1,11 @@
 package abstractdebugging;
 
 import api.GoblintService;
-import api.messages.GoblintARGLookupResult;
 import api.messages.GoblintLocation;
-import api.messages.GoblintPosition;
 import api.messages.LookupParams;
-import goblintserver.GoblintServer;
 import magpiebridge.core.MagpieServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jgit.errors.NotSupportedException;
 import org.eclipse.lsp4j.debug.*;
 import org.eclipse.lsp4j.debug.Thread;
 import org.eclipse.lsp4j.debug.services.IDebugProtocolClient;
@@ -21,18 +17,22 @@ import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     private static final int CFG_STEP_OFFSET = 1_000_000;
     private static final int ENTRY_STEP_OFFSET = 2_000_000;
+
+    /**
+     * Multiplier for thread id in frame id.
+     * Frame id is calculated as threadId * FRAME_ID_THREAD_ID_MULTIPLIER + frameIndex.
+     */
+    private static final int FRAME_ID_THREAD_ID_MULTIPLIER = 100_000;
 
     private final MagpieServer magpieServer;
     private final GoblintService goblintService;
@@ -40,11 +40,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     private IDebugProtocolClient client;
     private CompletableFuture<Void> configurationDoneFuture = new CompletableFuture<>();
 
-    private final AtomicInteger nextThreadId = new AtomicInteger(0);
-
     private final List<GoblintLocation> breakpoints = new ArrayList<>();
     private int activeBreakpoint = -1;
-    private Map<Integer, ThreadState> threads = Map.of();
+    private final AtomicInteger nextThreadId = new AtomicInteger();
+    private final Map<Integer, ThreadState> threads = new LinkedHashMap<>();
 
     private final ExecutorService backgroundExecutorService = Executors.newSingleThreadExecutor(runnable -> {
         java.lang.Thread thread = new java.lang.Thread(runnable, "adb-background-worker");
@@ -158,32 +157,33 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<Void> next(NextArguments args) {
-        var targetThread = threads.get(args.getThreadId());
-        if (targetThread.currentNode.outgoingCFGEdges.isEmpty()) {
+        var currentNode = threads.get(args.getThreadId()).currentFrame().node;
+        if (currentNode.outgoingCFGEdges.isEmpty()) {
             var stepOutArgs = new StepOutArguments();
             stepOutArgs.setThreadId(args.getThreadId());
             stepOutArgs.setSingleThread(args.getSingleThread());
             stepOutArgs.setGranularity(args.getGranularity());
             return stepOut(stepOutArgs);
         }
-        if (targetThread.currentNode.outgoingCFGEdges.size() > 1) {
+        if (currentNode.outgoingCFGEdges.size() > 1) {
             return CompletableFuture.failedFuture(userFacingError("Branching control flow. Use step into target to choose the desired branch."));
         }
-        var targetEdge = targetThread.currentNode.outgoingCFGEdges.get(0);
-        stepAllThreadsToCFGNode(args.getThreadId(), targetEdge.cfgNodeId, n -> n.outgoingCFGEdges);
+        var targetEdge = currentNode.outgoingCFGEdges.get(0);
+        stepAllThreadsToCFGNode(targetEdge.cfgNodeId, n -> n.outgoingCFGEdges, false);
+        sendStopEvent(args.getThreadId());
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public CompletableFuture<Void> stepIn(StepInArguments args) {
-        var targetThread = threads.get(args.getThreadId());
+        var currentNode = threads.get(args.getThreadId()).currentFrame().node;
 
         int targetId;
         if (args.getTargetId() != null) {
             targetId = args.getTargetId();
-        } else if (targetThread.currentNode.outgoingEntryEdges.size() == 1) {
+        } else if (currentNode.outgoingEntryEdges.size() == 1) {
             targetId = ENTRY_STEP_OFFSET;
-        } else if (targetThread.currentNode.outgoingEntryEdges.size() > 1) {
+        } else if (currentNode.outgoingEntryEdges.size() > 1) {
             return CompletableFuture.failedFuture(userFacingError("Ambiguous function call. Use step into target to choose the desired call"));
         } else {
             var nextArgs = new NextArguments();
@@ -195,42 +195,45 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
         if (targetId >= ENTRY_STEP_OFFSET) {
             int targetIndex = targetId - ENTRY_STEP_OFFSET;
-            var targetEdge = targetThread.currentNode.outgoingEntryEdges.get(targetIndex);
-            stepAllThreadsToCFGNode(args.getThreadId(), targetEdge.cfgNodeId, n -> n.outgoingEntryEdges);
-            return CompletableFuture.completedFuture(null);
+            var targetEdge = currentNode.outgoingEntryEdges.get(targetIndex);
+            stepAllThreadsToCFGNode(targetEdge.cfgNodeId, n -> n.outgoingEntryEdges, true);
         } else if (targetId >= CFG_STEP_OFFSET) {
             int targetIndex = targetId - CFG_STEP_OFFSET;
-            var targetEdge = targetThread.currentNode.outgoingCFGEdges.get(targetIndex);
-            stepAllThreadsToCFGNode(args.getThreadId(), targetEdge.cfgNodeId, n -> n.outgoingCFGEdges);
-            return CompletableFuture.completedFuture(null);
+            var targetEdge = currentNode.outgoingCFGEdges.get(targetIndex);
+            stepAllThreadsToCFGNode(targetEdge.cfgNodeId, n -> n.outgoingCFGEdges, false);
         } else {
             return CompletableFuture.failedFuture(new IllegalStateException("Unknown step in target: " + targetId));
         }
+        sendStopEvent(args.getThreadId());
+
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public CompletableFuture<StepInTargetsResponse> stepInTargets(StepInTargetsArguments args) {
-        var thread = threads.get(args.getFrameId());
+        int threadId = args.getFrameId() / FRAME_ID_THREAD_ID_MULTIPLIER;
+        // int frameIndex = args.getFrameId() % FRAME_ID_THREAD_ID_MULTIPLIER;
+        NodeInfo currentNode = threads.get(threadId).currentFrame().node;
 
         List<StepInTarget> targets = new ArrayList<>();
-        if (thread.currentNode != null) {
-            var entryEdges = thread.currentNode.outgoingEntryEdges;
+        if (currentNode != null) {
+            var entryEdges = currentNode.outgoingEntryEdges;
             for (int i = 0; i < entryEdges.size(); i++) {
                 var edge = entryEdges.get(i);
 
                 var target = new StepInTarget();
                 target.setId(ENTRY_STEP_OFFSET + i);
                 target.setLabel("call: " + edge.function + "(" + String.join(", ", edge.args) + ")");
-                target.setLine(thread.currentNode.location.getLine());
-                target.setColumn(thread.currentNode.location.getColumn());
-                target.setEndLine(thread.currentNode.location.getEndLine());
-                target.setEndColumn(thread.currentNode.location.getEndColumn());
+                target.setLine(currentNode.location.getLine());
+                target.setColumn(currentNode.location.getColumn());
+                target.setEndLine(currentNode.location.getEndLine());
+                target.setEndColumn(currentNode.location.getEndColumn());
                 targets.add(target);
             }
 
             // Only show CFG edges as step in targets if there is branching
-            if (thread.currentNode.outgoingCFGEdges.size() > 1) {
-                var cfgEdges = thread.currentNode.outgoingCFGEdges;
+            if (currentNode.outgoingCFGEdges.size() > 1) {
+                var cfgEdges = currentNode.outgoingCFGEdges;
                 for (int i = 0; i < cfgEdges.size(); i++) {
                     var edge = cfgEdges.get(i);
                     var node = lookupNode(edge.nodeId);
@@ -257,8 +260,37 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<Void> stepOut(StepOutArguments args) {
-        // TODO
-        return CompletableFuture.failedFuture(userFacingError("Unsupported operation: Step out not implemented"));
+        ThreadState targetThread = threads.get(args.getThreadId());
+        if (targetThread.currentFrame().node == null) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Location is unreachable."));
+        } else if (targetThread.frames.size() <= 1) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Reached top of call stack."));
+        } else if (targetThread.frames.get(1).ambiguousFrame) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Call stack is ambiguous."));
+        }
+
+        NodeInfo targetCallNode = targetThread.frames.get(1).node;
+        if (targetCallNode.outgoingCFGEdges.isEmpty()) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Function never returns."));
+        } else if (targetCallNode.outgoingCFGEdges.size() > 1) {
+            throw new IllegalStateException("Function call node should have at most 1 outgoing CFG edge but has " + targetCallNode.outgoingCFGEdges.size());
+        }
+        String targetCFGNodeId = targetCallNode.outgoingCFGEdges.get(0).cfgNodeId;
+
+        // Remove all threads that are unreachable or have no more known stack frames
+        // TODO: When recovering unreachable threads is added this should only remove unrecoverable threads
+        threads.values().removeIf(t -> t.currentFrame().node == null || t.frames.size() <= 1 || t.frames.get(1).ambiguousFrame);
+        // Remove topmost stack frame
+        for (var thread : threads.values()) {
+            thread.frames.remove(0);
+        }
+        // Step over the function call that we just stepped out of
+        stepAllThreadsToCFGNode(targetCFGNodeId, n -> n.outgoingCFGEdges, false);
+        // Remove all stack frames that did not reach the target CFG node
+        threads.values().removeIf(t -> t.currentFrame().node == null);
+        sendStopEvent(args.getThreadId());
+
+        return CompletableFuture.completedFuture(null);
     }
 
     private void runToNextBreakpoint() {
@@ -286,11 +318,12 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             }
 
             if (!targetNodes.isEmpty()) {
-                threads = new LinkedHashMap<>();
+                clearThreads();
                 for (var node : targetNodes) {
-                    var state = new ThreadState();
-                    state.name = "(" + node.contextId + ")[" + node.pathId + "]"; // TODO: Add function identifier
-                    state.currentNode = node;
+                    var state = new ThreadState(
+                            "ctx=" + node.contextId + " path=" + node.pathId + "",
+                            assembleStackTrace(node)
+                    );
                     threads.put(newThreadId(), state);
                 }
 
@@ -313,19 +346,27 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         client.terminated(event);
     }
 
-    private void stepAllThreadsToCFGNode(int primaryThreadId, String targetCFGNodeId, Function<NodeInfo, List<? extends EdgeInfo>> candidateEdges) {
+    private void stepAllThreadsToCFGNode(String targetCFGNodeId, Function<NodeInfo, List<? extends EdgeInfo>> candidateEdges, boolean addFrame) {
         for (var thread : threads.values()) {
-            if (thread.currentNode == null) {
+            if (thread.currentFrame().node == null) {
                 // TODO: Try to recover thread if branches join
                 continue;
             }
-            String nextNodeId = candidateEdges.apply(thread.currentNode).stream()
+            NodeInfo nextNode = candidateEdges.apply(thread.currentFrame().node).stream()
                     .filter(e -> e.cfgNodeId.equals(targetCFGNodeId))
                     .map(e -> e.nodeId)
-                    .findAny().orElse(null);
-            thread.currentNode = nextNodeId == null ? null : lookupNode(nextNodeId);
+                    .findAny()
+                    .map(this::lookupNode)
+                    .orElse(null);
+            if (addFrame) {
+                thread.frames.add(0, new StackFrameState(nextNode, false));
+            } else {
+                thread.currentFrame().node = nextNode;
+            }
         }
+    }
 
+    private void sendStopEvent(int primaryThreadId) {
         // Sending the stopped event before the response to the step request is a violation of the DAP spec.
         // There is no clean way to do the operations in the correct order with lsp4j (see https://github.com/eclipse/lsp4j/issues/229),
         // multiple debug adapters seem to have the same issue, including the official https://github.com/microsoft/vscode-mock-debug,
@@ -357,24 +398,32 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<StackTraceResponse> stackTrace(StackTraceArguments args) {
         var thread = threads.get(args.getThreadId());
-        if (thread.currentNode == null) {
+        if (thread.currentFrame().node == null) {
             return CompletableFuture.failedFuture(userFacingError("Unreachable"));
         }
-        // TODO: Track and return multiple stack frames
-        var stackFrame = new StackFrame();
-        var location = thread.currentNode.location;
-        stackFrame.setId(args.getThreadId());
-        stackFrame.setName(thread.currentNode.nodeId); // TODO: Add function identifier
-        stackFrame.setLine(location.getLine());
-        stackFrame.setColumn(location.getColumn());
-        stackFrame.setEndLine(location.getEndLine());
-        stackFrame.setEndColumn(location.getEndColumn());
-        var source = new Source();
-        source.setName(location.getFile());
-        source.setPath(new File(location.getFile()).getAbsolutePath());
-        stackFrame.setSource(source);
+
+        StackFrame[] stackFrames = new StackFrame[thread.frames.size()];
+        for (int i = 0; i < thread.frames.size(); i++) {
+            var frame = thread.frames.get(i);
+
+            var stackFrame = new StackFrame();
+            stackFrame.setId(args.getThreadId() * FRAME_ID_THREAD_ID_MULTIPLIER + i);
+            stackFrame.setName((frame.ambiguousFrame ? "? " : "") + frame.node.nodeId); // TODO: Add function identifier
+            var location = frame.node.location;
+            stackFrame.setLine(location.getLine());
+            stackFrame.setColumn(location.getColumn());
+            stackFrame.setEndLine(location.getEndLine());
+            stackFrame.setEndColumn(location.getEndColumn());
+            var source = new Source();
+            source.setName(location.getFile());
+            source.setPath(new File(location.getFile()).getAbsolutePath());
+            stackFrame.setSource(source);
+
+            stackFrames[i] = stackFrame;
+        }
+
         var response = new StackTraceResponse();
-        response.setStackFrames(new StackFrame[]{stackFrame});
+        response.setStackFrames(stackFrames);
         return CompletableFuture.completedFuture(response);
     }
 
@@ -405,8 +454,31 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return nextThreadId.getAndIncrement();
     }
 
-    private String getAbsolutePath(String path) {
-        return new File(path).getAbsolutePath();
+    private void clearThreads() {
+        nextThreadId.set(0);
+        threads.clear();
+    }
+
+    private List<StackFrameState> assembleStackTrace(NodeInfo startNode) {
+        List<StackFrameState> stackFrames = new ArrayList<>();
+        stackFrames.add(new StackFrameState(startNode, false));
+        NodeInfo entryNode;
+        do {
+            entryNode = getEntryNode(stackFrames.get(stackFrames.size() - 1).node);
+            boolean ambiguous = entryNode.incomingEntryEdges.size() > 1;
+            for (var edge : entryNode.incomingEntryEdges) {
+                var node = lookupNode(edge.nodeId);
+                stackFrames.add(new StackFrameState(node, ambiguous));
+            }
+        } while (entryNode.incomingEntryEdges.size() == 1);
+        return stackFrames;
+    }
+
+    private NodeInfo getEntryNode(NodeInfo node) {
+        if (node.incomingCFGEdges.isEmpty()) {
+            return node;
+        }
+        return getEntryNode(lookupNode(node.incomingCFGEdges.get(0).nodeId));
     }
 
     /**
