@@ -3,7 +3,7 @@
   "displayName": "GobPie",
   "description": "The interactive Goblint analyzer extension",
   "author": "Karoliine Holter",
-  "license": "EPL-2.0",
+  "license": "MIT",
   "version": "0.0.3",
   "repository": {
     "type": "git",
