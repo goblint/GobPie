@@ -23,7 +23,6 @@ import java.util.concurrent.Executors;
 
 public class AbstractDebuggingServerLauncher {
 
-    private final MagpieServer magpieServer;
     private final GoblintService goblintService;
 
     private final ExecutorService executorService = Executors.newCachedThreadPool(runnable -> {
@@ -34,8 +33,7 @@ public class AbstractDebuggingServerLauncher {
 
     private final Logger log = LogManager.getLogger(AbstractDebuggingServerLauncher.class);
 
-    public AbstractDebuggingServerLauncher(MagpieServer magpieServer, GoblintService goblintService) {
-        this.magpieServer = magpieServer;
+    public AbstractDebuggingServerLauncher(GoblintService goblintService) {
         this.goblintService = goblintService;
     }
 
@@ -70,7 +68,7 @@ public class AbstractDebuggingServerLauncher {
             try {
                 AFUNIXSocket clientSocket = serverSocket.accept();
 
-                AbstractDebuggingServer abstractDebuggingServer = new AbstractDebuggingServer(magpieServer, goblintService);
+                AbstractDebuggingServer abstractDebuggingServer = new AbstractDebuggingServer(goblintService);
                 Launcher<IDebugProtocolClient> launcher = new DebugLauncher.Builder<IDebugProtocolClient>()
                         .setLocalService(abstractDebuggingServer)
                         .setRemoteInterface(IDebugProtocolClient.class)

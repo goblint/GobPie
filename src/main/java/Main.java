@@ -51,7 +51,7 @@ public class Main {
             log.info("MagpieBridge server launched.");
 
             // Launch abstract debugging server
-            launchAbstractDebuggingServer(magpieServer, goblintService);
+            launchAbstractDebuggingServer(goblintService);
             log.info("Abstract debugging server launched");
         } catch (GobPieException e) {
             String message = e.getMessage();
@@ -153,8 +153,8 @@ public class Main {
      *
      * @throws GobPieException if creating domain socket for server fails
      */
-    private static void launchAbstractDebuggingServer(MagpieServer magpieServer, GoblintService goblintService) {
-        AbstractDebuggingServerLauncher launcher = new AbstractDebuggingServerLauncher(magpieServer, goblintService);
+    private static void launchAbstractDebuggingServer(GoblintService goblintService) {
+        AbstractDebuggingServerLauncher launcher = new AbstractDebuggingServerLauncher(goblintService);
         launcher.launchOnDomainSocket(abstractDebuggingServerSocket);
     }
 

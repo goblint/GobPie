@@ -2,10 +2,10 @@ package abstractdebugging;
 
 public class EdgeInfo {
 
-    public final String nodeId;
-    public final String cfgNodeId;
-    public final String contextId;
-    public final String pathId;
+    private final String nodeId;
+    private final String cfgNodeId;
+    private final String contextId;
+    private final String pathId;
 
     // Location is returned by Goblint, but cannot be safely used here because we patch the location
     // based on outgoing edges which are not available here. (see AbstractDebuggingServer.lookupNodes for more info)
@@ -15,6 +15,22 @@ public class EdgeInfo {
         this.cfgNodeId = cfgNodeId;
         this.contextId = contextId;
         this.pathId = pathId;
+    }
+
+    public final String nodeId() {
+        return nodeId;
+    }
+
+    public final String cfgNodeId() {
+        return cfgNodeId;
+    }
+
+    public final String contextId() {
+        return contextId;
+    }
+
+    public final String pathId() {
+        return pathId;
     }
 
 }

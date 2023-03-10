@@ -50,8 +50,8 @@ public class GoblintARGLookupResult {
 
     public NodeInfo toNodeInfo() {
         NodeInfo nodeInfo = new NodeInfo(node, cfg_node, context, path, location, function);
-        mapEdges(prev, nodeInfo.incomingCFGEdges, nodeInfo.incomingReturnEdges, nodeInfo.incomingEntryEdges);
-        mapEdges(next, nodeInfo.outgoingCFGEdges, nodeInfo.outgoingReturnEdges, nodeInfo.outgoingEntryEdges);
+        mapEdges(prev, nodeInfo.incomingCFGEdges(), nodeInfo.incomingReturnEdges(), nodeInfo.incomingEntryEdges());
+        mapEdges(next, nodeInfo.outgoingCFGEdges(), nodeInfo.outgoingReturnEdges(), nodeInfo.outgoingEntryEdges());
         return nodeInfo;
     }
 
