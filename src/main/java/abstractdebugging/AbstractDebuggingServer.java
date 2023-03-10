@@ -277,6 +277,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         if (targetCallNode.outgoingCFGEdges().isEmpty()) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step out. Function never returns."));
         } else if (targetCallNode.outgoingCFGEdges().size() > 1) {
+            // TODO: This can actually happen with path sensitive analysis.
+            // return CompletableFuture.failedFuture(userFacingError("Return path is ambiguous. Step to return manually."));
             throw new IllegalStateException("Function call node should have at most 1 outgoing CFG edge but has " + targetCallNode.outgoingCFGEdges().size());
         }
         String targetCFGNodeId = targetCallNode.outgoingCFGEdges().get(0).cfgNodeId();
