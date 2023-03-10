@@ -56,9 +56,8 @@ public interface GoblintService {
     @JsonRequest("arg/lookup")
     CompletableFuture<List<GoblintARGLookupResult>> arg_lookup(LookupParams params);
 
-    // request:  {"jsonrpc":"2.0","id":0,"method":"node_state","params":{"nid":"fun2783"}}
-    @JsonRequest
-    CompletableFuture<List<JsonObject>> node_state(NodeParams params);
+    @JsonRequest("arg/state")
+    CompletableFuture<JsonObject> arg_state(ARGNodeParams params);
 
     @JsonRequest
     CompletableFuture<Void> reset_config();

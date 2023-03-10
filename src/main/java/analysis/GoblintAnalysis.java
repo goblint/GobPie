@@ -1,10 +1,7 @@
 package analysis;
 
 import api.GoblintService;
-import api.messages.GoblintAnalysisResult;
-import api.messages.GoblintFunctionsResult;
-import api.messages.GoblintMessagesResult;
-import api.messages.Params;
+import api.messages.*;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
@@ -18,6 +15,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
+import org.thymeleaf.util.ListUtils;
 import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
@@ -206,44 +204,19 @@ public class GoblintAnalysis implements ServerAnalysis {
             throw new GobPieException("Analysis returned VerifyError.", GobPieExceptionType.GOBLINT_EXCEPTION);
     }
 
-    private CompletableFuture<Collection<AnalysisResult>> convertAndCombineResults(
-            CompletableFuture<List<GoblintMessagesResult>> messagesCompletableFuture,
-            CompletableFuture<List<GoblintFunctionsResult>> functionsCompletableFuture) {
-        return messagesCompletableFuture
-                .thenCombine(functionsCompletableFuture, (messages, functions) ->
-                        Stream.concat(
-                                convertMessagesFromJson(messages).stream(),
-                                convertFunctionsFromJson(functions).stream()
-                        ).collect(Collectors.toList()));
-    }
-
     private CompletableFuture<Collection<AnalysisResult>> getComposedAnalysisResults(GoblintAnalysisResult analysisResult) {
         didAnalysisNotSucceed(analysisResult);
         // Get warning messages
-        CompletableFuture<List<GoblintMessagesResult>> messagesCompletableFuture = goblintService.messages();
+        CompletableFuture<Collection<AnalysisResult>> messagesFuture = goblintService.messages()
+                .thenApply(messages -> messages.stream().flatMap(m -> m.convert().stream()).toList());
         if (!gobpieConfiguration.getShowCfg()) {
-            return messagesCompletableFuture.thenApply(this::convertMessagesFromJson);
+            return messagesFuture;
         }
         // Get list of functions
-        CompletableFuture<List<GoblintFunctionsResult>> functionsCompletableFuture = goblintService.functions();
-        return convertAndCombineResults(messagesCompletableFuture, functionsCompletableFuture);
-    }
-
-
-    /**
-     * Deserializes json from the response and converts the information
-     * into AnalysisResult objects, which Magpie uses to generate IDE messages.
-     *
-     * @param response that was read from the socket and needs to be converted to AnalysisResults.
-     * @return A collection of AnalysisResult objects.
-     */
-
-    private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessagesResult> response) {
-        return response.stream().map(GoblintMessagesResult::convert).flatMap(List::stream).collect(Collectors.toList());
-    }
-
-    private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctionsResult> response) {
-        return response.stream().map(GoblintFunctionsResult::convert).collect(Collectors.toList());
+        CompletableFuture<Collection<AnalysisResult>> functionsFuture = goblintService.functions()
+                .thenApply(functions -> functions.stream().flatMap(f -> f.convert().stream()).toList());
+        return messagesFuture
+                .thenCombine(functionsFuture, (m, f) -> Stream.concat(m.stream(), f.stream()).toList());
     }
 
 

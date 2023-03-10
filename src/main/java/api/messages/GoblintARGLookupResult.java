@@ -38,6 +38,7 @@ public class GoblintARGLookupResult {
             @SerializedName("return")
             private FunctionCall ret;
             private FunctionCall entry;
+            private FunctionCall thread;
 
             public static class FunctionCall {
                 JsonElement function;
@@ -64,12 +65,17 @@ public class GoblintARGLookupResult {
             } else if (edge.edge.ret != null) {
                 var properties = edge.edge.ret;
                 FunctionCallEdgeInfo edgeInfo = new FunctionCallEdgeInfo(edge.node, edge.cfg_node, edge.context, edge.path,
-                        toPrettyString(properties.function), properties.args.stream().map(GoblintARGLookupResult::toPrettyString).toList());
+                        toPrettyString(properties.function), properties.args.stream().map(GoblintARGLookupResult::toPrettyString).toList(), false);
                 returnEdges.add(edgeInfo);
             } else if (edge.edge.entry != null) {
                 var properties = edge.edge.entry;
                 FunctionCallEdgeInfo edgeInfo = new FunctionCallEdgeInfo(edge.node, edge.cfg_node, edge.context, edge.path,
-                        toPrettyString(properties.function), properties.args.stream().map(GoblintARGLookupResult::toPrettyString).toList());
+                        toPrettyString(properties.function), properties.args.stream().map(GoblintARGLookupResult::toPrettyString).toList(), false);
+                entryEdges.add(edgeInfo);
+            } else if (edge.edge.thread != null) {
+                var properties = edge.edge.thread;
+                FunctionCallEdgeInfo edgeInfo = new FunctionCallEdgeInfo(edge.node, edge.cfg_node, edge.context, edge.path,
+                        toPrettyString(properties.function), properties.args.stream().map(GoblintARGLookupResult::toPrettyString).toList(), true);
                 entryEdges.add(edgeInfo);
             } else {
                 throw new IllegalStateException("Unknown edge type: " + edge);

@@ -22,17 +22,19 @@ import java.util.Collections;
 
 public class GoblintCFGAnalysisResult implements AnalysisResult {
     private final Position pos;
+    private final String title;
     private final String funName;
     private final Iterable<Pair<Position, String>> related = new ArrayList<>();
 
-    public GoblintCFGAnalysisResult(Position pos, String funName) {
+    public GoblintCFGAnalysisResult(Position pos, String title, String funName) {
         this.pos = pos;
+        this.title = title;
         this.funName = funName;
     }
 
     @Override
     public Iterable<Command> command() {
-        Command command = new Command("show cfg", "showcfg", Collections.singletonList(funName));
+        Command command = new Command(title, "showcfg", Collections.singletonList(funName));
         return Collections.singleton(command);
     }
 

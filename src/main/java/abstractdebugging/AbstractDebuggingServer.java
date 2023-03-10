@@ -1,8 +1,13 @@
 package abstractdebugging;
 
 import api.GoblintService;
+import api.messages.ARGNodeParams;
 import api.messages.GoblintLocation;
 import api.messages.LookupParams;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import magpiebridge.core.MagpieServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,6 +27,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class AbstractDebuggingServer implements IDebugProtocolServer {
 
@@ -159,6 +167,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     public CompletableFuture<Void> next(NextArguments args) {
         var currentNode = threads.get(args.getThreadId()).currentFrame().node;
         if (currentNode.outgoingCFGEdges.isEmpty()) {
+            if (currentNode.outgoingReturnEdges.isEmpty()) {
+                return CompletableFuture.failedFuture(userFacingError("Cannot step over. Reached last statement."));
+            }
             var stepOutArgs = new StepOutArguments();
             stepOutArgs.setThreadId(args.getThreadId());
             stepOutArgs.setSingleThread(args.getSingleThread());
@@ -223,7 +234,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
                 var target = new StepInTarget();
                 target.setId(ENTRY_STEP_OFFSET + i);
-                target.setLabel("call: " + edge.function + "(" + String.join(", ", edge.args) + ")");
+                target.setLabel((edge.newThread ? "thread: " : "call: ") + edge.function + "(" + String.join(", ", edge.args) + ")");
                 target.setLine(currentNode.location.getLine());
                 target.setColumn(currentNode.location.getColumn());
                 target.setEndLine(currentNode.location.getEndLine());
@@ -352,16 +363,16 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 // TODO: Try to recover thread if branches join
                 continue;
             }
-            NodeInfo nextNode = candidateEdges.apply(thread.currentFrame().node).stream()
+            EdgeInfo targetEdge = candidateEdges.apply(thread.currentFrame().node).stream()
                     .filter(e -> e.cfgNodeId.equals(targetCFGNodeId))
-                    .map(e -> e.nodeId)
                     .findAny()
-                    .map(this::lookupNode)
                     .orElse(null);
+            NodeInfo targetNode = targetEdge == null ? null : lookupNode(targetEdge.nodeId);
+            boolean newThread = targetEdge instanceof FunctionCallEdgeInfo fce && fce.newThread;
             if (addFrame) {
-                thread.frames.add(0, new StackFrameState(nextNode, false));
+                thread.frames.add(0, new StackFrameState(targetNode, false, thread.currentFrame().localThreadIndex - (newThread ? 1 : 0)));
             } else {
-                thread.currentFrame().node = nextNode;
+                thread.currentFrame().node = targetNode;
             }
         }
     }
@@ -402,13 +413,15 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             return CompletableFuture.failedFuture(userFacingError("Unreachable"));
         }
 
+        final int currentThreadId = thread.currentFrame().localThreadIndex;
         StackFrame[] stackFrames = new StackFrame[thread.frames.size()];
         for (int i = 0; i < thread.frames.size(); i++) {
             var frame = thread.frames.get(i);
 
             var stackFrame = new StackFrame();
             stackFrame.setId(args.getThreadId() * FRAME_ID_THREAD_ID_MULTIPLIER + i);
-            stackFrame.setName((frame.ambiguousFrame ? "? " : "") + frame.node.function + " " + frame.node.nodeId);
+            // TODO: Notation for ambiguous frames and parent threads could be clearer.
+            stackFrame.setName((frame.ambiguousFrame ? "? " : "") + (frame.localThreadIndex != currentThreadId ? "^" : "") + frame.node.function + " " + frame.node.nodeId);
             var location = frame.node.location;
             stackFrame.setLine(location.getLine());
             stackFrame.setColumn(location.getColumn());
@@ -429,9 +442,58 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<ScopesResponse> scopes(ScopesArguments args) {
-        // TODO: Blocked by Goblint server not providing access to ARG node state
+        // TODO: Support multiple scopes
+
+        var scope = new Scope();
+        scope.setName("All");
+        scope.setVariablesReference(args.getFrameId() + 1);
+
         var response = new ScopesResponse();
-        response.setScopes(new Scope[0]);
+        response.setScopes(new Scope[]{scope});
+        return CompletableFuture.completedFuture(response);
+    }
+
+    private static final Gson GSON_PRETTY = new GsonBuilder().setPrettyPrinting().create();
+
+    @Override
+    public CompletableFuture<VariablesResponse> variables(VariablesArguments args) {
+        // TODO: Support structured variables
+
+        int threadId = (args.getVariablesReference() - 1) / FRAME_ID_THREAD_ID_MULTIPLIER;
+        int frameIndex = (args.getVariablesReference() - 1) % FRAME_ID_THREAD_ID_MULTIPLIER;
+        var frame = threads.get(threadId).frames.get(frameIndex);
+        if (frame.node == null) {
+            throw new IllegalStateException("Attempt to request variables for unreachable frame " + threadId + "[" + frameIndex + "]");
+        }
+
+        var state = lookupState(frame.node.nodeId);
+
+        var stateVariable = new Variable();
+        stateVariable.setName("[state]");
+        stateVariable.setValue(state.toString());
+        var stateValues = state.get("base").getAsJsonObject().get("value domain").getAsJsonObject();
+        var variables = Stream.concat(
+                        Stream.of(stateVariable),
+                        stateValues.entrySet().stream()
+                                // TODO: Temporary values should be shown when they are assigned to.
+                                // TODO: If the user creates a variable named tmp then it will be hidden as well.
+                                .filter(entry -> !entry.getKey().startsWith("tmp"))
+                                .map(entry -> {
+                                    var variable = new Variable();
+                                    variable.setName(entry.getKey());
+                                    variable.setValue(domainValueToString(entry.getValue()));
+                                    /*var presentationHint = new VariablePresentationHint();
+                                    presentationHint.setKind("property");
+                                    presentationHint.setAttributes(new String[]{"rawString"});
+                                    presentationHint.setVisibility("public");
+                                    variable.setPresentationHint(presentationHint);*/
+                                    return variable;
+                                })
+                )
+                .toArray(Variable[]::new);
+
+        var response = new VariablesResponse();
+        response.setVariables(variables);
         return CompletableFuture.completedFuture(response);
     }
 
@@ -440,7 +502,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     /**
      * Queues an action that should be executed after the response for the current request has been sent.
      * Note: The current implementation has a race condition and does not in fact guarantee that the action is executed after the response is sent.
-     * <p>
      */
     private void queueAfterSendAction(Runnable action) {
         backgroundExecutorService.submit(() -> {
@@ -448,6 +509,23 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             action.run();
             return null;
         });
+    }
+
+    private String domainValueToString(JsonElement value) {
+        if (value.isJsonPrimitive()) {
+            return value.getAsString();
+        } else if (value.isJsonArray()) {
+            var array = value.getAsJsonArray();
+            if (array.size() == 0) {
+                return "∅";
+            } else {
+                return StreamSupport.stream(array.spliterator(), false)
+                        .map(this::domainValueToString)
+                        .collect(Collectors.joining(", "));
+            }
+        } else {
+            return value.toString();
+        }
     }
 
     private int newThreadId() {
@@ -460,15 +538,19 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     }
 
     private List<StackFrameState> assembleStackTrace(NodeInfo startNode) {
+        int curThreadId = 0;
         List<StackFrameState> stackFrames = new ArrayList<>();
-        stackFrames.add(new StackFrameState(startNode, false));
+        stackFrames.add(new StackFrameState(startNode, false, curThreadId));
         NodeInfo entryNode;
         do {
             entryNode = getEntryNode(stackFrames.get(stackFrames.size() - 1).node);
             boolean ambiguous = entryNode.incomingEntryEdges.size() > 1;
             for (var edge : entryNode.incomingEntryEdges) {
+                if (edge.newThread) {
+                    curThreadId += 1;
+                }
                 var node = lookupNode(edge.nodeId);
-                stackFrames.add(new StackFrameState(node, ambiguous));
+                stackFrames.add(new StackFrameState(node, ambiguous, curThreadId));
             }
         } while (entryNode.incomingEntryEdges.size() == 1);
         return stackFrames;
@@ -515,10 +597,14 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     private NodeInfo lookupNode(String nodeId) {
         var nodes = lookupNodes(new LookupParams(nodeId));
         return switch (nodes.size()) {
-            case 0 -> throw new RuntimeException("Node with id " + nodeId + " not found");
+            case 0 -> throw new IllegalStateException("Node with id " + nodeId + " not found");
             case 1 -> nodes.get(0);
-            default -> throw new RuntimeException("Multiple nodes with id " + nodeId + " found");
+            default -> throw new IllegalStateException("Multiple nodes with id " + nodeId + " found");
         };
+    }
+
+    private JsonObject lookupState(String nodeId) {
+        return goblintService.arg_state(new ARGNodeParams(nodeId)).join();
     }
 
 }
