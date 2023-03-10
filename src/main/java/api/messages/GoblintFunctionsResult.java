@@ -2,10 +2,8 @@ package api.messages;
 
 import analysis.GoblintCFGAnalysisResult;
 import magpiebridge.core.AnalysisResult;
-import org.apache.commons.io.FilenameUtils;
 
-import java.io.File;
-import java.net.MalformedURLException;
+import java.util.List;
 
 /**
  * The Class GoblintFunctionsResult.
@@ -28,8 +26,14 @@ public class GoblintFunctionsResult {
         return type;
     }
 
-    public AnalysisResult convert() {
-        return new GoblintCFGAnalysisResult(location.toPosition(), funName);
+    public List<AnalysisResult> convert() {
+        var cfgResult = new GoblintCFGAnalysisResult(location.toPosition(), "show cfg", funName);
+        if (funName.equals("main")) {
+            AnalysisResult argResult = new GoblintCFGAnalysisResult(location.toPosition(), "show arg", "<arg>");
+            return List.of(argResult, cfgResult);
+        } else {
+            return List.of(cfgResult);
+        }
     }
 
 }

@@ -1,6 +1,7 @@
 package HTTPserver;
 
 import api.GoblintService;
+import api.messages.GoblintARGResult;
 import api.messages.GoblintCFGResult;
 import api.messages.NodeParams;
 import api.messages.Params;
@@ -138,15 +139,19 @@ public class GobPieHttpHandler implements HttpHandler {
      * Sends the request to get the CFG for the given function,
      * converts the CFG to a svg and returns it.
      *
-     * @param funName The function name for which the CFG was requested.
+     * @param funName The function name for which the CFG was requested. If function name is {@code "<arg>"} requests the ARG instead.
      * @return The CFG of the given function as a svg.
      * @throws GobPieException if the request and response ID do not match.
      */
     private String getCFG(String funName) {
         Params params = new Params(funName);
         try {
-            GoblintCFGResult cfgResponse = goblintService.cfg(params).get();
-            String cfg = cfgResponse.getCfg();
+            String cfg;
+            if (funName.equals("<arg>")) {
+                cfg = goblintService.arg_dot().get().getArg();
+            } else {
+                cfg = goblintService.cfg_dot(params).get().getCfg();
+            }
             return cfg2svg(cfg);
         } catch (ExecutionException | InterruptedException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
@@ -185,7 +190,7 @@ public class GobPieHttpHandler implements HttpHandler {
     private List<JsonObject> getNodeStates(String nodeId) {
         NodeParams params = new NodeParams(nodeId);
         try {
-            return goblintService.node_state(params).get();
+            return goblintService.cfg_state(params).get();
         } catch (ExecutionException | InterruptedException e) {
             throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }

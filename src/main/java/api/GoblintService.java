@@ -40,11 +40,18 @@ public interface GoblintService {
 
     // request:  {"jsonrpc":"2.0","id":0,"method":"cfg", "params":{"fname":"main"}}
     // response: {"id":0,"jsonrpc":"2.0","result":{"cfg":"digraph cfg {\n\tnode [id=\"\\N\", ... }}
-    @JsonRequest
-    CompletableFuture<GoblintCFGResult> cfg(Params params);
+    @JsonRequest("cfg")
+    CompletableFuture<GoblintCFGResult> cfg_dot(Params params);
 
     @JsonRequest("cfg/lookup")
     CompletableFuture<JsonElement> cfg_lookup(LookupParams params);
+
+    // request:  {"jsonrpc":"2.0","id":0,"method":"node_state","params":{"nid":"fun2783"}}
+    @JsonRequest("node_state")
+    CompletableFuture<List<JsonObject>> cfg_state(NodeParams params);
+
+    @JsonRequest("arg/dot")
+    CompletableFuture<GoblintARGResult> arg_dot();
 
     @JsonRequest("arg/lookup")
     CompletableFuture<List<GoblintARGLookupResult>> arg_lookup(LookupParams params);
