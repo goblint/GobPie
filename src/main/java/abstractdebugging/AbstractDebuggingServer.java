@@ -557,10 +557,28 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     }
 
     private NodeInfo getEntryNode(NodeInfo node) {
+        NodeInfo entryNode = getEntryNodeImpl(node, new HashSet<>());
+        if (entryNode == null) {
+            throw new IllegalStateException("Failed to find entry node for node " + node.nodeId);
+        }
+        return entryNode;
+    }
+
+    private NodeInfo getEntryNodeImpl(NodeInfo node, Set<String> seenNodes) {
         if (node.incomingCFGEdges.isEmpty()) {
             return node;
         }
-        return getEntryNode(lookupNode(node.incomingCFGEdges.get(0).nodeId));
+        if (seenNodes.contains(node.nodeId)) {
+            return null;
+        }
+        seenNodes.add(node.nodeId);
+        for (var edge : node.incomingCFGEdges) {
+            NodeInfo entryNode = getEntryNodeImpl(lookupNode(edge.nodeId), seenNodes);
+            if (entryNode != null) {
+                return entryNode;
+            }
+        }
+        return null;
     }
 
     /**
@@ -597,9 +615,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     private NodeInfo lookupNode(String nodeId) {
         var nodes = lookupNodes(new LookupParams(nodeId));
         return switch (nodes.size()) {
-            case 0 -> throw new IllegalStateException("Node with id " + nodeId + " not found");
+            case 0 -> throw userFacingError("Node with id " + nodeId + " not found");
             case 1 -> nodes.get(0);
-            default -> throw new IllegalStateException("Multiple nodes with id " + nodeId + " found");
+            default -> throw userFacingError("Multiple nodes with id " + nodeId + " found");
         };
     }
 
