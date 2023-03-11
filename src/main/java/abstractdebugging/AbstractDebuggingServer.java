@@ -2,12 +2,9 @@ package abstractdebugging;
 
 import api.GoblintService;
 import api.messages.ARGNodeParams;
-import api.messages.GoblintARGLookupResult;
 import api.messages.GoblintLocation;
 import api.messages.LookupParams;
 import com.google.gson.JsonObject;
-import com.kitfox.svg.A;
-import magpiebridge.core.MagpieServer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -77,6 +74,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         Capabilities capabilities = new Capabilities();
         capabilities.setSupportsConfigurationDoneRequest(true);
         capabilities.setSupportsStepInTargetsRequest(true);
+        capabilities.setSupportsStepBack(true);
         return CompletableFuture.completedFuture(capabilities);
     }
 
@@ -144,7 +142,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 .thenRun(() -> {
                     log.info("Debug adapter launched");
                     activeBreakpoint = -1;
-                    runToNextBreakpoint();
+                    runToNextBreakpoint(1);
                 });
     }
 
@@ -155,8 +153,14 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<ContinueResponse> continue_(ContinueArguments args) {
-        runToNextBreakpoint();
+        runToNextBreakpoint(1);
         return CompletableFuture.completedFuture(new ContinueResponse());
+    }
+
+    @Override
+    public CompletableFuture<Void> reverseContinue(ReverseContinueArguments args) {
+        runToNextBreakpoint(-1);
+        return CompletableFuture.completedFuture(null);
     }
 
     // TODO: Figure out if entry and return nodes contain any meaningful info and if not then skip them in all step methods
@@ -191,7 +195,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
         var targetEdge = currentNode.outgoingCFGEdges().get(0);
         stepAllThreadsToCFGNode(targetEdge.cfgNodeId(), NodeInfo::outgoingCFGEdges, false);
-        sendStopEvent(args.getThreadId());
+        sendStepStopEvent(args.getThreadId());
         return CompletableFuture.completedFuture(null);
     }
 
@@ -228,7 +232,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         } else {
             return CompletableFuture.failedFuture(new IllegalStateException("Unknown step in target: " + targetId));
         }
-        sendStopEvent(args.getThreadId());
+        sendStepStopEvent(args.getThreadId());
 
         return CompletableFuture.completedFuture(null);
     }
@@ -349,19 +353,55 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             thread.popFrame();
             thread.getCurrentFrame().setNode(targetNodes.get(threadId));
         }
-        sendStopEvent(args.getThreadId());
+        sendStepStopEvent(args.getThreadId());
 
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public CompletableFuture<Void> stepBack(StepBackArguments args) {
-        var thread = threads.get(args.getThreadId());
-        if (thread.getCurrentFrame().getNode() == null) {
+        var targetThread = threads.get(args.getThreadId());
+        var currentNode = targetThread.getCurrentFrame().getNode();
+        if (currentNode == null) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step back. Location is unreachable."));
+        } else if (currentNode.incomingCFGEdges().isEmpty()) {
+            // TODO: Support stepping back out of function if caller is unambiguous and has the same CFG location for all threads
+            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Reached start of function."));
+        } else if (currentNode.incomingCFGEdges().size() > 1) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Previous location is ambiguous."));
         }
-        // TODO
-        return IDebugProtocolServer.super.stepBack(args);
+
+        var targetCFGNodeId = currentNode.incomingCFGEdges().get(0).cfgNodeId();
+
+        List<Pair<ThreadState, NodeInfo>> steps = new ArrayList<>();
+        for (var thread : threads.values()) {
+            NodeInfo targetNode;
+            if (thread.getCurrentFrame().getNode() != null) {
+                List<CFGEdgeInfo> targetEdges = thread.getCurrentFrame().getNode().incomingCFGEdges().stream()
+                        .filter(e -> e.cfgNodeId().equals(targetCFGNodeId))
+                        .toList();
+                if (targetEdges.isEmpty()) {
+                    return CompletableFuture.failedFuture(userFacingError("Cannot step back. Target location is unreachable for " + thread.getName()));
+                } else if (targetEdges.size() > 1) {
+                    return CompletableFuture.failedFuture(userFacingError("Cannot step back. Target location is ambiguous for " + thread.getName()));
+                }
+                targetNode = lookupNode(targetEdges.get(0).nodeId());
+            } else if (thread.getCurrentFrame().getLastReachableNode().cfgNodeId().equals(targetCFGNodeId)) {
+                targetNode = thread.getCurrentFrame().getLastReachableNode();
+            } else {
+                continue;
+            }
+            steps.add(Pair.of(thread, targetNode));
+        }
+
+        for (var step : steps) {
+            ThreadState thread = step.getLeft();
+            NodeInfo targetNode = step.getRight();
+            thread.getCurrentFrame().setNode(targetNode);
+        }
+        sendStepStopEvent(args.getThreadId());
+
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -377,10 +417,15 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return IDebugProtocolServer.super.gotoTargets(args);
     }
 
-    private void runToNextBreakpoint() {
+    /**
+     * Runs to next breakpoint in given direction.
+     * @param direction 1 to run to next breakpoint, -1 to run to previous breakpoint.
+     */
+    private void runToNextBreakpoint(int direction) {
         // Note: We treat breaking on entry as the only breakpoint if no breakpoints are set.
-        while (activeBreakpoint + 1 < Math.max(1, breakpoints.size())) {
-            activeBreakpoint += 1;
+        // TODO: Changing breakpoints when the debugger is active can cause breakpoints to be skipped or visited twice.
+        while (activeBreakpoint + direction < Math.max(1, breakpoints.size()) && activeBreakpoint + direction >= 0) {
+            activeBreakpoint += direction;
 
             String stopReason;
             GoblintLocation targetLocation;
@@ -473,7 +518,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
     }
 
-    private void sendStopEvent(int primaryThreadId) {
+    private void sendStepStopEvent(int primaryThreadId) {
         // Sending the stopped event before the response to the step request is a violation of the DAP spec.
         // There is no clean way to do the operations in the correct order with lsp4j (see https://github.com/eclipse/lsp4j/issues/229),
         // multiple debug adapters seem to have the same issue, including the official https://github.com/microsoft/vscode-mock-debug,
