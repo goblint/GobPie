@@ -4,6 +4,7 @@ import api.GoblintService;
 import api.messages.ARGNodeParams;
 import api.messages.GoblintLocation;
 import api.messages.LookupParams;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -27,6 +28,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class AbstractDebuggingServer implements IDebugProtocolServer {
 
@@ -419,6 +421,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     /**
      * Runs to next breakpoint in given direction.
+     *
      * @param direction 1 to run to next breakpoint, -1 to run to previous breakpoint.
      */
     private void runToNextBreakpoint(int direction) {
@@ -608,11 +611,14 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         var state = lookupState(frame.getNode().nodeId());
 
         var stateVariable = new Variable();
-        stateVariable.setName("[state]");
+        stateVariable.setName("(arg/state)");
         stateVariable.setValue(state.toString());
+        var lockedVariable = new Variable();
+        lockedVariable.setName("<locked>");
+        lockedVariable.setValue(domainValueToString(state.get("mutex")));
         var stateValues = state.get("base").getAsJsonObject().get("value domain").getAsJsonObject();
         var variables = Stream.concat(
-                        Stream.of(stateVariable),
+                        Stream.of(stateVariable, lockedVariable),
                         stateValues.entrySet().stream()
                                 // TODO: Temporary values should be shown when they are assigned to.
                                 // TODO: If the user creates a variable named tmp then it will be hidden as well.
@@ -620,7 +626,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                                 .map(entry -> {
                                     var variable = new Variable();
                                     variable.setName(entry.getKey());
-                                    variable.setValue(entry.getValue().toString());
+                                    variable.setValue(domainValueToString(entry.getValue()));
                                     //variable.setType("?");
                                     return variable;
                                 })
@@ -630,6 +636,21 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         var response = new VariablesResponse();
         response.setVariables(variables);
         return CompletableFuture.completedFuture(response);
+    }
+
+    private String domainValueToString(JsonElement value) {
+        if (value.isJsonPrimitive()) {
+            return value.getAsString();
+        } else if (value.isJsonArray()) {
+            return "{" + StreamSupport.stream(value.getAsJsonArray().spliterator(), false)
+                    .map(this::domainValueToString)
+                    .collect(Collectors.joining(", ")) + "}";
+        } else if (value.isJsonObject()) {
+            return "{" + value.getAsJsonObject().entrySet().stream()
+                    .map(e -> e.getKey() + ": " + domainValueToString(e.getValue())) + "}";
+        } else {
+            throw new IllegalArgumentException("Unknown domain value type: " + value.getClass());
+        }
     }
 
     // Helper methods:
