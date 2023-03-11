@@ -179,7 +179,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
         for (var thread : threads.values()) {
             // TODO: It is assumed that this is sufficient to guarantee that the target node is unambiguously determined by the target CFG node for all threads.
-            //  It would be better to validate that invariant directly. See comment in stepAllThreadsToCFGNode for more info.
+            //  It would be better to validate this invariant directly. See comment in stepAllThreadsToCFGNode for list of possible approaches.
             NodeInfo node = thread.getCurrentFrame().getNode();
             if (node != null && node.outgoingCFGEdges().size() > 1 && !node.outgoingEntryEdges().isEmpty()) {
                 return CompletableFuture.failedFuture(userFacingError("Ambiguous path through function" + (thread == targetThread ? "" : " for " + thread.getName()) +
@@ -443,18 +443,20 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             // This may also be possible when stepping in results in multiple context of the same function.
             // TODO: Do something in case this actually happens.
             //  Options:
+            //  * Throw error in caller (current approach) (problem: in some cases meaningful error messages and strict correctness are at odds. might make it impossible to step at all in some cases)
             //  * Split thread into multiple threads. (problem: complicates 'step back' and maintaining thread ordering)
             //  * Identify true source of branching and use it to disambiguate (problem: there might not be a source of branching in all cases. complicates stepping logic)
-            //  * Show warning (problem: doesn't actually prevent unsound behavior)
-            //  * Throw error (problem: might make it impossible to step at all in some cases. caller has to ensure threads are not left in an inconsistent state)
             //  * Make ambiguous threads unreachable (problem: complicates mental model of when threads become unreachable. breaks 'step into targets' relying on this for stepping all threads)
-            EdgeInfo targetEdge = candidateEdges.apply(thread.getCurrentFrame().getNode()).stream()
+            List<? extends EdgeInfo> targetEdges = candidateEdges.apply(thread.getCurrentFrame().getNode()).stream()
                     .filter(e -> e.cfgNodeId().equals(targetCFGNodeId))
-                    .findAny()
-                    .orElse(null);
+                    .toList();
+            EdgeInfo targetEdge = targetEdges.size() == 1 ? targetEdges.get(0) : null;
+            if (targetEdges.size() > 1) {
+                showWarning("Invariant violated for " + thread.getName() + ". Expected 1 ARG node with CFG node " + targetCFGNodeId + " but found " + targetEdges.size() + ".");
+            }
             NodeInfo targetNode = targetEdge == null ? null : lookupNode(targetEdge.nodeId());
-            boolean isNewThread = targetEdge instanceof FunctionCallEdgeInfo fce && fce.createsNewThread();
             if (addFrame) {
+                boolean isNewThread = targetEdge instanceof FunctionCallEdgeInfo fce && fce.createsNewThread();
                 thread.pushFrame(new StackFrameState(targetNode, false, thread.getCurrentFrame().getLocalThreadIndex() - (isNewThread ? 1 : 0)));
             } else {
                 thread.getCurrentFrame().setNode(targetNode);
@@ -588,6 +590,15 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             action.run();
             return null;
         });
+    }
+
+    private void showWarning(String message) {
+        log.warn(message);
+        // TODO: This shows up as '[Object object]' in VSCode. Why?
+        var event = new OutputEventArguments();
+        event.setCategory("important");
+        event.setOutput(message);
+        client.output(event);
     }
 
     private int newThreadId() {
