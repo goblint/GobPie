@@ -159,7 +159,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<Void> next(NextArguments args) {
         var currentNode = threads.get(args.getThreadId()).getCurrentFrame().getNode();
-        if (currentNode.outgoingCFGEdges().isEmpty()) {
+        if (currentNode == null) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step over. Location is unreachable."));
+        } else if (currentNode.outgoingCFGEdges().isEmpty()) {
             if (currentNode.outgoingReturnEdges().isEmpty()) {
                 return CompletableFuture.failedFuture(userFacingError("Cannot step over. Reached last statement."));
             }
@@ -168,8 +170,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             stepOutArgs.setSingleThread(args.getSingleThread());
             stepOutArgs.setGranularity(args.getGranularity());
             return stepOut(stepOutArgs);
-        }
-        if (currentNode.outgoingCFGEdges().size() > 1) {
+        } else if (currentNode.outgoingCFGEdges().size() > 1) {
             return CompletableFuture.failedFuture(userFacingError("Branching control flow. Use step into target to choose the desired branch."));
         }
         var targetEdge = currentNode.outgoingCFGEdges().get(0);
@@ -181,6 +182,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<Void> stepIn(StepInArguments args) {
         var currentNode = threads.get(args.getThreadId()).getCurrentFrame().getNode();
+        if (currentNode == null) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step in. Location is unreachable."));
+        }
 
         int targetId;
         if (args.getTargetId() != null) {
@@ -301,8 +305,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<Void> stepBack(StepBackArguments args) {
+        var thread = threads.get(args.getThreadId());
+        if (thread.getCurrentFrame().getNode() == null) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Location is unreachable."));
+        }
         // TODO
-        // TODO: Recover unreachable branches when stepping through / over node where branches diverged.
         return IDebugProtocolServer.super.stepBack(args);
     }
 
@@ -377,6 +384,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             if (thread.getCurrentFrame().getNode() == null) {
                 continue;
             }
+            // TODO: This is unsound if there can be multiple distinct target edges with the same target CFG node.
+            //  This is possible when stepping over / out of function with internal path sensitive branching.
+            //  Note that this can be unsound even if only one branch is possible, if the possible branch is different between threads.
             EdgeInfo targetEdge = candidateEdges.apply(thread.getCurrentFrame().getNode()).stream()
                     .filter(e -> e.cfgNodeId().equals(targetCFGNodeId))
                     .findAny()

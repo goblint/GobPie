@@ -37,7 +37,7 @@ public class StackFrameState {
     }
 
     /**
-     * Sets current node. Updates last reachable (non-null) node.
+     * Sets current node. Tracks last reachable (non-null) node.
      */
     public void setNode(NodeInfo node) {
         if (node != null) {
