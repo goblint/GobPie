@@ -1,5 +1,7 @@
 package abstractdebugging;
 
+import javax.annotation.Nullable;
+
 public class StackFrameState {
 
     private NodeInfo node;
@@ -8,15 +10,13 @@ public class StackFrameState {
     private final int localThreadIndex;
 
     public StackFrameState(NodeInfo node, boolean ambiguousFrame, int localThreadIndex) {
-        if (node == null) {
-            throw new IllegalArgumentException("Stack frame initial node cannot be null");
-        }
         this.node = node;
         this.lastReachableNode = node;
         this.ambiguousFrame = ambiguousFrame;
         this.localThreadIndex = localThreadIndex;
     }
 
+    @Nullable
     public NodeInfo getNode() {
         return node;
     }
@@ -24,6 +24,7 @@ public class StackFrameState {
     /**
      * Returns the last reachable (non-null) node that this frame has been on.
      */
+    @Nullable
     public NodeInfo getLastReachableNode() {
         return lastReachableNode;
     }

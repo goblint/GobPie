@@ -172,7 +172,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         var targetThread = threads.get(args.getThreadId());
         var currentNode = targetThread.getCurrentFrame().getNode();
         if (currentNode == null) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step over. Location is unreachable."));
+            return CompletableFuture.failedFuture(userFacingError("Cannot step over. Location is unavailable."));
         } else if (currentNode.outgoingCFGEdges().isEmpty()) {
             if (currentNode.outgoingReturnEdges().isEmpty()) {
                 return CompletableFuture.failedFuture(userFacingError("Cannot step over. Reached last statement."));
@@ -205,7 +205,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     public CompletableFuture<Void> stepIn(StepInArguments args) {
         var currentNode = threads.get(args.getThreadId()).getCurrentFrame().getNode();
         if (currentNode == null) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step in. Location is unreachable."));
+            return CompletableFuture.failedFuture(userFacingError("Cannot step in. Location is unavailable."));
         }
 
         int targetId;
@@ -292,7 +292,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     public CompletableFuture<Void> stepOut(StepOutArguments args) {
         ThreadState targetThread = threads.get(args.getThreadId());
         if (targetThread.getCurrentFrame().getNode() == null) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Location is unreachable."));
+            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Location is unavailable."));
         } else if (!targetThread.hasPreviousFrame()) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step out. Reached top of call stack.")); // TODO: Improve wording
         } else if (targetThread.getPreviousFrame().isAmbiguousFrame()) {
@@ -300,6 +300,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
 
         NodeInfo targetCallNode = targetThread.getPreviousFrame().getNode();
+        assert targetCallNode != null;
         if (targetCallNode.outgoingCFGEdges().isEmpty()) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step out. Function never returns."));
         }
@@ -311,7 +312,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
             // Skip all threads that have no known previous frame or whose previous frame has a different location compared to the target thread.
             if (!thread.hasPreviousFrame() || thread.getPreviousFrame().isAmbiguousFrame()
-                    || !Objects.equals(thread.getPreviousFrame().getNode().cfgNodeId(), targetCallNode.cfgNodeId())) {
+                    || (thread.getPreviousFrame().getNode() != null && !Objects.equals(thread.getPreviousFrame().getNode().cfgNodeId(), targetCallNode.cfgNodeId()))) {
                 continue;
             }
 
@@ -345,7 +346,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             targetNodes.put(threadId, targetNode);
         }
 
-        // Remove all threads that have no target node (note that threads with an unreachable (null) target node are kept).
+        // Remove all threads that have no target node (note that threads with an unavailable (null) target node are kept).
         threads.keySet().removeIf(k -> !targetNodes.containsKey(k));
         // Remove topmost stack frame and step to target node
         for (var threadEntry : threads.entrySet()) {
@@ -365,7 +366,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         var targetThread = threads.get(args.getThreadId());
         var currentNode = targetThread.getCurrentFrame().getNode();
         if (currentNode == null) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Location is unreachable."));
+            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Location is unavailable."));
         } else if (currentNode.incomingCFGEdges().isEmpty()) {
             // TODO: Support stepping back out of function if caller is unambiguous and has the same CFG location for all threads
             return CompletableFuture.failedFuture(userFacingError("Cannot step back. Reached start of function."));
@@ -377,22 +378,25 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
         List<Pair<ThreadState, NodeInfo>> steps = new ArrayList<>();
         for (var thread : threads.values()) {
+            var currentFrame = thread.getCurrentFrame();
+
             NodeInfo targetNode;
-            if (thread.getCurrentFrame().getNode() != null) {
-                List<CFGEdgeInfo> targetEdges = thread.getCurrentFrame().getNode().incomingCFGEdges().stream()
+            if (currentFrame.getNode() != null) {
+                List<CFGEdgeInfo> targetEdges = currentFrame.getNode().incomingCFGEdges().stream()
                         .filter(e -> e.cfgNodeId().equals(targetCFGNodeId))
                         .toList();
                 if (targetEdges.isEmpty()) {
-                    return CompletableFuture.failedFuture(userFacingError("Cannot step back. Target location is unreachable for " + thread.getName()));
+                    return CompletableFuture.failedFuture(userFacingError("Cannot step back. No matching path from " + thread.getName()));
                 } else if (targetEdges.size() > 1) {
-                    return CompletableFuture.failedFuture(userFacingError("Cannot step back. Target location is ambiguous for " + thread.getName()));
+                    return CompletableFuture.failedFuture(userFacingError("Cannot step back. Path is ambiguous from " + thread.getName()));
                 }
                 targetNode = lookupNode(targetEdges.get(0).nodeId());
-            } else if (thread.getCurrentFrame().getLastReachableNode().cfgNodeId().equals(targetCFGNodeId)) {
-                targetNode = thread.getCurrentFrame().getLastReachableNode();
+            } else if (currentFrame.getLastReachableNode() != null && currentFrame.getLastReachableNode().cfgNodeId().equals(targetCFGNodeId)) {
+                targetNode = currentFrame.getLastReachableNode();
             } else {
                 continue;
             }
+
             steps.add(Pair.of(thread, targetNode));
         }
 
@@ -401,6 +405,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             NodeInfo targetNode = step.getRight();
             thread.getCurrentFrame().setNode(targetNode);
         }
+
         sendStepStopEvent(args.getThreadId());
 
         return CompletableFuture.completedFuture(null);
@@ -485,27 +490,31 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
      * @throws IllegalFormatException if the target node is ambiguous ie there are multiple candidate edges that have the target CFG node.
      */
     private void stepAllThreadsToCFGNode(String targetCFGNodeId, Function<NodeInfo, List<? extends EdgeInfo>> candidateEdges, boolean addFrame) {
+        // Note: It is important that all threads, including threads with unavailable location, are stepped, because otherwise the number of added stack frames could get out of sync.
         List<Pair<ThreadState, EdgeInfo>> steps = new ArrayList<>();
         for (var thread : threads.values()) {
+            EdgeInfo targetEdge;
             if (thread.getCurrentFrame().getNode() == null) {
-                continue;
+                targetEdge = null;
+            } else {
+                // This is unsound if there can be multiple distinct target edges with the same target CFG node.
+                // This is possible when stepping over / out of function with internal path sensitive branching.
+                // This may also be possible when stepping in results in multiple context of the same function.
+                // TODO: Somehow ensure this can never happen.
+                //  Options:
+                //  * Throw error (current approach) (problem: might make it impossible to step at all in some cases. in some cases meaningful error messages and strict correctness are at odds)
+                //  * Split thread into multiple threads. (problem: complicates 'step back' and maintaining thread ordering)
+                //  * Identify true source of branching and use it to disambiguate (problem: there might not be a source of branching in all cases. complicates stepping logic)
+                //  * Make ambiguous threads unavailable (problem: complicates mental model of when threads become unavailable. breaks 'step into targets' relying on this for stepping all threads)
+                List<? extends EdgeInfo> targetEdges = candidateEdges.apply(thread.getCurrentFrame().getNode()).stream()
+                        .filter(e -> e.cfgNodeId().equals(targetCFGNodeId))
+                        .toList();
+                if (targetEdges.size() > 1) {
+                    throw new IllegalStateException("Invariant violated for " + thread.getName() + ". Expected 1 ARG node with CFG node " + targetCFGNodeId + " but found " + targetEdges.size() + ".");
+                }
+                targetEdge = targetEdges.size() == 1 ? targetEdges.get(0) : null;
             }
-            // This is unsound if there can be multiple distinct target edges with the same target CFG node.
-            // This is possible when stepping over / out of function with internal path sensitive branching.
-            // This may also be possible when stepping in results in multiple context of the same function.
-            // TODO: Somehow ensure this can never happen.
-            //  Options:
-            //  * Throw error (current approach) (problem: might make it impossible to step at all in some cases. in some cases meaningful error messages and strict correctness are at odds)
-            //  * Split thread into multiple threads. (problem: complicates 'step back' and maintaining thread ordering)
-            //  * Identify true source of branching and use it to disambiguate (problem: there might not be a source of branching in all cases. complicates stepping logic)
-            //  * Make ambiguous threads unreachable (problem: complicates mental model of when threads become unreachable. breaks 'step into targets' relying on this for stepping all threads)
-            List<? extends EdgeInfo> targetEdges = candidateEdges.apply(thread.getCurrentFrame().getNode()).stream()
-                    .filter(e -> e.cfgNodeId().equals(targetCFGNodeId))
-                    .toList();
-            EdgeInfo targetEdge = targetEdges.size() == 1 ? targetEdges.get(0) : null;
-            if (targetEdges.size() > 1) {
-                throw new IllegalStateException("Invariant violated for " + thread.getName() + ". Expected 1 ARG node with CFG node " + targetCFGNodeId + " but found " + targetEdges.size() + ".");
-            }
+
             steps.add(Pair.of(thread, targetEdge));
         }
         for (var step : steps) {
@@ -554,13 +563,14 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     public CompletableFuture<StackTraceResponse> stackTrace(StackTraceArguments args) {
         var thread = threads.get(args.getThreadId());
         if (thread.getCurrentFrame().getNode() == null) {
-            return CompletableFuture.failedFuture(userFacingError("Unreachable"));
+            return CompletableFuture.failedFuture(userFacingError("No matching path"));
         }
 
         final int currentThreadId = thread.getCurrentFrame().getLocalThreadIndex();
         StackFrame[] stackFrames = new StackFrame[thread.getFrames().size()];
         for (int i = 0; i < thread.getFrames().size(); i++) {
             var frame = thread.getFrames().get(i);
+            assert frame.getNode() != null;
 
             var stackFrame = new StackFrame();
             stackFrame.setId(args.getThreadId() * FRAME_ID_THREAD_ID_MULTIPLIER + i);
@@ -605,7 +615,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         int frameIndex = (args.getVariablesReference() - 1) % FRAME_ID_THREAD_ID_MULTIPLIER;
         var frame = threads.get(threadId).getFrames().get(frameIndex);
         if (frame.getNode() == null) {
-            throw new IllegalStateException("Attempt to request variables for unreachable frame " + threadId + "[" + frameIndex + "]");
+            throw new IllegalStateException("Attempt to request variables for unavailable frame " + threadId + "[" + frameIndex + "]");
         }
 
         var state = lookupState(frame.getNode().nodeId());
