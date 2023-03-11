@@ -27,6 +27,14 @@ public class ThreadState {
         return frames.get(0);
     }
 
+    public StackFrameState getPreviousFrame() {
+        return frames.get(1);
+    }
+
+    public boolean hasPreviousFrame() {
+        return frames.size() > 1;
+    }
+
     public void pushFrame(StackFrameState frame) {
         frames.add(0, frame);
     }
