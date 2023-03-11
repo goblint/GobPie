@@ -396,7 +396,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                         .filter(n -> n.location().getLine() <= targetLocation.getLine() && targetLocation.getLine() <= n.location().getEndLine())
                         .toList();
                 if (!targetNodes.isEmpty()) {
-                    String cfgNodeId = targetNodes.get(0).cfgNodeId(); // TODO: Is picking the first CFG node a good way to choose which nodes to keep?
+                    // TODO: Instead we should get the first matching CFG node and then request corresponding ARG nodes for that.
+                    String cfgNodeId = targetNodes.get(0).cfgNodeId();
                     targetNodes = targetNodes.stream().filter(n -> n.cfgNodeId().equals(cfgNodeId)).toList();
                 }
             }
@@ -432,8 +433,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     /**
      * Steps all threads to given CFG node.
+     *
+     * @throws IllegalFormatException if the target node is ambiguous ie there are multiple candidate edges that have the target CFG node.
      */
     private void stepAllThreadsToCFGNode(String targetCFGNodeId, Function<NodeInfo, List<? extends EdgeInfo>> candidateEdges, boolean addFrame) {
+        List<Pair<ThreadState, EdgeInfo>> steps = new ArrayList<>();
         for (var thread : threads.values()) {
             if (thread.getCurrentFrame().getNode() == null) {
                 continue;
@@ -441,9 +445,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             // This is unsound if there can be multiple distinct target edges with the same target CFG node.
             // This is possible when stepping over / out of function with internal path sensitive branching.
             // This may also be possible when stepping in results in multiple context of the same function.
-            // TODO: Do something in case this actually happens.
+            // TODO: Somehow ensure this can never happen.
             //  Options:
-            //  * Throw error in caller (current approach) (problem: in some cases meaningful error messages and strict correctness are at odds. might make it impossible to step at all in some cases)
+            //  * Throw error (current approach) (problem: might make it impossible to step at all in some cases. in some cases meaningful error messages and strict correctness are at odds)
             //  * Split thread into multiple threads. (problem: complicates 'step back' and maintaining thread ordering)
             //  * Identify true source of branching and use it to disambiguate (problem: there might not be a source of branching in all cases. complicates stepping logic)
             //  * Make ambiguous threads unreachable (problem: complicates mental model of when threads become unreachable. breaks 'step into targets' relying on this for stepping all threads)
@@ -452,8 +456,13 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                     .toList();
             EdgeInfo targetEdge = targetEdges.size() == 1 ? targetEdges.get(0) : null;
             if (targetEdges.size() > 1) {
-                showWarning("Invariant violated for " + thread.getName() + ". Expected 1 ARG node with CFG node " + targetCFGNodeId + " but found " + targetEdges.size() + ".");
+                throw new IllegalStateException("Invariant violated for " + thread.getName() + ". Expected 1 ARG node with CFG node " + targetCFGNodeId + " but found " + targetEdges.size() + ".");
             }
+            steps.add(Pair.of(thread, targetEdge));
+        }
+        for (var step : steps) {
+            ThreadState thread = step.getLeft();
+            EdgeInfo targetEdge = step.getRight();
             NodeInfo targetNode = targetEdge == null ? null : lookupNode(targetEdge.nodeId());
             if (addFrame) {
                 boolean isNewThread = targetEdge instanceof FunctionCallEdgeInfo fce && fce.createsNewThread();
@@ -590,15 +599,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             action.run();
             return null;
         });
-    }
-
-    private void showWarning(String message) {
-        log.warn(message);
-        // TODO: This shows up as '[Object object]' in VSCode. Why?
-        var event = new OutputEventArguments();
-        event.setCategory("important");
-        event.setOutput(message);
-        client.output(event);
     }
 
     private int newThreadId() {
