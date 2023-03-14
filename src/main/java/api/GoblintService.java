@@ -25,7 +25,7 @@ public interface GoblintService {
     // request:  {"jsonrpc":"2.0","id":0,"method":"analyze","params":{}}
     // response: {"id":0,"jsonrpc":"2.0","result":{"status":["Success"]}}
     @JsonRequest
-    CompletableFuture<GoblintAnalysisResult> analyze(Params params);
+    CompletableFuture<GoblintAnalysisResult> analyze(AnalyzeParams params);
 
     // request:  {"jsonrpc":"2.0","id":0,"method":"messages"}
     // response: {"id":0,"jsonrpc":"2.0","result":[{"tags":[{"Category":["Race"]}], ... }]}

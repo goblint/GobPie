@@ -1,10 +1,7 @@
 package analysis;
 
 import api.GoblintService;
-import api.messages.GoblintAnalysisResult;
-import api.messages.GoblintFunctionsResult;
-import api.messages.GoblintMessagesResult;
-import api.messages.Params;
+import api.messages.*;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
@@ -189,7 +186,7 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @throws GobPieException in case the analysis was aborted or returned a VerifyError.
      */
     private CompletableFuture<Collection<AnalysisResult>> reanalyse() {
-        return goblintService.analyze(new Params())
+        return goblintService.analyze(new AnalyzeParams(!gobpieConfiguration.useIncrementalAnalysis()))
                 .thenCompose(this::getComposedAnalysisResults);
     }
 
@@ -215,7 +212,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         didAnalysisNotSucceed(analysisResult);
         // Get warning messages
         CompletableFuture<List<GoblintMessagesResult>> messagesCompletableFuture = goblintService.messages();
-        if (gobpieConfiguration.getshowCfg() == null || !gobpieConfiguration.getshowCfg()) {
+        if (!gobpieConfiguration.getShowCfg()) {
             return messagesCompletableFuture.thenApply(this::convertMessagesFromJson);
         }
         // Get list of functions
