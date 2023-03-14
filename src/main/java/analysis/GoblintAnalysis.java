@@ -192,7 +192,7 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @throws GobPieException in case the analysis was aborted or returned a VerifyError.
      */
     private CompletableFuture<Collection<AnalysisResult>> reanalyse() {
-        return goblintService.analyze(new Params())
+        return goblintService.analyze(new AnalyzeParams(!gobpieConfiguration.useIncrementalAnalysis()))
                 .thenCompose(this::getComposedAnalysisResults);
     }
 
