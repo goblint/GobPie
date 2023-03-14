@@ -21,6 +21,12 @@ import java.io.PrintWriter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Launcher for abstract debugging server.
+ * Responsible for exposing the DAP-based abstract debugging server over a UNIX domain socket.
+ *
+ * @author Juhan Oskar Hennoste
+ */
 public class AbstractDebuggingServerLauncher {
 
     private final GoblintService goblintService;

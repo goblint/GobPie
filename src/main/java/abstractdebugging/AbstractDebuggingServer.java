@@ -6,6 +6,7 @@ import api.messages.GoblintLocation;
 import api.messages.LookupParams;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.kitfox.svg.A;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,8 +22,6 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -30,6 +29,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/**
+ * Abstract debugging server.
+ * Implements the core logic of abstract debugging with the lsp4j DAP interface.
+ *
+ * @author Juhan Oskar Hennoste
+ */
 public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     private static final int CFG_STEP_OFFSET = 1_000_000;
@@ -48,14 +53,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     private final List<GoblintLocation> breakpoints = new ArrayList<>();
     private int activeBreakpoint = -1;
-    private final AtomicInteger nextThreadId = new AtomicInteger();
     private final Map<Integer, ThreadState> threads = new LinkedHashMap<>();
 
-    private final ExecutorService backgroundExecutorService = Executors.newSingleThreadExecutor(runnable -> {
-        java.lang.Thread thread = new java.lang.Thread(runnable, "adb-background-worker");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private final Map<Integer, Scope[]> frameScopes = new HashMap<>();
+    private final Map<Integer, Variable> variables = new HashMap<>();
+    private final AtomicInteger nextVariableReference = new AtomicInteger(1);
 
     private final Logger log = LogManager.getLogger(AbstractDebuggingServer.class);
 
@@ -235,7 +237,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<StepInTargetsResponse> stepInTargets(StepInTargetsArguments args) {
         int threadId = args.getFrameId() / FRAME_ID_THREAD_ID_MULTIPLIER;
-        // int frameIndex = args.getFrameId() % FRAME_ID_THREAD_ID_MULTIPLIER;
         NodeInfo currentNode = threads.get(threadId).getCurrentFrame().getNode();
 
         List<StepInTarget> targets = new ArrayList<>();
@@ -356,7 +357,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             thread.popFrame();
             thread.getCurrentFrame().setNode(targetNodes.get(threadId));
         }
-        sendStepStopEvent(args.getThreadId());
+
+        onThreadsStopped("step", args.getThreadId());
 
         return CompletableFuture.completedFuture(null);
     }
@@ -406,7 +408,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             thread.getCurrentFrame().setNode(targetNode);
         }
 
-        sendStepStopEvent(args.getThreadId());
+        onThreadsStopped("step", args.getThreadId());
 
         return CompletableFuture.completedFuture(null);
     }
@@ -456,20 +458,13 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             }
 
             if (!targetNodes.isEmpty()) {
-                clearThreads();
-                for (var node : targetNodes) {
-                    var thread = new ThreadState(
-                            "breakpoint " + node.nodeId(),
-                            assembleStackTrace(node)
-                    );
-                    addThread(thread);
-                }
+                setThreads(
+                        targetNodes.stream()
+                                .map(node -> new ThreadState("breakpoint " + node.nodeId(), assembleStackTrace(node)))
+                                .toList()
+                );
 
-                var event = new StoppedEventArguments();
-                event.setReason(stopReason);
-                event.setThreadId(threads.keySet().stream().findFirst().orElse(null));
-                event.setAllThreadsStopped(true);
-                client.stopped(event);
+                onThreadsStopped(stopReason, threads.keySet().stream().findFirst().orElseThrow());
 
                 log.info("Stopped on breakpoint " + activeBreakpoint + " (" + targetLocation + ")");
                 return;
@@ -540,23 +535,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             }
         }
 
-        sendStepStopEvent(primaryThreadId);
+        onThreadsStopped("step", primaryThreadId);
 
         return CompletableFuture.completedFuture(null);
-    }
-
-    private void sendStepStopEvent(int primaryThreadId) {
-        // Sending the stopped event before the response to the step request is a violation of the DAP spec.
-        // There is no clean way to do the operations in the correct order with lsp4j (see https://github.com/eclipse/lsp4j/issues/229),
-        // multiple debug adapters seem to have the same issue, including the official https://github.com/microsoft/vscode-mock-debug,
-        // and this has caused no issues in testing with VSCode.
-        // Given all these considerations doing this in the wrong order is considered acceptable for now.
-        // TODO: If https://github.com/eclipse/lsp4j/issues/229 ever gets resolved do this in the correct order.
-        var event = new StoppedEventArguments();
-        event.setReason("step");
-        event.setThreadId(primaryThreadId);
-        event.setAllThreadsStopped(true);
-        client.stopped(event);
     }
 
     @Override
@@ -681,13 +662,33 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     // Helper methods:
 
-    private void addThread(ThreadState thread) {
-        threads.put(nextThreadId.getAndIncrement(), thread);
+    private void setThreads(List<ThreadState> newThreads) {
+        threads.clear();
+        for (int i = 0; i < newThreads.size(); i++) {
+            threads.put(i, newThreads.get(i));
+        }
     }
 
-    private void clearThreads() {
-        nextThreadId.set(0);
-        threads.clear();
+    /**
+     * Logic that should run every time after threads have stopped after a step or breakpoint.
+     * Notifies client that threads have stopped and clears caches that should be invalidated whenever thread state changes.)
+     */
+    private void onThreadsStopped(String stopReason, int primaryThreadId) {
+        nextVariableReference.set(1);
+        variables.clear();
+        frameScopes.clear();
+
+        // Sending the stopped event before the response to the step request is a violation of the DAP spec.
+        // There is no clean way to do the operations in the correct order with lsp4j (see https://github.com/eclipse/lsp4j/issues/229),
+        // multiple debug adapters seem to have the same issue, including the official https://github.com/microsoft/vscode-mock-debug,
+        // and this has caused no issues in testing with VSCode.
+        // Given all these considerations doing this in the wrong order is considered acceptable for now.
+        // TODO: If https://github.com/eclipse/lsp4j/issues/229 ever gets resolved do this in the correct order.
+        var event = new StoppedEventArguments();
+        event.setReason(stopReason);
+        event.setThreadId(primaryThreadId);
+        event.setAllThreadsStopped(true);
+        client.stopped(event);
     }
 
     private List<StackFrameState> assembleStackTrace(NodeInfo startNode) {

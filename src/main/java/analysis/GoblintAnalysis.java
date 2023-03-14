@@ -93,8 +93,7 @@ public class GoblintAnalysis implements ServerAnalysis {
     @Override
     public void analyze(Collection<? extends Module> files, AnalysisConsumer consumer, boolean rerun) {
         if (!rerun) {
-            // As far as I can tell rerun is false iff you open a file with doAnalysisByOpen = false and doAnalysisByFirstOpen = true
-            // TODO: Should anything more be done here?
+            // According to MagpieBridge source code rerun is false iff you open a file with doAnalysisByOpen = false and doAnalysisByFirstOpen = true and this is not the first file opened.
             return;
         }
 
