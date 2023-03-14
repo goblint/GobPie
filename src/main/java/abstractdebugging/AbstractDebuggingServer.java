@@ -9,8 +9,8 @@ import com.google.gson.JsonObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.lsp4j.debug.*;
 import org.eclipse.lsp4j.debug.Thread;
+import org.eclipse.lsp4j.debug.*;
 import org.eclipse.lsp4j.debug.services.IDebugProtocolClient;
 import org.eclipse.lsp4j.debug.services.IDebugProtocolServer;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
@@ -184,8 +184,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             return stepOut(stepOutArgs);
         }
         for (var thread : threads.values()) {
-            // TODO: It is assumed that this is sufficient to guarantee that the target node is unambiguously determined by the target CFG node for all threads.
-            //  It would be better to validate this invariant directly. See comment in stepAllThreadsToCFGNode for list of possible approaches.
             NodeInfo node = thread.getCurrentFrame().getNode();
             if (node != null && node.outgoingCFGEdges().size() > 1 && !node.outgoingEntryEdges().isEmpty()) {
                 return CompletableFuture.failedFuture(userFacingError("Ambiguous path through function" + (thread == targetThread ? "" : " for " + thread.getName()) +
@@ -196,9 +194,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             return CompletableFuture.failedFuture(userFacingError("Branching control flow. Use step into target to choose the desired branch."));
         }
         var targetEdge = currentNode.outgoingCFGEdges().get(0);
-        stepAllThreadsToCFGNode(targetEdge.cfgNodeId(), NodeInfo::outgoingCFGEdges, false);
-        sendStepStopEvent(args.getThreadId());
-        return CompletableFuture.completedFuture(null);
+        return stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges, false);
     }
 
     @Override
@@ -226,17 +222,14 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         if (targetId >= ENTRY_STEP_OFFSET) {
             int targetIndex = targetId - ENTRY_STEP_OFFSET;
             var targetEdge = currentNode.outgoingEntryEdges().get(targetIndex);
-            stepAllThreadsToCFGNode(targetEdge.cfgNodeId(), NodeInfo::outgoingEntryEdges, true);
+            return stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingEntryEdges, true);
         } else if (targetId >= CFG_STEP_OFFSET) {
             int targetIndex = targetId - CFG_STEP_OFFSET;
             var targetEdge = currentNode.outgoingCFGEdges().get(targetIndex);
-            stepAllThreadsToCFGNode(targetEdge.cfgNodeId(), NodeInfo::outgoingCFGEdges, false);
+            return stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges, false);
         } else {
             return CompletableFuture.failedFuture(new IllegalStateException("Unknown step in target: " + targetId));
         }
-        sendStepStopEvent(args.getThreadId());
-
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -317,20 +310,27 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             }
 
             NodeInfo currentNode = thread.getCurrentFrame().getNode();
-
             NodeInfo targetNode;
             if (currentNode == null) {
                 targetNode = null;
             } else {
-                Set<String> returnNodeIds = findMatchingNodes(currentNode, NodeInfo::outgoingCFGEdges, e -> !e.outgoingReturnEdges().isEmpty()).stream()
-                        .flatMap(n -> n.outgoingReturnEdges().stream())
-                        .map(EdgeInfo::nodeId)
-                        .collect(Collectors.toSet());
+                Predicate<String> filter;
+                if (thread.getCurrentFrame().getLocalThreadIndex() != thread.getPreviousFrame().getLocalThreadIndex()) {
+                    // If thread exit then control flow will not return to parent frame. No information to filter with so simply allow all possible nodes.
+                    filter = _id -> true;
+                } else {
+                    // If not thread exit then filter possible nodes after function call in parent frame to those that are also possible return targets of current frame.
+                    Set<String> returnNodeIds = findMatchingNodes(currentNode, NodeInfo::outgoingCFGEdges, e -> !e.outgoingReturnEdges().isEmpty()).stream()
+                            .flatMap(n -> n.outgoingReturnEdges().stream())
+                            .map(EdgeInfo::nodeId)
+                            .collect(Collectors.toSet());
+                    filter = returnNodeIds::contains;
+                }
 
                 NodeInfo currentCallNode = thread.getPreviousFrame().getNode();
                 List<String> candidateTargetNodeIds = currentCallNode.outgoingCFGEdges().stream()
                         .map(EdgeInfo::nodeId)
-                        .filter(returnNodeIds::contains)
+                        .filter(filter)
                         .toList();
 
                 if (candidateTargetNodeIds.isEmpty()) {
@@ -458,11 +458,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             if (!targetNodes.isEmpty()) {
                 clearThreads();
                 for (var node : targetNodes) {
-                    var state = new ThreadState(
+                    var thread = new ThreadState(
                             "breakpoint " + node.nodeId(),
                             assembleStackTrace(node)
                     );
-                    threads.put(newThreadId(), state);
+                    addThread(thread);
                 }
 
                 var event = new StoppedEventArguments();
@@ -485,34 +485,45 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     }
 
     /**
-     * Steps all threads to given CFG node.
+     * Steps all threads along an edge matching primaryTargetEdge.
+     * Edges are matched by ARG node. If no edge with matching ARG node is found then edges are matched by CFG node.
+     * If no edge with matching CFG node is found then thread becomes unavailable.
      *
-     * @throws IllegalFormatException if the target node is ambiguous ie there are multiple candidate edges that have the target CFG node.
+     * @throws ResponseErrorException if the target node is ambiguous ie there are multiple candidate edges that have the target CFG node.
      */
-    private void stepAllThreadsToCFGNode(String targetCFGNodeId, Function<NodeInfo, List<? extends EdgeInfo>> candidateEdges, boolean addFrame) {
+    private CompletableFuture<Void> stepAllThreadsAlongMatchingEdge(int primaryThreadId, EdgeInfo primaryTargetEdge, Function<NodeInfo, List<? extends EdgeInfo>> getCandidateEdges, boolean addFrame) {
         // Note: It is important that all threads, including threads with unavailable location, are stepped, because otherwise the number of added stack frames could get out of sync.
         List<Pair<ThreadState, EdgeInfo>> steps = new ArrayList<>();
         for (var thread : threads.values()) {
+            // This is will throw if there are multiple distinct target edges with the same target CFG node.
+            // TODO: Somehow ensure this can never happen.
+            //  Options:
+            //  * Throw error (current approach) (problem: might make it impossible to step at all in some cases. it is difficult to provide meaningful error messages for all cases)
+            //  * Split thread into multiple threads. (problem: complicates 'step back' and maintaining thread ordering)
+            //  * Identify true source of branching and use it to disambiguate (problem: there might not be a source of branching in all cases. complicates stepping logic)
+            //  * Make ambiguous threads unavailable (problem: complicates mental model of when threads become unavailable.)
             EdgeInfo targetEdge;
             if (thread.getCurrentFrame().getNode() == null) {
                 targetEdge = null;
             } else {
-                // This is unsound if there can be multiple distinct target edges with the same target CFG node.
-                // This is possible when stepping over / out of function with internal path sensitive branching.
-                // This may also be possible when stepping in results in multiple context of the same function.
-                // TODO: Somehow ensure this can never happen.
-                //  Options:
-                //  * Throw error (current approach) (problem: might make it impossible to step at all in some cases. in some cases meaningful error messages and strict correctness are at odds)
-                //  * Split thread into multiple threads. (problem: complicates 'step back' and maintaining thread ordering)
-                //  * Identify true source of branching and use it to disambiguate (problem: there might not be a source of branching in all cases. complicates stepping logic)
-                //  * Make ambiguous threads unavailable (problem: complicates mental model of when threads become unavailable. breaks 'step into targets' relying on this for stepping all threads)
-                List<? extends EdgeInfo> targetEdges = candidateEdges.apply(thread.getCurrentFrame().getNode()).stream()
-                        .filter(e -> e.cfgNodeId().equals(targetCFGNodeId))
-                        .toList();
-                if (targetEdges.size() > 1) {
-                    throw new IllegalStateException("Invariant violated for " + thread.getName() + ". Expected 1 ARG node with CFG node " + targetCFGNodeId + " but found " + targetEdges.size() + ".");
+                List<? extends EdgeInfo> candidateEdges = getCandidateEdges.apply(thread.getCurrentFrame().getNode());
+                EdgeInfo targetEdgeByARGNode = candidateEdges.stream()
+                        .filter(e -> e.nodeId().equals(primaryTargetEdge.nodeId()))
+                        .findAny().orElse(null);
+                if (targetEdgeByARGNode != null) {
+                    targetEdge = targetEdgeByARGNode;
+                } else {
+                    List<? extends EdgeInfo> targetEdgesByCFGNode = candidateEdges.stream()
+                            .filter(e -> e.cfgNodeId().equals(primaryTargetEdge.cfgNodeId()))
+                            .toList();
+                    if (targetEdgesByCFGNode.size() > 1) {
+                        // Log error because if 'Step into target' menu is open then errors returned by this function are not shown in VSCode.
+                        // TODO: Open issue about this in VSCode issue tracker.
+                        log.error("Cannot step. Path is ambiguous for " + thread.getName() + ".");
+                        return CompletableFuture.failedFuture(userFacingError("Cannot step. Path is ambiguous for " + thread.getName() + "."));
+                    }
+                    targetEdge = targetEdgesByCFGNode.size() == 1 ? targetEdgesByCFGNode.get(0) : null;
                 }
-                targetEdge = targetEdges.size() == 1 ? targetEdges.get(0) : null;
             }
 
             steps.add(Pair.of(thread, targetEdge));
@@ -528,6 +539,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 thread.getCurrentFrame().setNode(targetNode);
             }
         }
+
+        sendStepStopEvent(primaryThreadId);
+
+        return CompletableFuture.completedFuture(null);
     }
 
     private void sendStepStopEvent(int primaryThreadId) {
@@ -657,7 +672,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                     .collect(Collectors.joining(", ")) + "}";
         } else if (value.isJsonObject()) {
             return "{" + value.getAsJsonObject().entrySet().stream()
-                    .map(e -> e.getKey() + ": " + domainValueToString(e.getValue())) + "}";
+                    .map(e -> e.getKey() + ": " + domainValueToString(e.getValue()))
+                    .collect(Collectors.joining(", ")) + "}";
         } else {
             throw new IllegalArgumentException("Unknown domain value type: " + value.getClass());
         }
@@ -665,20 +681,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     // Helper methods:
 
-    /**
-     * Queues an action that should be executed after the response for the current request has been sent.
-     * Note: The current implementation has a race condition and does not in fact guarantee that the action is executed after the response is sent.
-     */
-    private void queueAfterSendAction(Runnable action) {
-        backgroundExecutorService.submit(() -> {
-            java.lang.Thread.sleep(20);
-            action.run();
-            return null;
-        });
-    }
-
-    private int newThreadId() {
-        return nextThreadId.getAndIncrement();
+    private void addThread(ThreadState thread) {
+        threads.put(nextThreadId.getAndIncrement(), thread);
     }
 
     private void clearThreads() {
