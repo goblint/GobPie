@@ -54,8 +54,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     private final Map<Integer, ThreadState> threads = new LinkedHashMap<>();
 
     private final Map<String, Scope[]> nodeScopes = new HashMap<>();
-    private final Map<Integer, Variable[]> storedVariables = new HashMap<>();
-    private final AtomicInteger nextVariablesReference = new AtomicInteger(1);
+    private final List<Variable[]> storedVariables = new ArrayList<>();
 
     private final Logger log = LogManager.getLogger(AbstractDebuggingServer.class);
 
@@ -629,7 +628,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<VariablesResponse> variables(VariablesArguments args) {
         var response = new VariablesResponse();
-        response.setVariables(storedVariables.get(args.getVariablesReference()));
+        response.setVariables(getVariables(args.getVariablesReference()));
         return CompletableFuture.completedFuture(response);
     }
 
@@ -719,10 +718,13 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
     }
 
+    private Variable[] getVariables(int variablesReference) {
+        return storedVariables.get(variablesReference - 1);
+    }
+
     private int storeVariables(Variable[] variables) {
-        int variablesReference = nextVariablesReference.getAndIncrement();
-        storedVariables.put(variablesReference, variables);
-        return variablesReference;
+        storedVariables.add(variables);
+        return storedVariables.size();
     }
 
     /**
@@ -730,7 +732,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
      * Notifies client that threads have stopped and clears caches that should be invalidated whenever thread state changes.)
      */
     private void onThreadsStopped(String stopReason, int primaryThreadId) {
-        nextVariablesReference.set(1);
         storedVariables.clear();
         nodeScopes.clear();
 
