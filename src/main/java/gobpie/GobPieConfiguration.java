@@ -8,12 +8,13 @@ package gobpie;
  * @author Karoliine Holter
  * @since 0.0.2
  */
-
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public class GobPieConfiguration {
 
     private String goblintConf;
     private String[] preAnalyzeCommand;
-    private Boolean showCfg;
+    private boolean showCfg = false;
+    private boolean incrementalAnalysis = true;
 
     public String getGoblintConf() {
         return this.goblintConf;
@@ -24,8 +25,12 @@ public class GobPieConfiguration {
         return this.preAnalyzeCommand;
     }
 
-    public Boolean getshowCfg() {
+    public boolean getShowCfg() {
         return this.showCfg;
+    }
+
+    public boolean useIncrementalAnalysis() {
+        return incrementalAnalysis;
     }
 
 }
