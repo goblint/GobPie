@@ -53,9 +53,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     private int activeBreakpoint = -1;
     private final Map<Integer, ThreadState> threads = new LinkedHashMap<>();
 
-    private final Map<Integer, Scope[]> frameScopes = new HashMap<>();
-    private final Map<Integer, Variable> variables = new HashMap<>();
-    private final AtomicInteger nextVariableReference = new AtomicInteger(1);
+    private final Map<String, Scope[]> nodeScopes = new HashMap<>();
+    private final Map<Integer, Variable[]> storedVariables = new HashMap<>();
+    private final AtomicInteger nextVariablesReference = new AtomicInteger(1);
 
     private final Logger log = LogManager.getLogger(AbstractDebuggingServer.class);
 
@@ -589,53 +589,47 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<ScopesResponse> scopes(ScopesArguments args) {
-        // TODO: Support multiple scopes
+        var frame = getFrame(args.getFrameId());
+        if (frame.getNode() == null) {
+            throw new IllegalStateException("Attempt to request variables for unavailable frame " + args.getFrameId());
+        }
 
-        var scope = new Scope();
-        scope.setName("All");
-        scope.setVariablesReference(args.getFrameId() + 1);
+        Scope[] scopes = nodeScopes.computeIfAbsent(frame.getNode().nodeId(), nodeId -> {
+            var state = lookupState(nodeId);
+
+            int allScopeReference = storeDomainValuesAsVariables(Stream.concat(
+                    Stream.of(Map.entry("<locked>", state.get("mutex"))),
+                    state.get("base").getAsJsonObject().get("value domain").getAsJsonObject()
+                            .entrySet().stream()
+                            // TODO: Temporary values should be shown when they are assigned to.
+                            // TODO: If the user creates a variable named tmp then it will be hidden as well.
+                            .filter(entry -> !entry.getKey().startsWith("tmp"))
+            ));
+
+            var allScope = new Scope();
+            allScope.setName("All");
+            allScope.setVariablesReference(allScopeReference);
+
+            int rawScopeReference = storeDomainValuesAsVariables(Stream.of(
+                    Map.entry("(arg/state)", state)
+            ));
+
+            var rawScope = new Scope();
+            rawScope.setName("Raw");
+            rawScope.setVariablesReference(rawScopeReference);
+
+            return new Scope[]{allScope, rawScope};
+        });
 
         var response = new ScopesResponse();
-        response.setScopes(new Scope[]{scope});
+        response.setScopes(scopes);
         return CompletableFuture.completedFuture(response);
     }
 
     @Override
     public CompletableFuture<VariablesResponse> variables(VariablesArguments args) {
-        // TODO: Support structured variables
-
-        var frame = getFrame(args.getVariablesReference() - 1);
-        if (frame.getNode() == null) {
-            throw new IllegalStateException("Attempt to request variables for unavailable frame " + (args.getVariablesReference() - 1));
-        }
-
-        var state = lookupState(frame.getNode().nodeId());
-
-        var stateVariable = new Variable();
-        stateVariable.setName("(arg/state)");
-        stateVariable.setValue(state.toString());
-        var lockedVariable = new Variable();
-        lockedVariable.setName("<locked>");
-        lockedVariable.setValue(domainValueToString(state.get("mutex")));
-        var stateValues = state.get("base").getAsJsonObject().get("value domain").getAsJsonObject();
-        var variables = Stream.concat(
-                        Stream.of(stateVariable, lockedVariable),
-                        stateValues.entrySet().stream()
-                                // TODO: Temporary values should be shown when they are assigned to.
-                                // TODO: If the user creates a variable named tmp then it will be hidden as well.
-                                .filter(entry -> !entry.getKey().startsWith("tmp"))
-                                .map(entry -> {
-                                    var variable = new Variable();
-                                    variable.setName(entry.getKey());
-                                    variable.setValue(domainValueToString(entry.getValue()));
-                                    //variable.setType("?");
-                                    return variable;
-                                })
-                )
-                .toArray(Variable[]::new);
-
         var response = new VariablesResponse();
-        response.setVariables(variables);
+        response.setVariables(storedVariables.get(args.getVariablesReference()));
         return CompletableFuture.completedFuture(response);
     }
 
@@ -656,6 +650,33 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         var response = new EvaluateResponse();
         response.setResult(domainValueToString(result.getRaw()));
         return CompletableFuture.completedFuture(response);
+    }
+
+    private int storeDomainValuesAsVariables(Stream<Map.Entry<String, JsonElement>> values) {
+        var variables = values
+                .map(entry -> {
+                    String name = entry.getKey();
+                    JsonElement value = entry.getValue();
+
+                    var variable = new Variable();
+                    variable.setName(entry.getKey());
+                    if (value.isJsonObject()) {
+                        variable.setValue(
+                                "{" + value.getAsJsonObject()
+                                        .keySet().stream()
+                                        .map(k -> k + ": …")
+                                        .collect(Collectors.joining(", ")) + "}"
+                        );
+                        variable.setVariablesReference(
+                                storeDomainValuesAsVariables(value.getAsJsonObject().entrySet().stream())
+                        );
+                    } else {
+                        variable.setValue(domainValueToString(value));
+                    }
+                    return variable;
+                })
+                .toArray(Variable[]::new);
+        return storeVariables(variables);
     }
 
     private String domainValueToString(JsonElement value) {
@@ -698,14 +719,20 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
     }
 
+    private int storeVariables(Variable[] variables) {
+        int variablesReference = nextVariablesReference.getAndIncrement();
+        storedVariables.put(variablesReference, variables);
+        return variablesReference;
+    }
+
     /**
      * Logic that should run every time after threads have stopped after a step or breakpoint.
      * Notifies client that threads have stopped and clears caches that should be invalidated whenever thread state changes.)
      */
     private void onThreadsStopped(String stopReason, int primaryThreadId) {
-        nextVariableReference.set(1);
-        variables.clear();
-        frameScopes.clear();
+        nextVariablesReference.set(1);
+        storedVariables.clear();
+        nodeScopes.clear();
 
         // Sending the stopped event before the response to the step request is a violation of the DAP spec.
         // There is no clean way to do the operations in the correct order with lsp4j (see https://github.com/eclipse/lsp4j/issues/229),
