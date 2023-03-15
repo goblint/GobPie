@@ -1,12 +1,9 @@
 package abstractdebugging;
 
 import api.GoblintService;
-import api.messages.ARGNodeParams;
-import api.messages.GoblintLocation;
-import api.messages.LookupParams;
+import api.messages.*;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.kitfox.svg.A;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,6 +19,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -236,8 +234,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<StepInTargetsResponse> stepInTargets(StepInTargetsArguments args) {
-        int threadId = args.getFrameId() / FRAME_ID_THREAD_ID_MULTIPLIER;
-        NodeInfo currentNode = threads.get(threadId).getCurrentFrame().getNode();
+        NodeInfo currentNode = getThreadByFrameId(args.getFrameId()).getCurrentFrame().getNode();
 
         List<StepInTarget> targets = new ArrayList<>();
         if (currentNode != null) {
@@ -569,7 +566,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             assert frame.getNode() != null;
 
             var stackFrame = new StackFrame();
-            stackFrame.setId(args.getThreadId() * FRAME_ID_THREAD_ID_MULTIPLIER + i);
+            stackFrame.setId(getFrameId(args.getThreadId(), i));
             // TODO: Notation for ambiguous frames and parent threads could be clearer.
             stackFrame.setName((frame.isAmbiguousFrame() ? "? " : "") + (frame.getLocalThreadIndex() != currentThreadId ? "^" : "") + frame.getNode().function() + " " + frame.getNode().nodeId());
             var location = frame.getNode().location();
@@ -607,11 +604,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     public CompletableFuture<VariablesResponse> variables(VariablesArguments args) {
         // TODO: Support structured variables
 
-        int threadId = (args.getVariablesReference() - 1) / FRAME_ID_THREAD_ID_MULTIPLIER;
-        int frameIndex = (args.getVariablesReference() - 1) % FRAME_ID_THREAD_ID_MULTIPLIER;
-        var frame = threads.get(threadId).getFrames().get(frameIndex);
+        var frame = getFrame(args.getVariablesReference() - 1);
         if (frame.getNode() == null) {
-            throw new IllegalStateException("Attempt to request variables for unavailable frame " + threadId + "[" + frameIndex + "]");
+            throw new IllegalStateException("Attempt to request variables for unavailable frame " + (args.getVariablesReference() - 1));
         }
 
         var state = lookupState(frame.getNode().nodeId());
@@ -644,6 +639,25 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(response);
     }
 
+    @Override
+    public CompletableFuture<EvaluateResponse> evaluate(EvaluateArguments args) {
+        var frame = getFrame(args.getFrameId());
+        if (frame.getNode() == null) {
+            throw new IllegalStateException("Attempt to evaluate expression in unavailable frame " + args.getFrameId());
+        }
+
+        EvalIntResult result;
+        try {
+            result = evaluateIntegerExpression(frame.getNode().nodeId(), args.getExpression());
+        } catch (RequestFailedException e) {
+            return CompletableFuture.failedFuture(userFacingError(e.getMessage()));
+        }
+
+        var response = new EvaluateResponse();
+        response.setResult(domainValueToString(result.getRaw()));
+        return CompletableFuture.completedFuture(response);
+    }
+
     private String domainValueToString(JsonElement value) {
         if (value.isJsonPrimitive()) {
             return value.getAsString();
@@ -661,6 +675,21 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     }
 
     // Helper methods:
+
+    private static int getFrameId(int threadId, int frameIndex) {
+        return threadId * FRAME_ID_THREAD_ID_MULTIPLIER + frameIndex;
+    }
+
+    private StackFrameState getFrame(int frameId) {
+        int threadId = frameId / FRAME_ID_THREAD_ID_MULTIPLIER;
+        int frameIndex = frameId % FRAME_ID_THREAD_ID_MULTIPLIER;
+        return threads.get(threadId).getFrames().get(frameIndex);
+    }
+
+    private ThreadState getThreadByFrameId(int frameId) {
+        int threadId = frameId / FRAME_ID_THREAD_ID_MULTIPLIER;
+        return threads.get(threadId);
+    }
 
     private void setThreads(List<ThreadState> newThreads) {
         threads.clear();
@@ -786,17 +815,36 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 .join();
     }
 
+    /**
+     * @throws RequestFailedException if the node was not found or multiple nodes were found
+     */
     private NodeInfo lookupNode(String nodeId) {
         var nodes = lookupNodes(new LookupParams(nodeId));
         return switch (nodes.size()) {
-            case 0 -> throw userFacingError("Node with id " + nodeId + " not found");
+            case 0 -> throw new RequestFailedException("Node with id " + nodeId + " not found");
             case 1 -> nodes.get(0);
-            default -> throw userFacingError("Multiple nodes with id " + nodeId + " found");
+            default -> throw new RequestFailedException("Multiple nodes with id " + nodeId + " found");
         };
     }
 
     private JsonObject lookupState(String nodeId) {
         return goblintService.arg_state(new ARGNodeParams(nodeId)).join();
+    }
+
+    /**
+     * @throws RequestFailedException if evaluating the expression failed, generally because the expression is syntactically or semantically invalid.
+     */
+    private EvalIntResult evaluateIntegerExpression(String nodeId, String expression) {
+        try {
+            return goblintService.arg_eval_int(new ARGExprQueryParams(nodeId, expression)).join();
+        } catch (CompletionException e) {
+            // Promote request failure to public API error because it is usually caused by the user entering an invalid expression
+            // and the error message contains useful info about why the expression was invalid.
+            if (e.getCause() instanceof ResponseErrorException re && re.getResponseError().getCode() == ResponseErrorCode.RequestFailed.getValue()) {
+                throw new RequestFailedException(re.getMessage());
+            }
+            throw e;
+        }
     }
 
 }

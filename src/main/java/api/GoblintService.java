@@ -59,6 +59,9 @@ public interface GoblintService {
     @JsonRequest("arg/state")
     CompletableFuture<JsonObject> arg_state(ARGNodeParams params);
 
+    @JsonRequest("arg/eval-int")
+    CompletableFuture<EvalIntResult> arg_eval_int(ARGExprQueryParams params);
+
     @JsonRequest
     CompletableFuture<Void> reset_config();
 
