@@ -10,7 +10,7 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Root level="DEBUG"> <!--  change info to debug here to see the debug logs while developing  -->
+        <Root level="INFO"> <!--  change info to debug here to see the debug logs while developing  -->
             <AppenderRef ref="stderr"/>
         </Root>
     </Loggers>
