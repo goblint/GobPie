@@ -88,7 +88,7 @@ public class Main {
         GobPieConfiguration gobpieConfiguration = gobPieConfReader.readGobPieConfiguration();
 
         // start GoblintServer
-        GoblintServer goblintServer = new GoblintServer(magpieServer);
+        GoblintServer goblintServer = new GoblintServer(magpieServer, gobpieConfiguration);
         goblintServer.startGoblintServer();
 
         // launch GoblintService
