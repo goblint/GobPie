@@ -2,9 +2,8 @@ import HTTPserver.GobPieHTTPServer;
 import analysis.GoblintAnalysis;
 import analysis.ShowCFGCommand;
 import api.GoblintService;
-import api.messages.Params;
-import api.GoblintClient;
 import api.GoblintServiceLauncher;
+import api.messages.Params;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
@@ -84,30 +83,27 @@ public class Main {
         // define language
         String language = "c";
 
-        // read gobpie configuration file
+        // read GobPie configuration file
         GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
         GobPieConfiguration gobpieConfiguration = gobPieConfReader.readGobPieConfiguration();
 
         // start GoblintServer
-        GoblintServer goblintServer = new GoblintServer(gobpieConfiguration.getGoblintConf(), magpieServer);
+        GoblintServer goblintServer = new GoblintServer(magpieServer);
         goblintServer.startGoblintServer();
 
-        // create GoblintClient
-        GoblintClient localEndpoint = new GoblintClient();
-
         // launch GoblintService
-        GoblintServiceLauncher.Builder builder = new GoblintServiceLauncher.Builder();
-        GoblintServiceLauncher goblintServiceLauncher = builder.create(localEndpoint);
-        goblintServiceLauncher.startListening();
-        GoblintService goblintService = localEndpoint.getServer();
+        GoblintServiceLauncher launcher = new GoblintServiceLauncher();
+        GoblintService goblintService = launcher.connect(goblintServer.getGoblintSocket());
 
         // read Goblint configurations
-        goblintService.read_config(new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath()))
-                .whenComplete((res, ex) -> {
-                    String msg = "Goblint was unable to successfully read the new configuration. " + ex.getMessage();
+        goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath()))
+                .exceptionally(ex -> {
+                    String msg = "Goblint was unable to successfully read the configuration: " + ex.getMessage();
                     magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
                     log.error(msg);
-                });
+                    return null;
+                })
+                .join();
 
         // add analysis to the MagpieServer
         ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobpieConfiguration);
@@ -115,7 +111,7 @@ public class Main {
         magpieServer.addAnalysis(analysis, language);
 
         // add HTTP server for showing CFGs, only if the option is specified in the configuration
-        if (gobpieConfiguration.showCfg() != null && gobpieConfiguration.showCfg()) {
+        if (gobpieConfiguration.showCfg()) {
             String httpServerAddress = new GobPieHTTPServer(goblintService).start();
             magpieServer.addHttpServer(httpServerAddress);
             magpieServer.addCommand("showcfg", new ShowCFGCommand(httpServerAddress));
