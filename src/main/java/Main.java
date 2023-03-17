@@ -126,7 +126,7 @@ public class Main {
 
     private static void forwardErrorMessageToClient(String popUpMessage, String terminalMessage) {
         magpieServer.forwardMessageToClient(
-                new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Please check the output terminal of GobPie extension for more information.")
+                new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Check the output terminal of GobPie extension for more information.")
         );
         log.error(terminalMessage);
     }
