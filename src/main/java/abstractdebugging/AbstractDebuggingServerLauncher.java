@@ -73,6 +73,7 @@ public class AbstractDebuggingServerLauncher {
         while (true) {
             try {
                 AFUNIXSocket clientSocket = serverSocket.accept();
+                log.info("Accepted new connection to abstract debugging server.");
 
                 AbstractDebuggingServer abstractDebuggingServer = new AbstractDebuggingServer(goblintService);
                 Launcher<IDebugProtocolClient> launcher = new DebugLauncher.Builder<IDebugProtocolClient>()
