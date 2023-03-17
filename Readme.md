@@ -10,12 +10,24 @@ The Integration of the static analyzer [Goblint](https://github.com/goblint/anal
 2. Download [GobPie plugin](https://nightly.link/goblint/GobPie/workflows/build/master/gobpie-plugin.zip) and unzip the archive.
 3. Install the extension into VSCode with `code --install-extension gobpie-0.0.3.vsix`.
 
-When installing goblint locally (as recommended), **make sure that the right opam switch is activated when starting vscode**:
-```
-eval $(opam env --switch=<switch name> --set-switch)
-code .
-```
-The *switch name* (shown in the first column of `opam switch`) is the path to the goblint installation.
+When installing goblint locally (as recommended), **make sure that GobPie can find the correct version Goblint**.
+This can be done in two ways:
+
+* Setting the location of the Goblint executable used by GobPie in `gobpie.json`:
+  ```json
+  // gobpie.json
+  {
+    "goblintExecutable": "<installation path>/goblint"
+  }
+  ```
+  The *installation path* is the path to your Goblint installation.
+
+* Activating the right opam switch when starting vscode:
+  ```shell
+  eval $(opam env --switch=<switch name> --set-switch)
+  code .
+  ```
+  The *switch name* (shown in the first column of `opam switch`) is the path to your Goblint installation.
 
 ### Project prerequisites
 
@@ -29,14 +41,18 @@ Example GobPie configuration file `gobpie.json`:
 ```
 {
     "goblintConf" : "goblint.json",
+    "goblintExecutable": "/home/user/goblint/analyzer/goblint",
     "preAnalyzeCommand" : ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"],
-    "showCfg": true
+    "showCfg": true,
+    "incrementalAnalysis": false
 }
 ```
 
-* `goblintConf` - the relative path from project root to the goblint configuration file (required)
+* `goblintConf` - the relative path from project root to the Goblint configuration file (required)
+* `goblintExecutable` - the absolute or relative path to the Goblint executable (optional, default `goblint`, meaning Goblint is expected to be on `PATH`)
 * `preAnalyzeCommand` - the command to run before analysing (e.g. command for building/updating the compilation database for some automation) (optional)
-* `showCfg` - if the code actions for showing function's CFGs are shown
+* `showCfg` - if the code actions for showing function's CFGs are shown (optional, default `false`)
+* `incrementalAnalyisis` - if Goblint should use incremental analysis (disabling this may in some cases improve stability of Goblint) (optional, default `true`)
 
 #### Goblint configuration
 
@@ -71,5 +87,5 @@ vsce package
 ## To test the extension
 
 1. Clone the [demo project](https://github.com/karoliineh/GoblintAnalyzer-DemoProject)
-2. In the repository's folder, activate the right opam switch.
+2. In the repository's folder, set correct Goblint path in `gobpie.json` or activate the right opam switch.
 3. Open the project in VSCode.
