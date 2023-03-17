@@ -11,10 +11,15 @@ package gobpie;
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public class GobPieConfiguration {
 
+    private String goblintExecutable = "goblint";
     private String goblintConf;
     private String[] preAnalyzeCommand;
     private boolean showCfg = false;
     private boolean incrementalAnalysis = true;
+
+    public String getGoblintExecutable() {
+        return this.goblintExecutable;
+    }
 
     public String getGoblintConf() {
         return this.goblintConf;

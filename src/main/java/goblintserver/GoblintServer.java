@@ -1,5 +1,6 @@
 package goblintserver;
 
+import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
 import org.apache.logging.log4j.LogManager;
@@ -35,6 +36,7 @@ public class GoblintServer {
     private static final String GOBLINT_SOCKET = "goblint.sock";
 
     private final MagpieServer magpieServer;
+    private final GobPieConfiguration configuration;
     private final String[] goblintRunCommand;
 
     private StartedProcess goblintRunProcess;
@@ -42,8 +44,9 @@ public class GoblintServer {
     private final Logger log = LogManager.getLogger(GoblintServer.class);
 
 
-    public GoblintServer(MagpieServer magpieServer) {
+    public GoblintServer(MagpieServer magpieServer, GobPieConfiguration configuration) {
         this.magpieServer = magpieServer;
+        this.configuration = configuration;
         this.goblintRunCommand = constructGoblintRunCommand();
     }
 
@@ -62,7 +65,7 @@ public class GoblintServer {
      */
     private String[] constructGoblintRunCommand() {
         return new String[]{
-                "goblint",
+                configuration.getGoblintExecutable(),
                 "--enable", "exp.arg",
                 "--enable", "server.enabled",
                 "--enable", "server.reparse",

@@ -38,7 +38,7 @@ public class Main {
             GobPieConfiguration gobpieConfiguration = gobPieConfReader.readGobPieConfiguration();
 
             // Start GoblintServer
-            GoblintServer goblintServer = startGoblintServer(magpieServer);
+            GoblintServer goblintServer = startGoblintServer(magpieServer, gobpieConfiguration);
 
             // Connect GoblintService and read configuration
             GoblintService goblintService = connectGoblintService(magpieServer, gobpieConfiguration, goblintServer);
@@ -90,8 +90,8 @@ public class Main {
      *
      * @throws GobPieException if running the server start command fails
      */
-    private static GoblintServer startGoblintServer(MagpieServer magpieServer) {
-        GoblintServer goblintServer = new GoblintServer(magpieServer);
+    private static GoblintServer startGoblintServer(MagpieServer magpieServer, GobPieConfiguration gobpieConfiguration) {
+        GoblintServer goblintServer = new GoblintServer(magpieServer, gobpieConfiguration);
         if (log.isDebugEnabled()) {
             log.debug("Goblint version info:\n" + goblintServer.checkGoblintVersion());
         }
