@@ -44,7 +44,7 @@ public interface GoblintService {
     CompletableFuture<GoblintCFGResult> cfg_dot(Params params);
 
     @JsonRequest("cfg/lookup")
-    CompletableFuture<JsonElement> cfg_lookup(LookupParams params);
+    CompletableFuture<GoblintCFGLookupResult> cfg_lookup(CFGLookupParams params);
 
     // request:  {"jsonrpc":"2.0","id":0,"method":"node_state","params":{"nid":"fun2783"}}
     @JsonRequest("node_state")

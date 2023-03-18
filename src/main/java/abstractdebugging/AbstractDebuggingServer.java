@@ -15,6 +15,7 @@ import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.*;
@@ -48,7 +49,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     private IDebugProtocolClient client;
     private CompletableFuture<Void> configurationDoneFuture = new CompletableFuture<>();
 
-    private final List<GoblintLocation> breakpoints = new ArrayList<>();
+    private final List<BreakpointInfo> breakpoints = new ArrayList<>();
     private int activeBreakpoint = -1;
     private final Map<Integer, ThreadState> threads = new LinkedHashMap<>();
 
@@ -75,6 +76,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         capabilities.setSupportsConfigurationDoneRequest(true);
         capabilities.setSupportsStepInTargetsRequest(true);
         capabilities.setSupportsStepBack(true);
+        capabilities.setSupportsConditionalBreakpoints(true);
         return CompletableFuture.completedFuture(capabilities);
     }
 
@@ -84,29 +86,65 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         String sourcePath = Path.of(System.getProperty("user.dir")).relativize(Path.of(args.getSource().getPath())).toString();
         log.info("Setting breakpoints for " + args.getSource().getPath() + " (" + sourcePath + ")");
 
-        List<GoblintLocation> newBreakpoints = Arrays.stream(args.getBreakpoints())
-                .map(breakpoint -> new GoblintLocation(
-                        sourcePath,
-                        breakpoint.getLine(),
-                        breakpoint.getColumn() == null ? 0 : breakpoint.getColumn()
-                ))
-                .toList();
+        List<Breakpoint> newBreakpointStatuses = new ArrayList<>();
+        List<BreakpointInfo> newBreakpoints = new ArrayList<>();
+        for (var breakpoint : args.getBreakpoints()) {
+            var breakpointStatus = new Breakpoint();
+            newBreakpointStatuses.add(breakpointStatus);
 
-        breakpoints.removeIf(b -> b.getFile().equals(sourcePath));
+            var targetLocation = new GoblintLocation(sourcePath, breakpoint.getLine(), breakpoint.getColumn() == null ? 0 : breakpoint.getColumn());
+            CFGNodeInfo cfgNode;
+            try {
+                cfgNode = lookupCFGNode(targetLocation);
+            } catch (RequestFailedException e) {
+                breakpointStatus.setVerified(false);
+                breakpointStatus.setMessage("No statement found at location " + targetLocation);
+                continue;
+            }
+            breakpointStatus.setSource(args.getSource());
+            breakpointStatus.setLine(cfgNode.location().getLine());
+            breakpointStatus.setColumn(cfgNode.location().getColumn());
+
+            ConditionalExpression condition;
+            if (breakpoint.getCondition() == null) {
+                condition = null;
+            } else {
+                try {
+                    condition = ConditionalExpression.fromString(breakpoint.getCondition());
+                } catch (IllegalArgumentException e) {
+                    breakpointStatus.setVerified(false);
+                    breakpointStatus.setMessage(e.getMessage());
+                    continue;
+                }
+            }
+
+            List<NodeInfo> targetNodes;
+            try {
+                targetNodes = findTargetNodes(cfgNode, condition);
+            } catch (IllegalArgumentException e) {
+                breakpointStatus.setVerified(false);
+                // VSCode seems to use code formatting rules for conditional breakpoint messages.
+                // The character ' causes VSCode to format any following text as a string, which looks strange and causes unwanted line breaks.
+                // As a workaround all ' characters are replaced with a different Unicode apostrophe.
+                // TODO: Find a way to fix this without manipulating the error message.
+                breakpointStatus.setMessage(e.getMessage().replace('\'', '’'));
+                continue;
+            }
+
+            newBreakpoints.add(new BreakpointInfo(cfgNode, condition, targetNodes));
+            if (targetNodes.isEmpty()) {
+                breakpointStatus.setVerified(false);
+                breakpointStatus.setMessage("Unreachable");
+            } else {
+                breakpointStatus.setVerified(true);
+            }
+        }
+
+        breakpoints.removeIf(b -> b.cfgNode().location().getFile().equals(sourcePath));
         breakpoints.addAll(newBreakpoints);
 
         var response = new SetBreakpointsResponse();
-        var setBreakpoints = newBreakpoints.stream()
-                .map(location -> {
-                    var breakpoint = new Breakpoint();
-                    breakpoint.setLine(location.getLine());
-                    breakpoint.setColumn(location.getColumn());
-                    breakpoint.setSource(args.getSource());
-                    breakpoint.setVerified(true);
-                    return breakpoint;
-                })
-                .toArray(Breakpoint[]::new);
-        response.setBreakpoints(setBreakpoints);
+        response.setBreakpoints(newBreakpointStatuses.toArray(Breakpoint[]::new));
         return CompletableFuture.completedFuture(response);
     }
 
@@ -116,6 +154,27 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         var response = new SetExceptionBreakpointsResponse();
         response.setBreakpoints(new Breakpoint[0]);
         return CompletableFuture.completedFuture(response);
+    }
+
+    private List<NodeInfo> findTargetNodes(CFGNodeInfo cfgNode, @Nullable ConditionalExpression condition) {
+        var candidateNodes = lookupNodes(LookupParams.byCFGNodeId(cfgNode.cfgNodeId()));
+        if (condition == null) {
+            return candidateNodes;
+        } else {
+            try {
+                return candidateNodes.stream()
+                        .filter(n -> {
+                            var result = evaluateIntegerExpression(n.nodeId(), "!!(" + condition.expression() + ")");
+                            return switch (condition.mode()) {
+                                case MAY -> result.mayBeBool(true);
+                                case MUST -> result.mustBeBool(true);
+                            };
+                        })
+                        .toList();
+            } catch (RequestFailedException e) {
+                throw new IllegalArgumentException("Error evaluating condition: " + e.getMessage());
+            }
+        }
     }
 
     @Override
@@ -438,18 +497,12 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             if (breakpoints.size() == 0) {
                 stopReason = "entry";
                 targetLocation = null;
-                targetNodes = lookupNodes(new LookupParams());
+                targetNodes = lookupNodes(LookupParams.entryPoint());
             } else {
+                var breakpoint = breakpoints.get(activeBreakpoint);
                 stopReason = "breakpoint";
-                targetLocation = breakpoints.get(activeBreakpoint);
-                targetNodes = lookupNodes(new LookupParams(targetLocation)).stream()
-                        .filter(n -> n.location().getLine() <= targetLocation.getLine() && targetLocation.getLine() <= n.location().getEndLine())
-                        .toList();
-                if (!targetNodes.isEmpty()) {
-                    // TODO: Instead we should get the first matching CFG node and then request corresponding ARG nodes for that.
-                    String cfgNodeId = targetNodes.get(0).cfgNodeId();
-                    targetNodes = targetNodes.stream().filter(n -> n.cfgNodeId().equals(cfgNodeId)).toList();
-                }
+                targetLocation = breakpoint.cfgNode().location();
+                targetNodes = breakpoint.targetNodes();
             }
 
             if (!targetNodes.isEmpty()) {
@@ -465,7 +518,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 return;
             }
 
-            // TODO: Should somehow notify the client that the breakpoint is unreachable?
             log.info("Skipped unreachable breakpoint " + activeBreakpoint + " (" + targetLocation + ")");
         }
 
@@ -846,12 +898,23 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
      * @throws RequestFailedException if the node was not found or multiple nodes were found
      */
     private NodeInfo lookupNode(String nodeId) {
-        var nodes = lookupNodes(new LookupParams(nodeId));
+        var nodes = lookupNodes(LookupParams.byNodeId(nodeId));
         return switch (nodes.size()) {
             case 0 -> throw new RequestFailedException("Node with id " + nodeId + " not found");
             case 1 -> nodes.get(0);
             default -> throw new RequestFailedException("Multiple nodes with id " + nodeId + " found");
         };
+    }
+
+    private CFGNodeInfo lookupCFGNode(GoblintLocation location) {
+        try {
+            return goblintService.cfg_lookup(CFGLookupParams.byLocation(location)).join().toCFGNodeInfo();
+        } catch (CompletionException e) {
+            if (isRequestFailedError(e.getCause())) {
+                throw new RequestFailedException(e.getCause().getMessage());
+            }
+            throw e;
+        }
     }
 
     private JsonObject lookupState(String nodeId) {
@@ -867,11 +930,15 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         } catch (CompletionException e) {
             // Promote request failure to public API error because it is usually caused by the user entering an invalid expression
             // and the error message contains useful info about why the expression was invalid.
-            if (e.getCause() instanceof ResponseErrorException re && re.getResponseError().getCode() == ResponseErrorCode.RequestFailed.getValue()) {
-                throw new RequestFailedException(re.getMessage());
+            if (isRequestFailedError(e.getCause())) {
+                throw new RequestFailedException(e.getCause().getMessage());
             }
             throw e;
         }
+    }
+
+    private static boolean isRequestFailedError(Throwable e) {
+        return e instanceof ResponseErrorException re && re.getResponseError().getCode() == ResponseErrorCode.RequestFailed.getValue();
     }
 
 }
