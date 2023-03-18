@@ -77,7 +77,7 @@ public class GoblintServer {
 
     private String[] constructGoblintVersionCheckCommand() {
         return new String[]{
-                "goblint",
+                configuration.getGoblintExecutable(),
                 "--version"
         };
     }
