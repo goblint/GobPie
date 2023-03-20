@@ -1,8 +1,6 @@
 package api;
 
-import HTTPserver.GobPieHttpHandler;
 import api.messages.*;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 
@@ -61,6 +59,9 @@ public interface GoblintService {
 
     @JsonRequest("arg/eval-int")
     CompletableFuture<EvalIntResult> arg_eval_int(ARGExprQueryParams params);
+
+    @JsonRequest("cil/varinfos")
+    CompletableFuture<List<GoblintVarinfo>> cil_varinfos();
 
     @JsonRequest
     CompletableFuture<Void> reset_config();

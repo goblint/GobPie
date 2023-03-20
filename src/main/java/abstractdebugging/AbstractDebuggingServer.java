@@ -2,6 +2,7 @@ package abstractdebugging;
 
 import api.GoblintService;
 import api.messages.*;
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.tuple.Pair;
@@ -24,7 +25,6 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
@@ -43,6 +43,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
      * Frame id is calculated as threadId * FRAME_ID_THREAD_ID_MULTIPLIER + frameIndex.
      */
     private static final int FRAME_ID_THREAD_ID_MULTIPLIER = 100_000;
+
+    private static final Gson GSON_DEFAULT = new Gson();
 
     private final GoblintService goblintService;
 
@@ -645,30 +647,55 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
 
         Scope[] scopes = nodeScopes.computeIfAbsent(frame.getNode().nodeId(), nodeId -> {
-            var state = lookupState(nodeId);
+            JsonObject state = lookupState(nodeId);
+            String function = frame.getNode().function();
 
-            int allScopeReference = storeDomainValuesAsVariables(Stream.concat(
-                    Stream.of(Map.entry("<locked>", state.get("mutex"))),
-                    state.get("base").getAsJsonObject().get("value domain").getAsJsonObject()
-                            .entrySet().stream()
-                            // TODO: Temporary values should be shown when they are assigned to.
-                            // TODO: If the user creates a variable named tmp then it will be hidden as well.
-                            .filter(entry -> !entry.getKey().startsWith("tmp"))
-            ));
+            Map<String, GoblintVarinfo> varinfos = getVarinfos().stream()
+                    .filter(v -> v.getFunction() == null || v.getFunction().equals(function))
+                    .collect(Collectors.toMap(GoblintVarinfo::getName, v -> v));
 
-            var allScope = new Scope();
-            allScope.setName("All");
-            allScope.setVariablesReference(allScopeReference);
+            List<Variable> localVariables = new ArrayList<>();
+            List<Variable> globalVariables = new ArrayList<>();
 
-            int rawScopeReference = storeDomainValuesAsVariables(Stream.of(
-                    Map.entry("(arg/state)", state)
-            ));
+            globalVariables.add(domainValueToVariable("<locked>", state.get("mutex")));
 
-            var rawScope = new Scope();
-            rawScope.setName("Raw");
-            rawScope.setVariablesReference(rawScopeReference);
+            Set<Map.Entry<String, JsonElement>> domainValues = state.get("base").getAsJsonObject().get("value domain").getAsJsonObject().entrySet();
+            for (var entry : domainValues) {
+                var varinfo = varinfos.get(entry.getKey());
 
-            return new Scope[]{allScope, rawScope};
+                String name;
+                List<Variable> scope;
+                if (varinfo == null) {
+                    // Is special value.
+                    // Consider RETURN local but other special values such as allocations global.
+                    // TODO: RETURN special value can end up in globals if there is also a global variable RETURN. This needs changes on the Goblint side to fix.
+                    name = entry.getKey().startsWith("(") ? entry.getKey() : "(" + entry.getKey() + ")";
+                    scope = entry.getKey().equals("RETURN") ? localVariables : globalVariables;
+                } else if (varinfo.getOriginalName() != null) {
+                    // Is real variable.
+                    name = entry.getKey().equals(varinfo.getOriginalName()) ? entry.getKey() : varinfo.getOriginalName() + " (" + entry.getKey() + ")";
+                    scope = varinfo.getFunction() == null ? globalVariables : localVariables;
+                } else {
+                    // Is synthetic variable.
+                    // Hide synthetic variables because they are impossible to interpret without looking at the CFG.
+                    continue;
+                }
+
+                scope.add(domainValueToVariable(name, entry.getValue()));
+            }
+
+            // TODO: Add global invariants if/when possible
+
+            List<Variable> rawVariables = new ArrayList<>();
+            // TODO: Add global state
+            rawVariables.add(domainValueToVariable("(cil/varinfos)", GSON_DEFAULT.toJsonTree(varinfos)));
+            rawVariables.add(domainValueToVariable("(arg/state)", state));
+
+            return new Scope[]{
+                    scope("Local", localVariables),
+                    scope("Global", globalVariables),
+                    scope("Raw", rawVariables)
+            };
         });
 
         var response = new ScopesResponse();
@@ -702,40 +729,28 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(response);
     }
 
-    private int storeDomainValuesAsVariables(Stream<Map.Entry<String, JsonElement>> values) {
-        var variables = values
-                .map(entry -> {
-                    String name = entry.getKey();
-                    JsonElement value = entry.getValue();
-
-                    var variable = new Variable();
-                    variable.setName(entry.getKey());
-                    if (value.isJsonObject()) {
-                        variable.setValue(
-                                "{" + value.getAsJsonObject()
-                                        .keySet().stream()
-                                        .map(k -> k + ": …")
-                                        .collect(Collectors.joining(", ")) + "}"
-                        );
-                        variable.setVariablesReference(
-                                storeDomainValuesAsVariables(value.getAsJsonObject().entrySet().stream())
-                        );
-                    } else {
-                        variable.setValue(domainValueToString(value));
-                    }
-                    return variable;
-                })
-                .toArray(Variable[]::new);
-        return storeVariables(variables);
+    private Variable domainValueToVariable(String name, JsonElement value) {
+        Variable variable;
+        if (value.isJsonObject()) {
+            variable = compoundVariable(
+                    name,
+                    value.getAsJsonObject().entrySet().stream()
+                            .map(f -> domainValueToVariable(f.getKey(), f.getValue()))
+                            .toArray(Variable[]::new)
+            );
+        } else {
+            variable = variable(name, domainValueToString(value));
+        }
+        return variable;
     }
 
-    private String domainValueToString(JsonElement value) {
+    private static String domainValueToString(JsonElement value) {
         if (value.isJsonPrimitive()) {
             return value.getAsString();
         } else if (value.isJsonArray()) {
-            return "{" + StreamSupport.stream(value.getAsJsonArray().spliterator(), false)
-                    .map(this::domainValueToString)
-                    .collect(Collectors.joining(", ")) + "}";
+            return "[" + StreamSupport.stream(value.getAsJsonArray().spliterator(), false)
+                    .map(AbstractDebuggingServer::domainValueToString)
+                    .collect(Collectors.joining(", ")) + "]";
         } else if (value.isJsonObject()) {
             return "{" + value.getAsJsonObject().entrySet().stream()
                     .map(e -> e.getKey() + ": " + domainValueToString(e.getValue()))
@@ -743,6 +758,30 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         } else {
             throw new IllegalArgumentException("Unknown domain value type: " + value.getClass());
         }
+    }
+
+    private Scope scope(String name, List<Variable> variables) {
+        Scope scope = new Scope();
+        scope.setName(name);
+        scope.setVariablesReference(storeVariables(variables.toArray(Variable[]::new)));
+        return scope;
+    }
+
+    private Variable compoundVariable(String name, Variable... fields) {
+        Variable variable = new Variable();
+        variable.setName(name);
+        variable.setValue("{" + Arrays.stream(fields).map(f -> f.getName() + ": …").collect(Collectors.joining(", ")) + "}");
+        if (fields.length > 0) {
+            variable.setVariablesReference(storeVariables(fields));
+        }
+        return variable;
+    }
+
+    private static Variable variable(String name, String value) {
+        Variable variable = new Variable();
+        variable.setName(name);
+        variable.setValue(value);
+        return variable;
     }
 
     // Helper methods:
@@ -935,6 +974,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             }
             throw e;
         }
+    }
+
+    private List<GoblintVarinfo> getVarinfos() {
+        return goblintService.cil_varinfos().join();
     }
 
     private static boolean isRequestFailedError(Throwable e) {
