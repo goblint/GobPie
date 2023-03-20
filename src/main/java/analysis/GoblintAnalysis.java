@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -91,6 +92,12 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
     @Override
     public void analyze(Collection<? extends Module> files, AnalysisConsumer consumer, boolean rerun) {
+        if (!rerun) {
+            // According to MagpieBridge source code with doAnalysisByOpen = false and doAnalysisByFirstOpen = true,
+            // rerun is true iff either the first file was opened or a file was saved i.e. exactly the cases where analysis should be performed.
+            return;
+        }
+
         if (!goblintServer.getGoblintRunProcess().getProcess().isAlive()) {
             // Goblint server has crashed. Exit GobPie because without the server no analysis is possible.
             magpieServer.exit();
@@ -107,6 +114,8 @@ public class GoblintAnalysis implements ServerAnalysis {
             }
         }
 
+        magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, source() + " started analyzing the code."));
+
         refreshGoblintConfig();
 
         preAnalyse();
@@ -115,12 +124,15 @@ public class GoblintAnalysis implements ServerAnalysis {
         lastAnalysisTask = reanalyse().thenAccept(response -> {
             consumer.consume(new ArrayList<>(response), source());
             log.info("--------------------- Analysis finished ----------------------");
-        }).exceptionally(ex -> {
+            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, source() + " finished analyzing the code."));
+        }).exceptionally(e -> {
+            Throwable cause = e instanceof CompletionException ce ? ce.getCause() : e;
             // TODO: handle closed socket exceptions:
             //      org.eclipse.lsp4j.jsonrpc.JsonRpcException: java.net.SocketException: Broken pipe; errno=32
             //  and org.eclipse.lsp4j.jsonrpc.JsonRpcException: org.newsclub.net.unix.SocketClosedException: Not open
             log.error("--------------------- Analysis failed  ----------------------");
-            log.error(ex.getMessage());
+            log.error(cause);
+            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, source() + " failed to analyze the code:\n" + cause.getMessage()));
             return null;
         });
     }
