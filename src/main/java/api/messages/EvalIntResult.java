@@ -30,13 +30,17 @@ public class EvalIntResult {
         return bool;
     }
 
+    public boolean isTop() {
+        // TODO: Is this the only possible representation of top?
+        return raw.isJsonPrimitive() && "top".equals(raw.getAsString());
+    }
+
     public boolean isBot() {
         // TODO: Is this the only possible representation of bot?
         return raw.isJsonPrimitive() && "bot".equals(raw.getAsString());
     }
 
     public boolean mayBeBool(boolean bool) {
-        // TODO: Is excluding bot enough to make this sound?
         return mustBeBool(bool) || (!isBot() && this.bool == null);
     }
 

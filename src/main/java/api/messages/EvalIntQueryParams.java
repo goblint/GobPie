@@ -1,11 +1,11 @@
 package api.messages;
 
-public class ARGExprQueryParams {
+public class EvalIntQueryParams {
 
     private String node;
     private String exp;
 
-    public ARGExprQueryParams(String node, String exp) {
+    public EvalIntQueryParams(String node, String exp) {
         this.node = node;
         this.exp = exp;
     }

@@ -1,6 +1,7 @@
 package api;
 
 import api.messages.*;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 
@@ -58,10 +59,19 @@ public interface GoblintService {
     CompletableFuture<JsonObject> arg_state(ARGNodeParams params);
 
     @JsonRequest("arg/eval-int")
-    CompletableFuture<EvalIntResult> arg_eval_int(ARGExprQueryParams params);
+    CompletableFuture<EvalIntResult> arg_eval_int(EvalIntQueryParams params);
+
+    @JsonRequest("arg/eval")
+    CompletableFuture<JsonElement> arg_eval(EvalQueryParams params);
 
     @JsonRequest("cil/varinfos")
     CompletableFuture<List<GoblintVarinfo>> cil_varinfos();
+
+    @JsonRequest("richvarinfos")
+    CompletableFuture<JsonElement> richvarinfos();
+
+    //@JsonRequest("global-state")
+    //CompletableFuture<JsonElement> global_state(GlobalStateParams params);
 
     @JsonRequest
     CompletableFuture<Void> reset_config();

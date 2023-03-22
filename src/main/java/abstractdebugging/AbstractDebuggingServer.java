@@ -44,6 +44,18 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
      */
     private static final int FRAME_ID_THREAD_ID_MULTIPLIER = 100_000;
 
+    /**
+     * Set of built-in and standard library variables. They are generally hidden in variable views to reduce noise.
+     * List taken from <a href="https://github.com/goblint/analyzer/blob/master/src/framework/control.ml#L237-L243">is_std function in Goblint</a>.
+     */
+    private static final Set<String> STD_VARIABLES = Set.of(
+            "__tzname", "__daylight", "__timezone", "tzname", "daylight", "timezone", // unix time.h
+            "getdate_err", // unix time.h, but somehow always in MacOS even without include
+            "stdin", "stdout", "stderr", // standard stdio.h
+            "optarg", "optind", "opterr", "optopt", // unix unistd.h
+            "__environ" // Linux Standard Base Core Specification
+    );
+
     private static final Gson GSON_DEFAULT = new Gson();
 
     private final GoblintService goblintService;
@@ -647,49 +659,60 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
 
         Scope[] scopes = nodeScopes.computeIfAbsent(frame.getNode().nodeId(), nodeId -> {
-            JsonObject state = lookupState(nodeId);
-            String function = frame.getNode().function();
+            NodeInfo currentNode = frame.getNode();
 
+            JsonObject state = lookupState(currentNode.nodeId());
+            //JsonElement globalState = lookupGlobalState(GlobalStateParams.all());
             Map<String, GoblintVarinfo> varinfos = getVarinfos().stream()
-                    .filter(v -> v.getFunction() == null || v.getFunction().equals(function))
+                    .filter(v -> (v.getFunction() == null || v.getFunction().equals(currentNode.function())) && !"function".equals(v.getRole()))
                     .collect(Collectors.toMap(GoblintVarinfo::getName, v -> v));
 
             List<Variable> localVariables = new ArrayList<>();
             List<Variable> globalVariables = new ArrayList<>();
 
-            globalVariables.add(domainValueToVariable("<locked>", state.get("mutex")));
+            globalVariables.add(domainValueToVariable("<threadflag>", state.get("threadflag")));
+            globalVariables.add(domainValueToVariable("<mutex>", state.get("mutex")));
 
-            Set<Map.Entry<String, JsonElement>> domainValues = state.get("base").getAsJsonObject().get("value domain").getAsJsonObject().entrySet();
-            for (var entry : domainValues) {
-                var varinfo = varinfos.get(entry.getKey());
+            JsonObject domainValues = state.get("base").getAsJsonObject().get("value domain").getAsJsonObject();
 
-                String name;
-                List<Variable> scope;
-                if (varinfo == null) {
-                    // Is special value.
-                    // Consider RETURN local but other special values such as allocations global.
-                    // TODO: RETURN special value can end up in globals if there is also a global variable RETURN. This needs changes on the Goblint side to fix.
-                    name = entry.getKey().startsWith("(") ? entry.getKey() : "(" + entry.getKey() + ")";
-                    scope = entry.getKey().equals("RETURN") ? localVariables : globalVariables;
-                } else if (varinfo.getOriginalName() != null) {
-                    // Is real variable.
-                    name = entry.getKey().equals(varinfo.getOriginalName()) ? entry.getKey() : varinfo.getOriginalName() + " (" + entry.getKey() + ")";
-                    scope = varinfo.getFunction() == null ? globalVariables : localVariables;
-                } else {
-                    // Is synthetic variable.
+            // Add special values.
+            for (var entry : domainValues.entrySet()) {
+                if (varinfos.containsKey(entry.getKey()) || entry.getKey().startsWith("((alloc")) {
+                    // Hide normal variables because they are added later.
+                    // Hide allocations because they require manually matching identifiers to interpret.
+                    continue;
+                }
+                // In most cases the only remaining value is RETURN. Consider it local.
+                // TODO: RETURN special value can end up in globals if there is also a global variable RETURN. This needs changes on the Goblint side to fix.
+                localVariables.add(domainValueToVariable("(" + entry.getKey() + ")", entry.getValue()));
+            }
+
+            // Add variables.
+            for (var varinfo : varinfos.values()) {
+                if (varinfo.getOriginalName() == null || (varinfo.getFunction() == null && STD_VARIABLES.contains(varinfo.getOriginalName()))) {
                     // Hide synthetic variables because they are impossible to interpret without looking at the CFG.
+                    // Hide global built-in and standard library variables because they are generally irrelevant and not used in the analysis.
                     continue;
                 }
 
-                scope.add(domainValueToVariable(name, entry.getValue()));
+                String name = varinfo.getName().equals(varinfo.getOriginalName())
+                        ? varinfo.getName()
+                        : varinfo.getOriginalName() + " (" + varinfo.getName() + ")";
+                JsonElement value = domainValues.get(varinfo.getName());
+                if (value == null) {
+                    // If domain does not contain variable value use Goblint to evaluate the value.
+                    // This generally happens for global variables in multithreaded mode.
+                    value = evaluateExpression(currentNode.nodeId(), varinfo.getName());
+                }
+
+                List<Variable> scope = varinfo.getFunction() == null ? globalVariables : localVariables;
+
+                scope.add(domainValueToVariable(name, value));
             }
 
-            // TODO: Add global invariants if/when possible
-
             List<Variable> rawVariables = new ArrayList<>();
-            // TODO: Add global state
-            rawVariables.add(domainValueToVariable("(cil/varinfos)", GSON_DEFAULT.toJsonTree(varinfos)));
             rawVariables.add(domainValueToVariable("(arg/state)", state));
+            rawVariables.add(domainValueToVariable("(cil/varinfos)", GSON_DEFAULT.toJsonTree(varinfos)));
 
             return new Scope[]{
                     scope("Local", localVariables),
@@ -717,15 +740,17 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             throw new IllegalStateException("Attempt to evaluate expression in unavailable frame " + args.getFrameId());
         }
 
-        EvalIntResult result;
+        JsonElement result;
         try {
-            result = evaluateIntegerExpression(frame.getNode().nodeId(), args.getExpression());
+            result = evaluateExpression(frame.getNode().nodeId(), args.getExpression());
         } catch (RequestFailedException e) {
             return CompletableFuture.failedFuture(userFacingError(e.getMessage()));
         }
 
         var response = new EvaluateResponse();
-        response.setResult(domainValueToString(result.getRaw()));
+        var resultVariable = domainValueToVariable("", result);
+        response.setResult(resultVariable.getValue());
+        response.setVariablesReference(resultVariable.getVariablesReference());
         return CompletableFuture.completedFuture(response);
     }
 
@@ -965,10 +990,22 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
      */
     private EvalIntResult evaluateIntegerExpression(String nodeId, String expression) {
         try {
-            return goblintService.arg_eval_int(new ARGExprQueryParams(nodeId, expression)).join();
+            return goblintService.arg_eval_int(new EvalIntQueryParams(nodeId, expression)).join();
         } catch (CompletionException e) {
             // Promote request failure to public API error because it is usually caused by the user entering an invalid expression
             // and the error message contains useful info about why the expression was invalid.
+            if (isRequestFailedError(e.getCause())) {
+                throw new RequestFailedException(e.getCause().getMessage());
+            }
+            throw e;
+        }
+    }
+
+    private JsonElement evaluateExpression(String nodeId, String expression) {
+        try {
+            return goblintService.arg_eval(new EvalQueryParams(nodeId, expression)).join();
+        } catch (CompletionException e) {
+            // See note in evaluateIntegerExpression
             if (isRequestFailedError(e.getCause())) {
                 throw new RequestFailedException(e.getCause().getMessage());
             }
