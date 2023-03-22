@@ -30,7 +30,7 @@ public class Main {
 
     public static void main(String... args) {
 
-        MagpieServer magpieServer = createMagpieServer();
+        GoblintMagpieServer magpieServer = createMagpieServer();
 
         try {
             // Read GobPie configuration file
@@ -47,7 +47,7 @@ public class Main {
             addAnalysis(magpieServer, gobpieConfiguration, goblintServer, goblintService);
 
             // Launch magpieServer
-            magpieServer.launchOnStdio();
+            magpieServer.configurationDone();
             log.info("MagpieBridge server launched.");
 
             // Launch abstract debugging server
@@ -76,12 +76,17 @@ public class Main {
      * Method for creating and launching MagpieBridge server.
      */
 
-    private static MagpieServer createMagpieServer() {
+    private static GoblintMagpieServer createMagpieServer() {
         // set up configuration for MagpieServer
         ServerConfiguration serverConfig = new ServerConfiguration();
-        serverConfig.setDoAnalysisByFirstOpen(true);
         serverConfig.setUseMagpieHTTPServer(false);
-        return new MagpieServer(serverConfig);
+        GoblintMagpieServer magpieServer = new GoblintMagpieServer(serverConfig);
+
+        // launch MagpieServer
+        // note that the server will not accept messages until configurationDone is called
+        magpieServer.launchOnStdio();
+
+        return magpieServer;
     }
 
 
@@ -168,7 +173,7 @@ public class Main {
 
     private static void forwardErrorMessageToClient(MagpieServer magpieServer, String popUpMessage, String terminalMessage) {
         magpieServer.forwardMessageToClient(
-                new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Please check the output terminal of GobPie extension for more information.")
+                new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Check the output terminal of GobPie extension for more information.")
         );
         log.error(terminalMessage);
     }
