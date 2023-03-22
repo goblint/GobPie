@@ -9,6 +9,8 @@ public class GoblintVarinfo {
     private String original_name;
     private String role;
     private String function;
+    private String type;
+    private GoblintLocation location;
 
     public long getVid() {
         return vid;
@@ -30,6 +32,14 @@ public class GoblintVarinfo {
     @Nullable
     public String getFunction() {
         return function;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public GoblintLocation getLocation() {
+        return location;
     }
 
 }

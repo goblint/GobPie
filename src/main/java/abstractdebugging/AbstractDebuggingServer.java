@@ -670,8 +670,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             List<Variable> localVariables = new ArrayList<>();
             List<Variable> globalVariables = new ArrayList<>();
 
-            globalVariables.add(domainValueToVariable("<threadflag>", state.get("threadflag")));
-            globalVariables.add(domainValueToVariable("<mutex>", state.get("mutex")));
+            globalVariables.add(domainValueToVariable("<threadflag>", "(analysis threading mode)", state.get("threadflag")));
+            globalVariables.add(domainValueToVariable("<mutex>", "(set of locked mutexes)", state.get("mutex")));
 
             JsonObject domainValues = state.get("base").getAsJsonObject().get("value domain").getAsJsonObject();
 
@@ -684,7 +684,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 }
                 // In most cases the only remaining value is RETURN. Consider it local.
                 // TODO: RETURN special value can end up in globals if there is also a global variable RETURN. This needs changes on the Goblint side to fix.
-                localVariables.add(domainValueToVariable("(" + entry.getKey() + ")", entry.getValue()));
+                localVariables.add(domainValueToVariable("(" + entry.getKey() + ")", "(special value)", entry.getValue()));
             }
 
             // Add variables.
@@ -707,12 +707,12 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
                 List<Variable> scope = varinfo.getFunction() == null ? globalVariables : localVariables;
 
-                scope.add(domainValueToVariable(name, value));
+                scope.add(domainValueToVariable(name, varinfo.getType(), value));
             }
 
             List<Variable> rawVariables = new ArrayList<>();
-            rawVariables.add(domainValueToVariable("(arg/state)", state));
-            rawVariables.add(domainValueToVariable("(cil/varinfos)", GSON_DEFAULT.toJsonTree(varinfos)));
+            rawVariables.add(domainValueToVariable("(arg/state)", "(result of arg/state request)", state));
+            rawVariables.add(domainValueToVariable("(cil/varinfos)", "(filtered result of cil/varinfos request)", GSON_DEFAULT.toJsonTree(varinfos)));
 
             return new Scope[]{
                     scope("Local", localVariables),
@@ -748,23 +748,24 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
 
         var response = new EvaluateResponse();
-        var resultVariable = domainValueToVariable("", result);
+        var resultVariable = domainValueToVariable("", null, result);
         response.setResult(resultVariable.getValue());
         response.setVariablesReference(resultVariable.getVariablesReference());
         return CompletableFuture.completedFuture(response);
     }
 
-    private Variable domainValueToVariable(String name, JsonElement value) {
+    private Variable domainValueToVariable(String name, @Nullable String type, JsonElement value) {
         Variable variable;
         if (value.isJsonObject()) {
             variable = compoundVariable(
                     name,
+                    type,
                     value.getAsJsonObject().entrySet().stream()
-                            .map(f -> domainValueToVariable(f.getKey(), f.getValue()))
+                            .map(f -> domainValueToVariable(f.getKey(), null, f.getValue()))
                             .toArray(Variable[]::new)
             );
         } else {
-            variable = variable(name, domainValueToString(value));
+            variable = variable(name, type, domainValueToString(value));
         }
         return variable;
     }
@@ -792,9 +793,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return scope;
     }
 
-    private Variable compoundVariable(String name, Variable... fields) {
+    private Variable compoundVariable(String name, @Nullable String type, Variable... fields) {
         Variable variable = new Variable();
         variable.setName(name);
+        variable.setType(type);
         variable.setValue("{" + Arrays.stream(fields).map(f -> f.getName() + ": …").collect(Collectors.joining(", ")) + "}");
         if (fields.length > 0) {
             variable.setVariablesReference(storeVariables(fields));
@@ -802,9 +804,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return variable;
     }
 
-    private static Variable variable(String name, String value) {
+    private static Variable variable(String name, @Nullable String type, String value) {
         Variable variable = new Variable();
         variable.setName(name);
+        variable.setType(type);
         variable.setValue(value);
         return variable;
     }
