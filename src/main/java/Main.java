@@ -24,22 +24,18 @@ public class Main {
 
     private static final String gobPieConfFileName = "gobpie.json";
     private static final Logger log = LogManager.getLogger(Main.class);
-    private static MagpieServer magpieServer;
+    private static GoblintMagpieServer magpieServer;
 
     public static void main(String... args) {
 
         try {
             createMagpieServer();
             addAnalysis();
-            // launch magpieServer
-            magpieServer.launchOnStdio();
+            magpieServer.configurationDone();
             log.info("MagpieBridge server launched.");
-            magpieServer.doAnalysis("c", true);
         } catch (GobPieException e) {
             String message = e.getMessage();
-            String terminalMessage;
-            if (e.getCause() == null) terminalMessage = message;
-            else terminalMessage = message + " Cause: " + e.getCause().getMessage();
+            String terminalMessage = e.getCause() == null ? message : message + " Cause: " + e.getCause().getMessage();
             forwardErrorMessageToClient(message, terminalMessage);
             switch (e.getType()) {
                 case GOBLINT_EXCEPTION:
@@ -61,9 +57,11 @@ public class Main {
     private static void createMagpieServer() {
         // set up configuration for MagpieServer
         ServerConfiguration serverConfig = new ServerConfiguration();
-        serverConfig.setDoAnalysisByFirstOpen(false);
         serverConfig.setUseMagpieHTTPServer(false);
-        magpieServer = new MagpieServer(serverConfig);
+        magpieServer = new GoblintMagpieServer(serverConfig);
+        // launch MagpieServer
+        // note that the server will not accept messages until configurationDone is called
+        magpieServer.launchOnStdio();
     }
 
 
@@ -88,7 +86,7 @@ public class Main {
         GobPieConfiguration gobpieConfiguration = gobPieConfReader.readGobPieConfiguration();
 
         // start GoblintServer
-        GoblintServer goblintServer = new GoblintServer(magpieServer);
+        GoblintServer goblintServer = new GoblintServer(magpieServer, gobpieConfiguration);
         goblintServer.startGoblintServer();
 
         // launch GoblintService
@@ -128,7 +126,7 @@ public class Main {
 
     private static void forwardErrorMessageToClient(String popUpMessage, String terminalMessage) {
         magpieServer.forwardMessageToClient(
-                new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Please check the output terminal of GobPie extension for more information.")
+                new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Check the output terminal of GobPie extension for more information.")
         );
         log.error(terminalMessage);
     }
