@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import {
     CancellationToken,
     DebugConfiguration,
-    ExtensionContext, ProviderResult,
+    ExtensionContext, ProviderResult, Uri,
     ViewColumn,
     window,
     workspace,
@@ -141,9 +141,20 @@ export class MagpieBridgeSupport implements DynamicFeature<undefined> {
 
 class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDescriptorFactory {
 
-    createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+    // @ts-ignore
+    async createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
         // TODO: Make sure that GobPie is actually guaranteed to run and create a socket in the workspace folder (in particular multiple workspaces might violate this assumption)
-        return new vscode.DebugAdapterNamedPipeServer(session.workspaceFolder.uri.path + '/gobpie_adb.sock');
+        const socketPath = session.workspaceFolder.uri.path + '/gobpie_adb.sock';
+        try {
+            await vscode.workspace.fs.stat(Uri.file(socketPath));
+        } catch (e) {
+            if (e.code == 'FileNotFound' || e.code == 'ENOENT') {
+                throw 'GobPie not running. Open a C file to start GobPie.'
+            } else {
+                throw e;
+            }
+        }
+        return new vscode.DebugAdapterNamedPipeServer(socketPath);
     }
 
 }
