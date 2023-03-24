@@ -60,7 +60,6 @@
         "label": "C (GobPie Abstract Debugger)",
         "configurationAttributes": {
           "launch": {
-            "required": [],
             "properties": {}
           }
         },
@@ -71,8 +70,17 @@
             "name": "C (GobPie Abstract Debugger)"
           }
         ],
-        "configurationSnippets": [],
-        "variables": {}
+        "configurationSnippets": [
+          {
+            "label": "C (GobPie Abstract Debugger)",
+            "description": "Debug C using Gobpie Abstract Debugger",
+            "body": {
+              "type": "c_adb",
+              "request": "launch",
+              "name": "C (GobPie Abstract Debugger)"
+            }
+          }
+        ]
       }
     ]
   },

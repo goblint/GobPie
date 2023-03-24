@@ -1,6 +1,14 @@
 'use strict';
 import * as vscode from 'vscode';
-import {ExtensionContext, ViewColumn, window, workspace} from 'vscode';
+import {
+    CancellationToken,
+    DebugConfiguration,
+    ExtensionContext, ProviderResult,
+    ViewColumn,
+    window,
+    workspace,
+    WorkspaceFolder
+} from 'vscode';
 import {
     ClientCapabilities,
     DocumentSelector,
@@ -58,7 +66,8 @@ export function activate(context: ExtensionContext) {
     lc.registerFeature(new MagpieBridgeSupport(lc));
     lc.start();
 
-    context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('c_adb', new AbstractDebuggingAdapterDescriptorFactory()))
+    context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('c_adb', new AbstractDebuggingAdapterDescriptorFactory()));
+    context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('c_adb', new AbstractDebuggingConfigurationProvider()));
 }
 
 
@@ -139,3 +148,15 @@ class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDe
 
 }
 
+class AbstractDebuggingConfigurationProvider implements vscode.DebugConfigurationProvider {
+
+    resolveDebugConfiguration(folder: WorkspaceFolder | undefined, debugConfiguration: DebugConfiguration, token?: CancellationToken): ProviderResult<DebugConfiguration> {
+        return {
+            type: "c_adb",
+            request: "launch",
+            name: "C (GobPie Abstract Debugger)",
+            ...debugConfiguration
+        };
+    }
+
+}
