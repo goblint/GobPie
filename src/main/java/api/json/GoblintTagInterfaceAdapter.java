@@ -21,9 +21,9 @@ public class GoblintTagInterfaceAdapter implements JsonDeserializer<Object> {
     public Object deserialize(JsonElement jsonElement, Type type, JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
         JsonObject jsonObject = jsonElement.getAsJsonObject();
         if (jsonObject.has("Category"))
-            return jsonDeserializationContext.deserialize(jsonObject, GoblintMessagesResult.tag.Category.class);
+            return jsonDeserializationContext.deserialize(jsonObject, GoblintMessagesResult.Category.class);
         if (jsonObject.has("CWE"))
-            return jsonDeserializationContext.deserialize(jsonObject, GoblintMessagesResult.tag.CWE.class);
+            return jsonDeserializationContext.deserialize(jsonObject, GoblintMessagesResult.CWE.class);
         return null;
     }
 
