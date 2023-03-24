@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import {
     CancellationToken,
     DebugConfiguration,
-    ExtensionContext, ProviderResult, Uri,
+    ExtensionContext, Uri,
     ViewColumn,
     window,
     workspace,
@@ -141,15 +141,14 @@ export class MagpieBridgeSupport implements DynamicFeature<undefined> {
 
 class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDescriptorFactory {
 
-    // @ts-ignore
-    async createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+    async createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): Promise<vscode.DebugAdapterDescriptor> {
         // TODO: Make sure that GobPie is actually guaranteed to run and create a socket in the workspace folder (in particular multiple workspaces might violate this assumption)
         const socketPath = session.workspaceFolder.uri.path + '/gobpie_adb.sock';
         try {
             await vscode.workspace.fs.stat(Uri.file(socketPath));
         } catch (e) {
             if (e.code == 'FileNotFound' || e.code == 'ENOENT') {
-                throw 'GobPie not running. Open a C file to start GobPie.'
+                throw 'GobPie is not running. Open a C file to start GobPie.'
             } else {
                 throw e;
             }
@@ -161,7 +160,7 @@ class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDe
 
 class AbstractDebuggingConfigurationProvider implements vscode.DebugConfigurationProvider {
 
-    resolveDebugConfiguration(folder: WorkspaceFolder | undefined, debugConfiguration: DebugConfiguration, token?: CancellationToken): ProviderResult<DebugConfiguration> {
+    resolveDebugConfiguration(folder: WorkspaceFolder | undefined, debugConfiguration: DebugConfiguration, token?: CancellationToken): DebugConfiguration {
         return {
             type: "c_adb",
             request: "launch",
