@@ -33,7 +33,7 @@ public class GoblintMagpieServer extends MagpieServer {
 
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
-        return super.initialize(params).thenCombine(configurationDoneFuture, (r, _v) -> r);
+        return configurationDoneFuture.thenCompose(_r -> super.initialize(params));
     }
 
     @Override
