@@ -14,8 +14,13 @@ public class GobPieConfiguration {
     private final String goblintExecutable = "goblint";
     private String goblintConf;
     private String[] preAnalyzeCommand;
-    private final boolean showCfg = false;
-    private final boolean incrementalAnalysis = true;
+    private final boolean showCfg;
+    private final boolean incrementalAnalysis;
+
+    private GobPieConfiguration() {
+        showCfg = false;
+        incrementalAnalysis = true;
+    }
 
     public String getGoblintExecutable() {
         return this.goblintExecutable;
