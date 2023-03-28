@@ -154,8 +154,14 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             }
         }
 
+        int startIndex;
+        for (startIndex = 0; startIndex < breakpoints.size(); startIndex++) {
+            if (breakpoints.get(startIndex).cfgNode().location().getFile().equals(sourcePath)) {
+                break;
+            }
+        }
         breakpoints.removeIf(b -> b.cfgNode().location().getFile().equals(sourcePath));
-        breakpoints.addAll(newBreakpoints);
+        breakpoints.addAll(startIndex, newBreakpoints);
 
         var response = new SetBreakpointsResponse();
         response.setBreakpoints(newBreakpointStatuses.toArray(Breakpoint[]::new));
