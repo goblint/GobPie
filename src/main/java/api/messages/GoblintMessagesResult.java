@@ -25,15 +25,15 @@ import java.util.stream.Collectors;
 public class GoblintMessagesResult {
 
     private final String type = getClass().getName();
-    private final List<tag> tags = new ArrayList<>();
+    private final List<Tag> tags = new ArrayList<>();
     private String severity;
     private Multipiece multipiece;
 
-    public interface tag {
+    public interface Tag {
         String toString();
     }
 
-    public static class Category implements tag {
+    public static class Category implements Tag {
         private final List<String> Category = new ArrayList<>();
 
         @Override
@@ -42,7 +42,7 @@ public class GoblintMessagesResult {
         }
     }
 
-    public static class CWE implements tag {
+    public static class CWE implements Tag {
         private Integer CWE;
 
         @Override
@@ -51,13 +51,13 @@ public class GoblintMessagesResult {
         }
     }
 
-    static class multipiece {
+    static class Multipiece {
         private GoblintLocation loc;
         private String text;
         private String group_text;
         private final List<Piece> pieces = new ArrayList<>();
 
-        static class pieces {
+        static class Piece {
             private String text;
             private GoblintLocation loc;
         }
