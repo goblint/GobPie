@@ -91,6 +91,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         capabilities.setSupportsStepInTargetsRequest(true);
         capabilities.setSupportsStepBack(true);
         capabilities.setSupportsConditionalBreakpoints(true);
+        capabilities.setSupportsRestartFrame(true);
         return CompletableFuture.completedFuture(capabilities);
     }
 
@@ -259,23 +260,39 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
         String targetCFGId = targetFrame.getNode().cfgNodeId();
 
-        for (var thread : threads.values()) {
-            Integer frameIndex = thread != targetThread ? (Integer) targetFrameIndex : findFrameIndex(thread.getFrames(), targetPosition, targetCFGId);
-
-            if (frameIndex == null) {
-                thread.getFrames().clear();
+        Map<Integer, Integer> frameIndexes = new HashMap<>();
+        for (var threadEntry : threads.entrySet()) {
+            Integer frameIndex;
+            if (threadEntry.getValue() == targetThread) {
+                frameIndex = targetFrameIndex;
             } else {
-                // Remove all frames on top of the target frame
-                thread.getFrames().subList(0, targetFrameIndex).clear();
-                if (thread.getCurrentFrame().isAmbiguousFrame()) {
-                    // If the target frame is ambiguous then rebuild stack
-                    List<StackFrameState> newStackTrace = assembleStackTrace(thread.getCurrentFrame().getNode());
-                    thread.getFrames().clear();
-                    thread.getFrames().addAll(newStackTrace);
+                try {
+                    frameIndex = findFrameIndex(threadEntry.getValue().getFrames(), targetPosition, targetCFGId);
+                } catch (IllegalStateException e) {
+                    return CompletableFuture.failedFuture(userFacingError("Cannot restart frame. Ambiguous target frame for " + threadEntry.getValue().getName()));
                 }
             }
+
+            if (frameIndex != null) {
+                frameIndexes.put(threadEntry.getKey(), frameIndex);
+            }
         }
-        threads.values().removeIf(t -> t.getFrames().isEmpty());
+
+        threads.keySet().removeIf(t -> !frameIndexes.containsKey(t));
+        for (var threadEntry : threads.entrySet()) {
+            int threadId = threadEntry.getKey();
+            ThreadState thread = threadEntry.getValue();
+
+            int frameIndex = frameIndexes.get(threadId);
+            // Remove all frames on top of the target frame
+            thread.getFrames().subList(0, frameIndex).clear();
+            if (thread.getCurrentFrame().isAmbiguousFrame()) {
+                // If the target frame is ambiguous then rebuild stack
+                List<StackFrameState> newStackTrace = assembleStackTrace(thread.getCurrentFrame().getNode());
+                thread.getFrames().clear();
+                thread.getFrames().addAll(newStackTrace);
+            }
+        }
 
         onThreadsStopped("step", targetThreadId);
 
@@ -287,19 +304,24 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             return null;
         }
         if (frames.get(targetPosition).isAmbiguousFrame()) {
+            Integer foundIndex = null;
             for (int i = targetPosition; i < frames.size(); i++) {
                 var frame = frames.get(i);
                 if (frame.getNode() != null && frame.getNode().cfgNodeId().equals(targetCFGNodeId)) {
-                    return i;
+                    if (foundIndex != null) {
+                        throw new IllegalStateException("Ambiguous target frame");
+                    }
+                    foundIndex = i;
                 }
             }
+            return foundIndex;
         } else {
             var frame = frames.get(targetPosition);
             if (frame.getNode() != null && frame.getNode().cfgNodeId().equals(targetCFGNodeId)) {
                 return targetPosition;
             }
+            return null;
         }
-        return null;
     }
 
     // TODO: Figure out if entry and return nodes contain any meaningful info and if not then skip them in all step methods
