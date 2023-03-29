@@ -21,50 +21,45 @@ import java.util.stream.Collectors;
  * @since 0.0.1
  */
 
+@SuppressWarnings({"unused"})
 public class GoblintMessagesResult {
 
-    String type = getClass().getName();
-
-    private final List<Tag> tags = new ArrayList<>();
+    private final String type = getClass().getName();
+    private final List<tag> tags = new ArrayList<>();
     private String severity;
     private Multipiece multipiece;
 
-    public interface Tag {
-
+    public interface tag {
         String toString();
+    }
 
-        class Category implements Tag {
-            private final List<String> Category = new ArrayList<>();
+    public static class Category implements tag {
+        private final List<String> Category = new ArrayList<>();
 
-            @Override
-            public String toString() {
-                return (Category.size() > 0) ? "[" + String.join(" > ", Category) + "]" : "";
-            }
-
-        }
-
-        class CWE implements Tag {
-            private Integer CWE;
-
-            @Override
-            public String toString() {
-                return (CWE != null) ? "[CWE-" + CWE + "]" : "";
-            }
+        @Override
+        public String toString() {
+            return (Category.size() > 0) ? "[" + String.join(" > ", Category) + "]" : "";
         }
     }
 
-    static class Multipiece {
+    public static class CWE implements tag {
+        private Integer CWE;
 
+        @Override
+        public String toString() {
+            return (CWE != null) ? "[CWE-" + CWE + "]" : "";
+        }
+    }
+
+    static class multipiece {
         private GoblintLocation loc;
         private String text;
         private String group_text;
         private final List<Piece> pieces = new ArrayList<>();
 
-        static class Piece {
-
+        static class pieces {
             private String text;
             private GoblintLocation loc;
-
         }
     }
 

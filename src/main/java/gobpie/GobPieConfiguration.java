@@ -8,14 +8,19 @@ package gobpie;
  * @author Karoliine Holter
  * @since 0.0.2
  */
-@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public class GobPieConfiguration {
 
-    private String goblintExecutable = "goblint";
+    private final String goblintExecutable;
     private String goblintConf;
     private String[] preAnalyzeCommand;
-    private boolean showCfg = false;
-    private boolean incrementalAnalysis = true;
+    private final boolean showCfg;
+    private final boolean incrementalAnalysis;
+
+    private GobPieConfiguration() {
+        goblintExecutable = "goblint";
+        showCfg = false;
+        incrementalAnalysis = true;
+    }
 
     public String getGoblintExecutable() {
         return this.goblintExecutable;
