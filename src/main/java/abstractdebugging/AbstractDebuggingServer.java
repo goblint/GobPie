@@ -92,6 +92,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         capabilities.setSupportsStepBack(true);
         capabilities.setSupportsConditionalBreakpoints(true);
         capabilities.setSupportsRestartFrame(true);
+        capabilities.setSupportsTerminateThreadsRequest(true);
         return CompletableFuture.completedFuture(capabilities);
     }
 
@@ -322,6 +323,20 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             }
             return null;
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> terminateThreads(TerminateThreadsArguments args) {
+        for (int threadId : args.getThreadIds()) {
+            threads.remove(threadId);
+        }
+        for (int threadId : args.getThreadIds()) {
+            var event = new ThreadEventArguments();
+            event.setReason("exited");
+            event.setThreadId(threadId);
+            client.thread(event);
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     // TODO: Figure out if entry and return nodes contain any meaningful info and if not then skip them in all step methods
