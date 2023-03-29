@@ -8,16 +8,16 @@ package gobpie;
  * @author Karoliine Holter
  * @since 0.0.2
  */
-@SuppressWarnings({"FieldCanBeLocal"})
 public class GobPieConfiguration {
 
-    private final String goblintExecutable = "goblint";
+    private final String goblintExecutable;
     private String goblintConf;
     private String[] preAnalyzeCommand;
     private final boolean showCfg;
     private final boolean incrementalAnalysis;
 
     private GobPieConfiguration() {
+        goblintExecutable = "goblint";
         showCfg = false;
         incrementalAnalysis = true;
     }
