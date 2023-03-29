@@ -242,6 +242,66 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public CompletableFuture<Void> restartFrame(RestartFrameArguments args) {
+        int targetThreadId = getThreadId(args.getFrameId());
+        int targetFrameIndex = getFrameIndex(args.getFrameId());
+        ThreadState targetThread = threads.get(targetThreadId);
+
+        int targetPosition = targetFrameIndex;
+        while (targetPosition > 0 && targetThread.getFrames().get(targetPosition - 1).isAmbiguousFrame()) {
+            targetPosition -= 1;
+        }
+
+        StackFrameState targetFrame = targetThread.getFrames().get(targetFrameIndex);
+        if (targetFrame.getNode() == null) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot restart unavailable frame."));
+        }
+        String targetCFGId = targetFrame.getNode().cfgNodeId();
+
+        for (var thread : threads.values()) {
+            Integer frameIndex = thread != targetThread ? (Integer) targetFrameIndex : findFrameIndex(thread.getFrames(), targetPosition, targetCFGId);
+
+            if (frameIndex == null) {
+                thread.getFrames().clear();
+            } else {
+                // Remove all frames on top of the target frame
+                thread.getFrames().subList(0, targetFrameIndex).clear();
+                if (thread.getCurrentFrame().isAmbiguousFrame()) {
+                    // If the target frame is ambiguous then rebuild stack
+                    List<StackFrameState> newStackTrace = assembleStackTrace(thread.getCurrentFrame().getNode());
+                    thread.getFrames().clear();
+                    thread.getFrames().addAll(newStackTrace);
+                }
+            }
+        }
+        threads.values().removeIf(t -> t.getFrames().isEmpty());
+
+        onThreadsStopped("step", targetThreadId);
+
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private Integer findFrameIndex(List<StackFrameState> frames, int targetPosition, String targetCFGNodeId) {
+        if (frames.size() <= targetPosition) {
+            return null;
+        }
+        if (frames.get(targetPosition).isAmbiguousFrame()) {
+            for (int i = targetPosition; i < frames.size(); i++) {
+                var frame = frames.get(i);
+                if (frame.getNode() != null && frame.getNode().cfgNodeId().equals(targetCFGNodeId)) {
+                    return i;
+                }
+            }
+        } else {
+            var frame = frames.get(targetPosition);
+            if (frame.getNode() != null && frame.getNode().cfgNodeId().equals(targetCFGNodeId)) {
+                return targetPosition;
+            }
+        }
+        return null;
+    }
+
     // TODO: Figure out if entry and return nodes contain any meaningful info and if not then skip them in all step methods
 
     @Override
@@ -311,7 +371,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<StepInTargetsResponse> stepInTargets(StepInTargetsArguments args) {
-        NodeInfo currentNode = getThreadByFrameId(args.getFrameId()).getCurrentFrame().getNode();
+        NodeInfo currentNode = threads.get(getThreadId(args.getFrameId())).getCurrentFrame().getNode();
 
         List<StepInTarget> targets = new ArrayList<>();
         if (currentNode != null) {
@@ -820,19 +880,22 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     // Helper methods:
 
+    private StackFrameState getFrame(int frameId) {
+        int threadId = getThreadId(frameId);
+        int frameIndex = getFrameIndex(frameId);
+        return threads.get(threadId).getFrames().get(frameIndex);
+    }
+
     private static int getFrameId(int threadId, int frameIndex) {
         return threadId * FRAME_ID_THREAD_ID_MULTIPLIER + frameIndex;
     }
 
-    private StackFrameState getFrame(int frameId) {
-        int threadId = frameId / FRAME_ID_THREAD_ID_MULTIPLIER;
-        int frameIndex = frameId % FRAME_ID_THREAD_ID_MULTIPLIER;
-        return threads.get(threadId).getFrames().get(frameIndex);
+    private int getThreadId(int frameId) {
+        return frameId / FRAME_ID_THREAD_ID_MULTIPLIER;
     }
 
-    private ThreadState getThreadByFrameId(int frameId) {
-        int threadId = frameId / FRAME_ID_THREAD_ID_MULTIPLIER;
-        return threads.get(threadId);
+    private int getFrameIndex(int frameId) {
+        return frameId % FRAME_ID_THREAD_ID_MULTIPLIER;
     }
 
     private void setThreads(List<ThreadState> newThreads) {
