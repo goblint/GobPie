@@ -25,6 +25,7 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 /**
@@ -773,8 +774,15 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             List<Variable> localVariables = new ArrayList<>();
             List<Variable> globalVariables = new ArrayList<>();
 
-            globalVariables.add(domainValueToVariable("<threadflag>", "(analysis threading mode)", state.get("threadflag")));
-            globalVariables.add(domainValueToVariable("<mutex>", "(set of locked mutexes)", state.get("mutex")));
+            if (state.has("threadflag")) {
+                globalVariables.add(domainValueToVariable("<threadflag>", "(analysis threading mode)", state.get("threadflag")));
+            }
+            if (state.has("mutex")) {
+                globalVariables.add(domainValueToVariable("<mutex>", "(set of unique locked mutexes)", state.get("mutex")));
+            }
+            if (state.has("symb_locks")) {
+                globalVariables.add(domainValueToVariable("<symb_locks>", "(set of locked mutexes tracked by symbolic references)", state.get("symb_locks")));
+            }
 
             JsonObject domainValues = state.get("base").getAsJsonObject().get("value domain").getAsJsonObject();
 
@@ -814,8 +822,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             }
 
             List<Variable> rawVariables = new ArrayList<>();
-            rawVariables.add(domainValueToVariable("(arg/state)", "(result of arg/state request)", state));
-            rawVariables.add(domainValueToVariable("(cil/varinfos)", "(filtered result of cil/varinfos request)", GSON_DEFAULT.toJsonTree(varinfos)));
+            for (var value : state.entrySet()) {
+                rawVariables.add(domainValueToVariable(value.getKey(), value.getKey() + " domain", value.getValue()));
+            }
+            //rawVariables.add(domainValueToVariable("(arg/state)", "(result of arg/state request)", state));
+            //rawVariables.add(domainValueToVariable("(cil/varinfos)", "(filtered result of cil/varinfos request)", GSON_DEFAULT.toJsonTree(varinfos)));
 
             return new Scope[]{
                     scope("Local", localVariables),
@@ -858,19 +869,39 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     }
 
     private Variable domainValueToVariable(String name, @Nullable String type, JsonElement value) {
-        Variable variable;
         if (value.isJsonObject()) {
-            variable = compoundVariable(
+            return compoundVariable(
                     name,
                     type,
+                    false,
                     value.getAsJsonObject().entrySet().stream()
                             .map(f -> domainValueToVariable(f.getKey(), null, f.getValue()))
                             .toArray(Variable[]::new)
             );
-        } else {
-            variable = variable(name, type, domainValueToString(value));
+        } else if (value.isJsonArray()) {
+            var valueArray = value.getAsJsonArray();
+            // Integer domains are generally represented as an array of 1-4 strings.
+            // We want to display that as a non-compound variable for compactness and readability.
+            // As a general heuristic, only arrays containing compound values are displayed as compound variables.
+            boolean cotainsCompound = false;
+            for (JsonElement jsonElement : valueArray) {
+                if (!jsonElement.isJsonPrimitive()) {
+                    cotainsCompound = true;
+                    break;
+                }
+            }
+            if (cotainsCompound || valueArray.size() == 0) {
+                return compoundVariable(
+                        name,
+                        type,
+                        true,
+                        IntStream.range(0, valueArray.size())
+                                .mapToObj(i -> domainValueToVariable(Integer.toString(i), null, valueArray.get(i)))
+                                .toArray(Variable[]::new)
+                );
+            }
         }
-        return variable;
+        return variable(name, type, domainValueToString(value));
     }
 
     private static String domainValueToString(JsonElement value) {
@@ -896,15 +927,28 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return scope;
     }
 
-    private Variable compoundVariable(String name, @Nullable String type, Variable... fields) {
+    private Variable compoundVariable(String name, @Nullable String type, boolean isArray, Variable... fields) {
         Variable variable = new Variable();
         variable.setName(name);
         variable.setType(type);
-        variable.setValue("{" + Arrays.stream(fields).map(f -> f.getName() + ": …").collect(Collectors.joining(", ")) + "}");
+        variable.setValue(compoundVariablePreview(isArray, fields));
         if (fields.length > 0) {
             variable.setVariablesReference(storeVariables(fields));
         }
         return variable;
+    }
+
+    private static String compoundVariablePreview(boolean isArray, Variable... fields) {
+        if (fields.length == 0) {
+            return isArray ? "[]" : "{}";
+        }
+        if (isArray) {
+            return "[" + fields[0].getValue() + (fields.length > 1 ? ", …" : "") + "]";
+        } else {
+            return "{" + Arrays.stream(fields)
+                    .map(f -> f.getName() + ": " + (f.getVariablesReference() == 0 ? f.getValue() : "…"))
+                    .collect(Collectors.joining(", ")) + "}";
+        }
     }
 
     private static Variable variable(String name, @Nullable String type, String value) {
