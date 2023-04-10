@@ -56,7 +56,7 @@ public interface GoblintService {
     CompletableFuture<List<GoblintARGLookupResult>> arg_lookup(LookupParams params);
 
     @JsonRequest("arg/state")
-    CompletableFuture<JsonObject> arg_state(ARGNodeParams params);
+    CompletableFuture<JsonObject> arg_state(ARGStateParams params);
 
     @JsonRequest("arg/eval-int")
     CompletableFuture<EvalIntResult> arg_eval_int(EvalIntQueryParams params);
@@ -70,8 +70,8 @@ public interface GoblintService {
     @JsonRequest("richvarinfos")
     CompletableFuture<JsonElement> richvarinfos();
 
-    //@JsonRequest("global-state")
-    //CompletableFuture<JsonElement> global_state(GlobalStateParams params);
+    @JsonRequest("global-state")
+    CompletableFuture<JsonElement> global_state(GlobalStateParams params);
 
     @JsonRequest
     CompletableFuture<Void> reset_config();

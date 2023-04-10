@@ -2,7 +2,6 @@ package abstractdebugging;
 
 import api.GoblintService;
 import api.messages.*;
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.tuple.Pair;
@@ -56,8 +55,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             "optarg", "optind", "opterr", "optopt", // unix unistd.h
             "__environ" // Linux Standard Base Core Specification
     );
-
-    private static final Gson GSON_DEFAULT = new Gson();
 
     private final GoblintService goblintService;
 
@@ -340,8 +337,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(null);
     }
 
-    // TODO: Figure out if entry and return nodes contain any meaningful info and if not then skip them in all step methods
-
     @Override
     public CompletableFuture<Void> next(NextArguments args) {
         var targetThread = threads.get(args.getThreadId());
@@ -460,7 +455,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         if (targetThread.getCurrentFrame().getNode() == null) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step out. Location is unavailable."));
         } else if (!targetThread.hasPreviousFrame()) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Reached top of call stack.")); // TODO: Improve wording
+            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Reached top of call stack."));
         } else if (targetThread.getPreviousFrame().isAmbiguousFrame()) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step out. Call stack is ambiguous."));
         }
@@ -542,7 +537,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         if (currentNode == null) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step back. Location is unavailable."));
         } else if (currentNode.incomingCFGEdges().isEmpty()) {
-            // TODO: Support stepping back out of function if caller is unambiguous and has the same CFG location for all threads
             return CompletableFuture.failedFuture(userFacingError("Cannot step back. Reached start of function."));
         } else if (currentNode.incomingCFGEdges().size() > 1) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step back. Previous location is ambiguous."));
@@ -766,7 +760,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             NodeInfo currentNode = frame.getNode();
 
             JsonObject state = lookupState(currentNode.nodeId());
-            //JsonElement globalState = lookupGlobalState(GlobalStateParams.all());
+            JsonElement globalState = lookupGlobalState();
             Map<String, GoblintVarinfo> varinfos = getVarinfos().stream()
                     .filter(v -> (v.getFunction() == null || v.getFunction().equals(currentNode.function())) && !"function".equals(v.getRole()))
                     .collect(Collectors.toMap(GoblintVarinfo::getName, v -> v));
@@ -822,11 +816,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             }
 
             List<Variable> rawVariables = new ArrayList<>();
-            for (var value : state.entrySet()) {
-                rawVariables.add(domainValueToVariable(value.getKey(), value.getKey() + " domain", value.getValue()));
-            }
-            //rawVariables.add(domainValueToVariable("(arg/state)", "(result of arg/state request)", state));
-            //rawVariables.add(domainValueToVariable("(cil/varinfos)", "(filtered result of cil/varinfos request)", GSON_DEFAULT.toJsonTree(varinfos)));
+            rawVariables.add(domainValueToVariable("(local-state)", "local state; result of arg/state request", state));
+            rawVariables.add(domainValueToVariable("(global-state)", "global state; result of global-state request", globalState));
 
             return new Scope[]{
                     scope("Local", localVariables),
@@ -1135,7 +1126,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     }
 
     private JsonObject lookupState(String nodeId) {
-        return goblintService.arg_state(new ARGNodeParams(nodeId)).join();
+        return goblintService.arg_state(new ARGStateParams(nodeId)).join();
+    }
+
+    private JsonElement lookupGlobalState() {
+        return goblintService.global_state(GlobalStateParams.all()).join();
     }
 
     /**

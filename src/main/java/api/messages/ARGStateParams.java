@@ -1,10 +1,10 @@
 package api.messages;
 
-public class ARGNodeParams {
+public class ARGStateParams {
 
     private String node;
 
-    public ARGNodeParams(String node) {
+    public ARGStateParams(String node) {
         this.node = node;
     }
 
