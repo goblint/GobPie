@@ -51,6 +51,11 @@
         ]
       }
     ],
+    "breakpoints": [
+      {
+        "language": "c"
+      }
+    ],
     "debuggers": [
       {
         "type": "c_adb",
