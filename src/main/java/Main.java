@@ -24,7 +24,6 @@ import java.io.File;
 public class Main {
 
     private static final String gobPieConfFileName = "gobpie.json";
-    private static final String abstractDebuggingServerSocket = "gobpie_adb.sock";
 
     private static final Logger log = LogManager.getLogger(Main.class);
 
@@ -50,9 +49,14 @@ public class Main {
             magpieServer.configurationDone();
             log.info("MagpieBridge server launched.");
 
-            // Launch abstract debugging server
-            launchAbstractDebuggingServer(goblintService);
-            log.info("Abstract debugging server launched");
+            if (args.length > 0) {
+                // Launch abstract debugging server
+                String socketAddress = args[0];
+                launchAbstractDebuggingServer(socketAddress, goblintService);
+                log.info("Abstract debugging server launched.");
+            } else {
+                log.info("Abstract debugging server disabled.");
+            }
         } catch (GobPieException e) {
             String message = e.getMessage();
             String terminalMessage;
@@ -158,9 +162,9 @@ public class Main {
      *
      * @throws GobPieException if creating domain socket for server fails
      */
-    private static void launchAbstractDebuggingServer(GoblintService goblintService) {
+    private static void launchAbstractDebuggingServer(String socketAddress, GoblintService goblintService) {
         AbstractDebuggingServerLauncher launcher = new AbstractDebuggingServerLauncher(goblintService);
-        launcher.launchOnDomainSocket(abstractDebuggingServerSocket);
+        launcher.launchOnDomainSocket(socketAddress);
     }
 
 

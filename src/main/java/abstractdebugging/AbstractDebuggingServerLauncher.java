@@ -70,7 +70,7 @@ public class AbstractDebuggingServerLauncher {
     }
 
     private void listenOnDomainSocket(AFUNIXServerSocket serverSocket) {
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 AFUNIXSocket clientSocket = serverSocket.accept();
                 log.info("Accepted new connection to abstract debugging server.");

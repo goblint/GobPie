@@ -22,13 +22,16 @@ import {
     ServerOptions
 } from 'vscode-languageclient';
 import {XMLHttpRequest} from 'xmlhttprequest-ts';
+import * as crypto from "crypto";
 
 // Track currently webview panel
 let panel: vscode.WebviewPanel | undefined = undefined;
 
 export function activate(context: ExtensionContext) {
-    let script = 'java';
-    let args = ['-jar', context.asAbsolutePath('gobpie-0.0.3-SNAPSHOT.jar')];
+    const adbSocketPath = `gobpie_adb_${crypto.randomBytes(6).toString('base64url')}.sock`
+
+    const script = 'java';
+    const args = ['-jar', context.asAbsolutePath('gobpie-0.0.3-SNAPSHOT.jar'), adbSocketPath];
 
     // Use this for communicating on stdio 
     let serverOptions: ServerOptions = {
@@ -66,7 +69,7 @@ export function activate(context: ExtensionContext) {
     lc.registerFeature(new MagpieBridgeSupport(lc));
     lc.start();
 
-    context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('c_adb', new AbstractDebuggingAdapterDescriptorFactory()));
+    context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('c_adb', new AbstractDebuggingAdapterDescriptorFactory(adbSocketPath)));
     context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('c_adb', new AbstractDebuggingConfigurationProvider()));
 }
 
@@ -141,9 +144,12 @@ export class MagpieBridgeSupport implements DynamicFeature<undefined> {
 
 class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDescriptorFactory {
 
+    constructor(private adbSocketPath: string) {
+    }
+
     async createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): Promise<vscode.DebugAdapterDescriptor> {
         // TODO: Make sure that GobPie is actually guaranteed to run and create a socket in the workspace folder (in particular multiple workspaces might violate this assumption)
-        const socketPath = session.workspaceFolder.uri.path + '/gobpie_adb.sock';
+        const socketPath = session.workspaceFolder.uri.path + '/' + this.adbSocketPath;
         try {
             await vscode.workspace.fs.stat(Uri.file(socketPath));
         } catch (e) {
