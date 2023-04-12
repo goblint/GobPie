@@ -168,7 +168,6 @@ class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDe
 class AbstractDebuggingConfigurationProvider implements vscode.DebugConfigurationProvider {
 
     provideDebugConfigurations(folder: WorkspaceFolder | undefined, token?: CancellationToken): DebugConfiguration[] {
-        console.log("Called provide debug configurations");
         return [{
             type: "c_adb",
             request: "launch",
