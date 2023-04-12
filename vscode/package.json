@@ -18,7 +18,9 @@
     "vscode": "^1.30.0"
   },
   "activationEvents": [
-    "onLanguage:c"
+    "onLanguage:c",
+    "onDebugResolve:c_adb",
+    "onDebugDynamicConfigurations:c_adb"
   ],
   "main": "./dist/extension",
   "contributes": {

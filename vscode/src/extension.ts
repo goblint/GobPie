@@ -70,7 +70,8 @@ export function activate(context: ExtensionContext) {
     lc.start();
 
     context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('c_adb', new AbstractDebuggingAdapterDescriptorFactory(adbSocketPath)));
-    context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('c_adb', new AbstractDebuggingConfigurationProvider()));
+    context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('c_adb', new AbstractDebuggingConfigurationResolver()));
+    context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('c_adb', new AbstractDebuggingConfigurationProvider(), vscode.DebugConfigurationProviderTriggerKind.Dynamic));
 }
 
 
@@ -165,6 +166,19 @@ class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDe
 }
 
 class AbstractDebuggingConfigurationProvider implements vscode.DebugConfigurationProvider {
+
+    provideDebugConfigurations(folder: WorkspaceFolder | undefined, token?: CancellationToken): DebugConfiguration[] {
+        console.log("Called provide debug configurations");
+        return [{
+            type: "c_adb",
+            request: "launch",
+            name: "C (GobPie Abstract Debugger)"
+        }];
+    }
+
+}
+
+class AbstractDebuggingConfigurationResolver implements vscode.DebugConfigurationProvider {
 
     resolveDebugConfiguration(folder: WorkspaceFolder | undefined, debugConfiguration: DebugConfiguration, token?: CancellationToken): DebugConfiguration {
         return {
