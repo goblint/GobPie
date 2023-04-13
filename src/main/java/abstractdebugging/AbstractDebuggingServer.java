@@ -254,31 +254,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
     }
 
-    private Integer findFrameIndex(List<StackFrameState> frames, int targetPosition, String targetCFGNodeId) {
-        if (frames.size() <= targetPosition) {
-            return null;
-        }
-        if (frames.get(targetPosition).isAmbiguousFrame()) {
-            Integer foundIndex = null;
-            for (int i = targetPosition; i < frames.size(); i++) {
-                var frame = frames.get(i);
-                if (frame.getNode() != null && frame.getNode().cfgNodeId().equals(targetCFGNodeId)) {
-                    if (foundIndex != null) {
-                        throw new IllegalStateException("Ambiguous target frame");
-                    }
-                    foundIndex = i;
-                }
-            }
-            return foundIndex;
-        } else {
-            var frame = frames.get(targetPosition);
-            if (frame.getNode() != null && frame.getNode().cfgNodeId().equals(targetCFGNodeId)) {
-                return targetPosition;
-            }
-            return null;
-        }
-    }
-
     @Override
     public CompletableFuture<Void> terminateThreads(TerminateThreadsArguments args) {
         for (int threadId : args.getThreadIds()) {
@@ -710,11 +685,41 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 thread.getFrames().addAll(newStackTrace);
             }
             if (restart) {
-                thread.getCurrentFrame().setNode(getEntryNode(thread.getCurrentFrame().getNode()));
+                NodeInfo startNode = thread.getCurrentFrame().getNode() != null ? thread.getCurrentFrame().getNode() : thread.getCurrentFrame().getLastReachableNode();
+                if (startNode != null) {
+                    thread.getCurrentFrame().setNode(getEntryNode(startNode));
+                }
             }
         }
 
         onThreadsStopped("step", primaryThreadId);
+    }
+
+    private Integer findFrameIndex(List<StackFrameState> frames, int targetPosition, String targetCFGNodeId) {
+        if (frames.size() <= targetPosition) {
+            return null;
+        }
+        if (frames.get(targetPosition).isAmbiguousFrame()) {
+            Integer foundIndex = null;
+            for (int i = targetPosition; i < frames.size(); i++) {
+                var frame = frames.get(i);
+                assert frame.getNode() != null; // It should be impossible for ambiguous frames to be unavailable.
+                if (frame.getNode().cfgNodeId().equals(targetCFGNodeId)) {
+                    if (foundIndex != null) {
+                        throw new IllegalStateException("Ambiguous target frame");
+                    }
+                    foundIndex = i;
+                }
+            }
+            return foundIndex;
+        } else {
+            var frame = frames.get(targetPosition);
+            // Preserve unavailable frames because otherwise threads could be spuriously lost
+            if (frame.getNode() == null || frame.getNode().cfgNodeId().equals(targetCFGNodeId)) {
+                return targetPosition;
+            }
+            return null;
+        }
     }
 
     @Override
