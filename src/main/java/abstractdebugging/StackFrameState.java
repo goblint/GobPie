@@ -16,6 +16,9 @@ public class StackFrameState {
         this.localThreadIndex = localThreadIndex;
     }
 
+    /**
+     * Current ARG node in this frame.
+     */
     @Nullable
     public NodeInfo getNode() {
         return node;
@@ -29,10 +32,16 @@ public class StackFrameState {
         return lastReachableNode;
     }
 
+    /**
+     * If frame is ambiguous. An ambiguous frame is a frame where multiple possible frames can exist in the same position in the call stack.
+     */
     public boolean isAmbiguousFrame() {
         return ambiguousFrame;
     }
 
+    /**
+     * Local thread index. Two stack frames in the same stack with different local thread indexes belong to different program threads.
+     */
     public int getLocalThreadIndex() {
         return localThreadIndex;
     }
