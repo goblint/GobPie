@@ -246,56 +246,12 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     public CompletableFuture<Void> restartFrame(RestartFrameArguments args) {
         int targetThreadId = getThreadId(args.getFrameId());
         int targetFrameIndex = getFrameIndex(args.getFrameId());
-        ThreadState targetThread = threads.get(targetThreadId);
-
-        int targetPosition = targetFrameIndex;
-        while (targetPosition > 0 && targetThread.getFrames().get(targetPosition - 1).isAmbiguousFrame()) {
-            targetPosition -= 1;
+        try {
+            stepAllThreadsToMatchingFrame(targetThreadId, targetFrameIndex, true);
+            return CompletableFuture.completedFuture(null);
+        } catch (IllegalStepException e) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot restart frame. " + e.getMessage()));
         }
-
-        StackFrameState targetFrame = targetThread.getFrames().get(targetFrameIndex);
-        if (targetFrame.getNode() == null) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot restart unavailable frame."));
-        }
-        String targetCFGId = targetFrame.getNode().cfgNodeId();
-
-        Map<Integer, Integer> frameIndexes = new HashMap<>();
-        for (var threadEntry : threads.entrySet()) {
-            Integer frameIndex;
-            if (threadEntry.getValue() == targetThread) {
-                frameIndex = targetFrameIndex;
-            } else {
-                try {
-                    frameIndex = findFrameIndex(threadEntry.getValue().getFrames(), targetPosition, targetCFGId);
-                } catch (IllegalStateException e) {
-                    return CompletableFuture.failedFuture(userFacingError("Cannot restart frame. Ambiguous target frame for " + threadEntry.getValue().getName()));
-                }
-            }
-
-            if (frameIndex != null) {
-                frameIndexes.put(threadEntry.getKey(), frameIndex);
-            }
-        }
-
-        threads.keySet().removeIf(t -> !frameIndexes.containsKey(t));
-        for (var threadEntry : threads.entrySet()) {
-            int threadId = threadEntry.getKey();
-            ThreadState thread = threadEntry.getValue();
-
-            int frameIndex = frameIndexes.get(threadId);
-            // Remove all frames on top of the target frame
-            thread.getFrames().subList(0, frameIndex).clear();
-            if (thread.getCurrentFrame().isAmbiguousFrame()) {
-                // If the target frame is ambiguous then rebuild stack
-                List<StackFrameState> newStackTrace = assembleStackTrace(thread.getCurrentFrame().getNode());
-                thread.getFrames().clear();
-                thread.getFrames().addAll(newStackTrace);
-            }
-        }
-
-        onThreadsStopped("step", targetThreadId);
-
-        return CompletableFuture.completedFuture(null);
     }
 
     private Integer findFrameIndex(List<StackFrameState> frames, int targetPosition, String targetCFGNodeId) {
@@ -364,7 +320,12 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             return CompletableFuture.failedFuture(userFacingError("Branching control flow. Use step into target to choose the desired branch."));
         }
         var targetEdge = currentNode.outgoingCFGEdges().get(0);
-        return stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges, false);
+        try {
+            stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges, false);
+            return CompletableFuture.completedFuture(null);
+        } catch (IllegalStepException e) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step over. " + e.getMessage()));
+        }
     }
 
     @Override
@@ -389,16 +350,22 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             return next(nextArgs);
         }
 
-        if (targetId >= ENTRY_STEP_OFFSET) {
-            int targetIndex = targetId - ENTRY_STEP_OFFSET;
-            var targetEdge = currentNode.outgoingEntryEdges().get(targetIndex);
-            return stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingEntryEdges, true);
-        } else if (targetId >= CFG_STEP_OFFSET) {
-            int targetIndex = targetId - CFG_STEP_OFFSET;
-            var targetEdge = currentNode.outgoingCFGEdges().get(targetIndex);
-            return stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges, false);
-        } else {
-            return CompletableFuture.failedFuture(new IllegalStateException("Unknown step in target: " + targetId));
+        try {
+            if (targetId >= ENTRY_STEP_OFFSET) {
+                int targetIndex = targetId - ENTRY_STEP_OFFSET;
+                var targetEdge = currentNode.outgoingEntryEdges().get(targetIndex);
+                stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingEntryEdges, true);
+                return CompletableFuture.completedFuture(null);
+            } else if (targetId >= CFG_STEP_OFFSET) {
+                int targetIndex = targetId - CFG_STEP_OFFSET;
+                var targetEdge = currentNode.outgoingCFGEdges().get(targetIndex);
+                stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges, false);
+                return CompletableFuture.completedFuture(null);
+            } else {
+                return CompletableFuture.failedFuture(new IllegalStateException("Unknown step in target: " + targetId));
+            }
+        } catch (IllegalStepException e) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step. " + e.getMessage()));
         }
     }
 
@@ -537,7 +504,18 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         if (currentNode == null) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step back. Location is unavailable."));
         } else if (currentNode.incomingCFGEdges().isEmpty()) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Reached start of function."));
+            // Reached start of function
+            if (!targetThread.hasPreviousFrame()) {
+                return CompletableFuture.failedFuture(userFacingError("Cannot step back. Reached start of program."));
+            } else if (targetThread.getPreviousFrame().isAmbiguousFrame()) {
+                return CompletableFuture.failedFuture(userFacingError("Ambiguous previous frame. Use restart frame to choose desired frame."));
+            }
+            try {
+                stepAllThreadsToMatchingFrame(args.getThreadId(), 1, false);
+                return CompletableFuture.completedFuture(null);
+            } catch (IllegalStepException e) {
+                return CompletableFuture.failedFuture(userFacingError("Cannot step back. " + e.getMessage()));
+            }
         } else if (currentNode.incomingCFGEdges().size() > 1) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step back. Previous location is ambiguous."));
         }
@@ -577,19 +555,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         onThreadsStopped("step", args.getThreadId());
 
         return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
-    public CompletableFuture<Void> goto_(GotoArguments args) {
-        // TODO
-        // TODO: Recover unreachable branches when jumping backwards to / over node where branches diverged.
-        return IDebugProtocolServer.super.goto_(args);
-    }
-
-    @Override
-    public CompletableFuture<GotoTargetsResponse> gotoTargets(GotoTargetsArguments args) {
-        // TODO
-        return IDebugProtocolServer.super.gotoTargets(args);
     }
 
     /**
@@ -643,9 +608,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
      * Edges are matched by ARG node. If no edge with matching ARG node is found then edges are matched by CFG node.
      * If no edge with matching CFG node is found then thread becomes unavailable.
      *
-     * @throws ResponseErrorException if the target node is ambiguous ie there are multiple candidate edges that have the target CFG node.
+     * @throws IllegalStepException if the target node is ambiguous ie there are multiple candidate edges that have the target CFG node.
      */
-    private CompletableFuture<Void> stepAllThreadsAlongMatchingEdge(int primaryThreadId, EdgeInfo primaryTargetEdge, Function<NodeInfo, List<? extends EdgeInfo>> getCandidateEdges, boolean addFrame) {
+    private void stepAllThreadsAlongMatchingEdge(int primaryThreadId, EdgeInfo primaryTargetEdge, Function<NodeInfo, List<? extends EdgeInfo>> getCandidateEdges, boolean addFrame)
+            throws IllegalStepException {
         // Note: It is important that all threads, including threads with unavailable location, are stepped, because otherwise the number of added stack frames could get out of sync.
         List<Pair<ThreadState, EdgeInfo>> steps = new ArrayList<>();
         for (var thread : threads.values()) {
@@ -674,7 +640,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                         // Log error because if 'Step into target' menu is open then errors returned by this function are not shown in VSCode.
                         // TODO: Open issue about this in VSCode issue tracker.
                         log.error("Cannot step. Path is ambiguous for " + thread.getName() + ".");
-                        return CompletableFuture.failedFuture(userFacingError("Cannot step. Path is ambiguous for " + thread.getName() + "."));
+                        throw new IllegalStepException("Cannot step. Path is ambiguous for " + thread.getName() + ".");
                     }
                     targetEdge = targetEdgesByCFGNode.size() == 1 ? targetEdgesByCFGNode.get(0) : null;
                 }
@@ -695,8 +661,60 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
 
         onThreadsStopped("step", primaryThreadId);
+    }
 
-        return CompletableFuture.completedFuture(null);
+    private void stepAllThreadsToMatchingFrame(int primaryThreadId, int primaryTargetFrameIndex, boolean restart) throws IllegalStepException {
+        ThreadState targetThread = threads.get(primaryThreadId);
+
+        int targetPosition = primaryTargetFrameIndex;
+        while (targetPosition > 0 && targetThread.getFrames().get(targetPosition - 1).isAmbiguousFrame()) {
+            targetPosition -= 1;
+        }
+
+        StackFrameState targetFrame = targetThread.getFrames().get(primaryTargetFrameIndex);
+        if (targetFrame.getNode() == null) {
+            throw new IllegalStepException("Target frame is unavailable.");
+        }
+        String targetCFGId = targetFrame.getNode().cfgNodeId();
+
+        Map<Integer, Integer> frameIndexes = new HashMap<>();
+        for (var threadEntry : threads.entrySet()) {
+            Integer frameIndex;
+            if (threadEntry.getValue() == targetThread) {
+                frameIndex = primaryTargetFrameIndex;
+            } else {
+                try {
+                    frameIndex = findFrameIndex(threadEntry.getValue().getFrames(), targetPosition, targetCFGId);
+                } catch (IllegalStateException e) {
+                    throw new IllegalStepException("Ambiguous target frame for " + threadEntry.getValue().getName() + ".");
+                }
+            }
+
+            if (frameIndex != null) {
+                frameIndexes.put(threadEntry.getKey(), frameIndex);
+            }
+        }
+
+        threads.keySet().removeIf(t -> !frameIndexes.containsKey(t));
+        for (var threadEntry : threads.entrySet()) {
+            int threadId = threadEntry.getKey();
+            ThreadState thread = threadEntry.getValue();
+
+            int frameIndex = frameIndexes.get(threadId);
+            // Remove all frames on top of the target frame
+            thread.getFrames().subList(0, frameIndex).clear();
+            if (thread.getCurrentFrame().isAmbiguousFrame()) {
+                // If the target frame is ambiguous then rebuild stack
+                List<StackFrameState> newStackTrace = assembleStackTrace(thread.getCurrentFrame().getNode());
+                thread.getFrames().clear();
+                thread.getFrames().addAll(newStackTrace);
+            }
+            if (restart) {
+                thread.getCurrentFrame().setNode(getEntryNode(thread.getCurrentFrame().getNode()));
+            }
+        }
+
+        onThreadsStopped("step", primaryThreadId);
     }
 
     @Override
