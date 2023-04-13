@@ -696,6 +696,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     }
 
     private Integer findFrameIndex(List<StackFrameState> frames, int targetPosition, String targetCFGNodeId) {
+        // When restarting the frame it might make more sense to compare entry nodes rather than current nodes,
+        // however, this can cause unexpected ambiguities when there are ambiguous frames with the same entry node but different current nodes.
+        // TODO: Make an explicit and reasoned decision on this.
         if (frames.size() <= targetPosition) {
             return null;
         }
