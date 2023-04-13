@@ -735,29 +735,29 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<StackTraceResponse> stackTrace(StackTraceArguments args) {
         var thread = threads.get(args.getThreadId());
-        if (thread.getCurrentFrame().getNode() == null) {
-            return CompletableFuture.failedFuture(userFacingError("No matching path"));
-        }
 
         final int currentThreadId = thread.getCurrentFrame().getLocalThreadIndex();
         StackFrame[] stackFrames = new StackFrame[thread.getFrames().size()];
         for (int i = 0; i < thread.getFrames().size(); i++) {
             var frame = thread.getFrames().get(i);
-            assert frame.getNode() != null;
 
             var stackFrame = new StackFrame();
             stackFrame.setId(getFrameId(args.getThreadId(), i));
             // TODO: Notation for ambiguous frames and parent threads could be clearer.
-            stackFrame.setName((frame.isAmbiguousFrame() ? "? " : "") + (frame.getLocalThreadIndex() != currentThreadId ? "^" : "") + frame.getNode().function() + " " + frame.getNode().nodeId());
-            var location = frame.getNode().location();
-            stackFrame.setLine(location.getLine());
-            stackFrame.setColumn(location.getColumn());
-            stackFrame.setEndLine(location.getEndLine());
-            stackFrame.setEndColumn(location.getEndColumn());
-            var source = new Source();
-            source.setName(location.getFile());
-            source.setPath(new File(location.getFile()).getAbsolutePath());
-            stackFrame.setSource(source);
+            if (frame.getNode() != null) {
+                stackFrame.setName((frame.isAmbiguousFrame() ? "? " : "") + (frame.getLocalThreadIndex() != currentThreadId ? "^" : "") + frame.getNode().function() + " " + frame.getNode().nodeId());
+                var location = frame.getNode().location();
+                stackFrame.setLine(location.getLine());
+                stackFrame.setColumn(location.getColumn());
+                stackFrame.setEndLine(location.getEndLine());
+                stackFrame.setEndColumn(location.getEndColumn());
+                var source = new Source();
+                source.setName(location.getFile());
+                source.setPath(new File(location.getFile()).getAbsolutePath());
+                stackFrame.setSource(source);
+            } else {
+                stackFrame.setName("No matching path");
+            }
 
             stackFrames[i] = stackFrame;
         }
