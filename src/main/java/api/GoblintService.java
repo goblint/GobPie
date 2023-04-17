@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -36,6 +37,12 @@ public interface GoblintService {
     // response: {"id":0,"jsonrpc":"2.0","result":[{"funName":"qsort","location":{"file":"/home/ ... }]}
     @JsonRequest
     CompletableFuture<List<GoblintFunctionsResult>> functions();
+
+    @JsonRequest
+    CompletableFuture<Map<String, List<String>>> files();
+
+    @JsonRequest
+    CompletableFuture<Map<String, List<String>>> pre_files();
 
     // request:  {"jsonrpc":"2.0","id":0,"method":"cfg", "params":{"fname":"main"}}
     // response: {"id":0,"jsonrpc":"2.0","result":{"cfg":"digraph cfg {\n\tnode [id=\"\\N\", ... }}

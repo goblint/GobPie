@@ -96,9 +96,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<SetBreakpointsResponse> setBreakpoints(SetBreakpointsArguments args) {
-        // TODO: Handle cases where Goblint expected path is not relative to current working directory
-        String sourcePath = Path.of(System.getProperty("user.dir")).relativize(Path.of(args.getSource().getPath())).toString();
-        log.info("Setting breakpoints for " + args.getSource().getPath() + " (" + sourcePath + ")");
+        Path absoluteSourcePath = Path.of(args.getSource().getPath()).toAbsolutePath();
+        String goblintSourcePath = getGoblintTrackedFiles().stream()
+                .filter(f -> Path.of(f).toAbsolutePath().equals(absoluteSourcePath))
+                .findFirst().orElse(null);
+        log.info("Setting breakpoints for " + args.getSource().getPath() + " (" + goblintSourcePath + ")");
 
         List<Breakpoint> newBreakpointStatuses = new ArrayList<>();
         List<BreakpointInfo> newBreakpoints = new ArrayList<>();
@@ -106,7 +108,13 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             var breakpointStatus = new Breakpoint();
             newBreakpointStatuses.add(breakpointStatus);
 
-            var targetLocation = new GoblintLocation(sourcePath, breakpoint.getLine(), breakpoint.getColumn() == null ? 0 : breakpoint.getColumn());
+            if (goblintSourcePath == null) {
+                breakpointStatus.setVerified(false);
+                breakpointStatus.setMessage("File not analyzed");
+                continue;
+            }
+
+            var targetLocation = new GoblintLocation(goblintSourcePath, breakpoint.getLine(), breakpoint.getColumn() == null ? 0 : breakpoint.getColumn());
             CFGNodeInfo cfgNode;
             try {
                 cfgNode = lookupCFGNode(targetLocation);
@@ -156,11 +164,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
         int startIndex;
         for (startIndex = 0; startIndex < breakpoints.size(); startIndex++) {
-            if (breakpoints.get(startIndex).cfgNode().location().getFile().equals(sourcePath)) {
+            if (breakpoints.get(startIndex).cfgNode().location().getFile().equals(goblintSourcePath)) {
                 break;
             }
         }
-        breakpoints.removeIf(b -> b.cfgNode().location().getFile().equals(sourcePath));
+        breakpoints.removeIf(b -> b.cfgNode().location().getFile().equals(goblintSourcePath));
         breakpoints.addAll(startIndex, newBreakpoints);
 
         var response = new SetBreakpointsResponse();
@@ -1189,6 +1197,16 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     private List<GoblintVarinfo> getVarinfos() {
         return goblintService.cil_varinfos().join();
+    }
+
+    /**
+     * Retrieves and returns a list of source files analyzed by Goblint.
+     */
+    private List<String> getGoblintTrackedFiles() {
+        return goblintService.files().join()
+                .values().stream()
+                .flatMap(Collection::stream)
+                .toList();
     }
 
     private static boolean isRequestFailedError(Throwable e) {
