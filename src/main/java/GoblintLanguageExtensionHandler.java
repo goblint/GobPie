@@ -1,6 +1,4 @@
 import magpiebridge.core.LanguageExtensionHandler;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Set;
 
@@ -10,8 +8,6 @@ import java.util.Set;
  */
 public class GoblintLanguageExtensionHandler implements LanguageExtensionHandler {
 
-    private static final Logger log = LogManager.getLogger(GoblintLanguageExtensionHandler.class);
-
     private final LanguageExtensionHandler fallbackLanguageExtensionHandler;
 
     public GoblintLanguageExtensionHandler(LanguageExtensionHandler fallbackLanguageExtensionHandler) {
@@ -20,7 +16,6 @@ public class GoblintLanguageExtensionHandler implements LanguageExtensionHandler
 
     @Override
     public String getLanguageForExtension(String extension) {
-        log.info("Requested language for " + extension);
         if (".c".equals(extension) || ".i".equals(extension) || ".h".equals(extension)) {
             return "c";
         }
@@ -29,7 +24,6 @@ public class GoblintLanguageExtensionHandler implements LanguageExtensionHandler
 
     @Override
     public Set<String> getExtensionsForLanguage(String language) {
-        log.info("Requested extensions for " + language);
         if ("c".equals(language)) {
             return Set.of(".c", ".i", ".h");
         }
