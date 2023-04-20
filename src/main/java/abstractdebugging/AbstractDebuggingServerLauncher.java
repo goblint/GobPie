@@ -1,13 +1,10 @@
 package abstractdebugging;
 
-import api.GoblintService;
 import gobpie.GobPieException;
 import gobpie.GobPieExceptionType;
-import magpiebridge.core.MagpieServer;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.lsp4j.debug.launch.DSPLauncher;
 import org.eclipse.lsp4j.debug.services.IDebugProtocolClient;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher;
@@ -29,7 +26,7 @@ import java.util.concurrent.Executors;
  */
 public class AbstractDebuggingServerLauncher {
 
-    private final GoblintService goblintService;
+    private final ResultsService resultsService;
 
     private final ExecutorService executorService = Executors.newCachedThreadPool(runnable -> {
         Thread thread = new Thread(runnable, "adb-server-worker");
@@ -39,8 +36,8 @@ public class AbstractDebuggingServerLauncher {
 
     private final Logger log = LogManager.getLogger(AbstractDebuggingServerLauncher.class);
 
-    public AbstractDebuggingServerLauncher(GoblintService goblintService) {
-        this.goblintService = goblintService;
+    public AbstractDebuggingServerLauncher(ResultsService resultsService) {
+        this.resultsService = resultsService;
     }
 
     /**
@@ -75,7 +72,7 @@ public class AbstractDebuggingServerLauncher {
                 AFUNIXSocket clientSocket = serverSocket.accept();
                 log.info("Accepted new connection to abstract debugging server.");
 
-                AbstractDebuggingServer abstractDebuggingServer = new AbstractDebuggingServer(goblintService);
+                AbstractDebuggingServer abstractDebuggingServer = new AbstractDebuggingServer(resultsService);
                 Launcher<IDebugProtocolClient> launcher = new DebugLauncher.Builder<IDebugProtocolClient>()
                         .setLocalService(abstractDebuggingServer)
                         .setRemoteInterface(IDebugProtocolClient.class)

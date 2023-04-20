@@ -1,5 +1,6 @@
 import HTTPserver.GobPieHTTPServer;
 import abstractdebugging.AbstractDebuggingServerLauncher;
+import abstractdebugging.ResultsService;
 import analysis.GoblintAnalysis;
 import analysis.ShowCFGCommand;
 import api.GoblintService;
@@ -163,7 +164,8 @@ public class Main {
      * @throws GobPieException if creating domain socket for server fails
      */
     private static void launchAbstractDebuggingServer(String socketAddress, GoblintService goblintService) {
-        AbstractDebuggingServerLauncher launcher = new AbstractDebuggingServerLauncher(goblintService);
+        ResultsService resultsService = new ResultsService(goblintService);
+        AbstractDebuggingServerLauncher launcher = new AbstractDebuggingServerLauncher(resultsService);
         launcher.launchOnDomainSocket(socketAddress);
     }
 

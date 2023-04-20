@@ -1,6 +1,5 @@
 package abstractdebugging;
 
-import api.GoblintService;
 import api.messages.*;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -20,7 +19,6 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -56,7 +54,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             "__environ" // Linux Standard Base Core Specification
     );
 
-    private final GoblintService goblintService;
+    private final ResultsService resultsService;
 
     private IDebugProtocolClient client;
     private CompletableFuture<Void> configurationDoneFuture = new CompletableFuture<>();
@@ -71,8 +69,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     private final Logger log = LogManager.getLogger(AbstractDebuggingServer.class);
 
 
-    public AbstractDebuggingServer(GoblintService goblintService) {
-        this.goblintService = goblintService;
+    public AbstractDebuggingServer(ResultsService resultsService) {
+        this.resultsService = resultsService;
     }
 
     /**
@@ -100,7 +98,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<SetBreakpointsResponse> setBreakpoints(SetBreakpointsArguments args) {
         Path absoluteSourcePath = Path.of(args.getSource().getPath()).toAbsolutePath();
-        String goblintSourcePath = getGoblintTrackedFiles().stream()
+        String goblintSourcePath = resultsService.getGoblintTrackedFiles().stream()
                 .filter(f -> Path.of(f).toAbsolutePath().equals(absoluteSourcePath))
                 .findFirst().orElse(null);
         log.info("Setting breakpoints for " + args.getSource().getPath() + " (" + goblintSourcePath + ")");
@@ -120,7 +118,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             var targetLocation = new GoblintLocation(goblintSourcePath, breakpoint.getLine(), breakpoint.getColumn() == null ? 0 : breakpoint.getColumn());
             CFGNodeInfo cfgNode;
             try {
-                cfgNode = lookupCFGNode(targetLocation);
+                cfgNode = resultsService.lookupCFGNode(targetLocation);
             } catch (RequestFailedException e) {
                 breakpointStatus.setVerified(false);
                 breakpointStatus.setMessage("No statement found at location " + targetLocation);
@@ -188,24 +186,17 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(response);
     }
 
+    /**
+     * @throws IllegalArgumentException if evaluating the condition failed.
+     */
     private List<NodeInfo> findTargetNodes(CFGNodeInfo cfgNode, @Nullable ConditionalExpression condition) {
-        var candidateNodes = lookupNodes(LookupParams.byCFGNodeId(cfgNode.cfgNodeId()));
+        var candidateNodes = resultsService.lookupNodes(LookupParams.byCFGNodeId(cfgNode.cfgNodeId()));
         if (condition == null) {
             return candidateNodes;
         } else {
-            try {
-                return candidateNodes.stream()
-                        .filter(n -> {
-                            var result = evaluateIntegerExpression(n.nodeId(), "!!(" + condition.expression() + ")");
-                            return switch (condition.mode()) {
-                                case MAY -> result.mayBeBool(true);
-                                case MUST -> result.mustBeBool(true);
-                            };
-                        })
-                        .toList();
-            } catch (RequestFailedException e) {
-                throw new IllegalArgumentException("Error evaluating condition: " + e.getMessage());
-            }
+            return candidateNodes.stream()
+                    .filter(n -> condition.evaluate(n, resultsService))
+                    .toList();
         }
     }
 
@@ -381,7 +372,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 var cfgEdges = currentNode.outgoingCFGEdges();
                 for (int i = 0; i < cfgEdges.size(); i++) {
                     var edge = cfgEdges.get(i);
-                    var node = lookupNode(edge.nodeId());
+                    var node = resultsService.lookupNode(edge.nodeId());
 
                     var target = new StepInTarget();
                     target.setId(CFG_STEP_OFFSET + i);
@@ -458,7 +449,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 if (candidateTargetNodeIds.isEmpty()) {
                     targetNode = null;
                 } else if (candidateTargetNodeIds.size() == 1) {
-                    targetNode = lookupNode(candidateTargetNodeIds.get(0));
+                    targetNode = resultsService.lookupNode(candidateTargetNodeIds.get(0));
                 } else {
                     return CompletableFuture.failedFuture(userFacingError("Ambiguous return path" + (thread == targetThread ? "" : " for " + thread.getName()) +
                             ". Step to return manually to choose the desired path."));
@@ -523,7 +514,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 } else if (targetEdges.size() > 1) {
                     return CompletableFuture.failedFuture(userFacingError("Cannot step back. Path is ambiguous from " + thread.getName()));
                 }
-                targetNode = lookupNode(targetEdges.get(0).nodeId());
+                targetNode = resultsService.lookupNode(targetEdges.get(0).nodeId());
             } else if (currentFrame.getLastReachableNode() != null && currentFrame.getLastReachableNode().cfgNodeId().equals(targetCFGNodeId)) {
                 targetNode = currentFrame.getLastReachableNode();
             } else {
@@ -561,7 +552,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             if (breakpoints.size() == 0) {
                 stopReason = "entry";
                 targetLocation = null;
-                targetNodes = lookupNodes(LookupParams.entryPoint());
+                targetNodes = resultsService.lookupNodes(LookupParams.entryPoint());
             } else {
                 var breakpoint = breakpoints.get(activeBreakpoint);
                 stopReason = "breakpoint";
@@ -638,7 +629,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         for (var step : steps) {
             ThreadState thread = step.getLeft();
             EdgeInfo targetEdge = step.getRight();
-            NodeInfo targetNode = targetEdge == null ? null : lookupNode(targetEdge.nodeId());
+            NodeInfo targetNode = targetEdge == null ? null : resultsService.lookupNode(targetEdge.nodeId());
             if (addFrame) {
                 boolean isNewThread = targetEdge instanceof FunctionCallEdgeInfo fce && fce.createsNewThread();
                 thread.pushFrame(new StackFrameState(targetNode, false, thread.getCurrentFrame().getLocalThreadIndex() - (isNewThread ? 1 : 0)));
@@ -811,9 +802,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         Scope[] scopes = nodeScopes.computeIfAbsent(frame.getNode().nodeId(), nodeId -> {
             NodeInfo currentNode = frame.getNode();
 
-            JsonObject state = lookupState(currentNode.nodeId());
-            JsonElement globalState = lookupGlobalState();
-            Map<String, GoblintVarinfo> varinfos = getVarinfos().stream()
+            JsonObject state = resultsService.lookupState(currentNode.nodeId());
+            JsonElement globalState = resultsService.lookupGlobalState();
+            Map<String, GoblintVarinfo> varinfos = resultsService.getVarinfos().stream()
                     .filter(v -> (v.getFunction() == null || v.getFunction().equals(currentNode.function())) && !"function".equals(v.getRole()))
                     .collect(Collectors.toMap(GoblintVarinfo::getName, v -> v));
 
@@ -859,7 +850,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 if (value == null) {
                     // If domain does not contain variable value use Goblint to evaluate the value.
                     // This generally happens for global variables in multithreaded mode.
-                    value = evaluateExpression(currentNode.nodeId(), varinfo.getName());
+                    value = resultsService.evaluateExpression(currentNode.nodeId(), varinfo.getName());
                 }
 
                 List<Variable> scope = varinfo.getFunction() == null ? globalVariables : localVariables;
@@ -899,7 +890,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
         JsonElement result;
         try {
-            result = evaluateExpression(frame.getNode().nodeId(), args.getExpression());
+            result = resultsService.evaluateExpression(frame.getNode().nodeId(), args.getExpression());
         } catch (RequestFailedException e) {
             return CompletableFuture.failedFuture(userFacingError(e.getMessage()));
         }
@@ -1077,7 +1068,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 if (edge.createsNewThread()) {
                     curThreadId += 1;
                 }
-                var node = lookupNode(edge.nodeId());
+                var node = resultsService.lookupNode(edge.nodeId());
                 stackFrames.add(new StackFrameState(node, ambiguous, curThreadId));
             }
         } while (entryNode.incomingEntryEdges().size() == 1);
@@ -1106,7 +1097,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
         seenNodes.add(node.nodeId());
         for (var edge : node.incomingCFGEdges()) {
-            NodeInfo entryNode = _getEntryNode(lookupNode(edge.nodeId()), seenNodes);
+            NodeInfo entryNode = _getEntryNode(resultsService.lookupNode(edge.nodeId()), seenNodes);
             if (entryNode != null) {
                 return entryNode;
             }
@@ -1134,7 +1125,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             foundNodes.add(node);
         }
         for (var edge : candidateEdges.apply(node)) {
-            _findMatchingNodes(lookupNode(edge.nodeId()), candidateEdges, condition, seenNodes, foundNodes);
+            _findMatchingNodes(resultsService.lookupNode(edge.nodeId()), candidateEdges, condition, seenNodes, foundNodes);
         }
     }
 
@@ -1143,115 +1134,6 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
      */
     private ResponseErrorException userFacingError(String message) {
         return new ResponseErrorException(new ResponseError(ResponseErrorCode.RequestFailed, message, null));
-    }
-
-    // Synchronous convenience methods around GoblintService:
-
-    private List<NodeInfo> lookupNodes(LookupParams params) {
-        return goblintService.arg_lookup(params)
-                .thenApply(result -> result.stream()
-                        .map(lookupResult -> {
-                            NodeInfo nodeInfo = lookupResult.toNodeInfo();
-                            if (!nodeInfo.outgoingReturnEdges().isEmpty() && nodeInfo.outgoingCFGEdges().isEmpty()) {
-                                // Location of return nodes is generally the entire function.
-                                // That looks strange, so we patch it to be only the end of the last line of the function.
-                                // TODO: Maybe it would be better to adjust location when returning stack so the node info retains the original location
-                                return nodeInfo.withLocation(new GoblintLocation(
-                                        nodeInfo.location().getFile(),
-                                        nodeInfo.location().getEndLine(), nodeInfo.location().getEndColumn(),
-                                        nodeInfo.location().getEndLine(), nodeInfo.location().getEndColumn()
-                                ));
-                            } else {
-                                return nodeInfo;
-                            }
-                        })
-                        .toList())
-                .join();
-    }
-
-    /**
-     * @throws RequestFailedException if the node was not found or multiple nodes were found
-     */
-    private NodeInfo lookupNode(String nodeId) {
-        var nodes = lookupNodes(LookupParams.byNodeId(nodeId));
-        return switch (nodes.size()) {
-            case 0 -> throw new RequestFailedException("Node with id " + nodeId + " not found");
-            case 1 -> nodes.get(0);
-            default -> throw new RequestFailedException("Multiple nodes with id " + nodeId + " found");
-        };
-    }
-
-    /**
-     * Find a CFG node by its location. Any node that appears at this location or after it, is considered matching.
-     *
-     * @throws RequestFailedException if a matching node was not found.
-     */
-    private CFGNodeInfo lookupCFGNode(GoblintLocation location) {
-        try {
-            return goblintService.cfg_lookup(CFGLookupParams.byLocation(location)).join().toCFGNodeInfo();
-        } catch (CompletionException e) {
-            if (isRequestFailedError(e.getCause())) {
-                throw new RequestFailedException(e.getCause().getMessage());
-            }
-            throw e;
-        }
-    }
-
-    private JsonObject lookupState(String nodeId) {
-        return goblintService.arg_state(new ARGStateParams(nodeId)).join();
-    }
-
-    private JsonElement lookupGlobalState() {
-        return goblintService.global_state(GlobalStateParams.all()).join();
-    }
-
-    /**
-     * @throws RequestFailedException if evaluating the expression failed, generally because the expression is syntactically or semantically invalid.
-     */
-    private EvalIntResult evaluateIntegerExpression(String nodeId, String expression) {
-        try {
-            return goblintService.arg_eval_int(new EvalIntQueryParams(nodeId, expression)).join();
-        } catch (CompletionException e) {
-            // Promote request failure to public API error because it is usually caused by the user entering an invalid expression
-            // and the error message contains useful info about why the expression was invalid.
-            if (isRequestFailedError(e.getCause())) {
-                throw new RequestFailedException(e.getCause().getMessage());
-            }
-            throw e;
-        }
-    }
-
-    /**
-     * @throws RequestFailedException if evaluating the expression failed, generally because the expression is syntactically or semantically invalid.
-     */
-    private JsonElement evaluateExpression(String nodeId, String expression) {
-        try {
-            return goblintService.arg_eval(new EvalQueryParams(nodeId, expression)).join();
-        } catch (CompletionException e) {
-            // See note in evaluateIntegerExpression
-            if (isRequestFailedError(e.getCause())) {
-                throw new RequestFailedException(e.getCause().getMessage());
-            }
-            throw e;
-        }
-    }
-
-    private List<GoblintVarinfo> getVarinfos() {
-        return goblintService.cil_varinfos().join();
-    }
-
-    /**
-     * Retrieves and returns a list of source files analyzed by Goblint.
-     */
-    private List<String> getGoblintTrackedFiles() {
-        return goblintService.files().join()
-                .values().stream()
-                .flatMap(Collection::stream)
-                .toList();
-    }
-
-    private static boolean isRequestFailedError(Throwable e) {
-        return e instanceof ResponseErrorException re && re.getResponseError().getCode() == ResponseErrorCode.RequestFailed.getValue();
     }
 
 }

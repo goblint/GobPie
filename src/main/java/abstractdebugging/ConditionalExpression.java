@@ -1,31 +1,44 @@
 package abstractdebugging;
 
-public record ConditionalExpression(Mode mode, String expression) {
+public record ConditionalExpression(boolean must, String expression) {
+
+    private static final String EXPLICIT_MODE_PREFIX = "\\";
 
     public static ConditionalExpression fromString(String conditionalExpression) {
-        if (conditionalExpression.startsWith("\\")) {
+        String mode, expression;
+        if (hasExplicitMode(conditionalExpression)) {
             String[] parts = conditionalExpression.split("\\s+", 2);
             if (parts.length != 2) {
                 throw new IllegalArgumentException("Invalid expression: " + conditionalExpression);
             }
-            Mode mode = Mode.fromString(parts[0].substring(1));
-            String expression = parts[1];
-            return new ConditionalExpression(mode, expression);
+            mode = parts[0].substring(EXPLICIT_MODE_PREFIX.length());
+            expression = parts[1];
         } else {
-            return new ConditionalExpression(Mode.MAY, conditionalExpression);
+            mode = "may";
+            expression = conditionalExpression;
         }
+        return switch (mode) {
+            case "may" -> new ConditionalExpression(false, expression);
+            case "must" -> new ConditionalExpression(true, expression);
+            default -> throw new IllegalArgumentException("Unknown mode: " + mode);
+        };
     }
 
-    public enum Mode {
-        MAY,
-        MUST;
+    public static boolean hasExplicitMode(String conditionalExpression) {
+        return conditionalExpression.startsWith(EXPLICIT_MODE_PREFIX);
+    }
 
-        public static Mode fromString(String value) {
-            return switch (value) {
-                case "may" -> MAY;
-                case "must" -> MUST;
-                default -> throw new IllegalArgumentException("Unknown mode: " + value);
-            };
+    /**
+     * Evaluate conditional expression at given node.
+     *
+     * @throws IllegalArgumentException if evaluating the condition failed.
+     */
+    public boolean evaluate(NodeInfo node, ResultsService resultsService) {
+        try {
+            var result = resultsService.evaluateIntegerExpression(node.nodeId(), "!!(" + expression + ")");
+            return must ? result.mustBeBool(true) : result.mayBeBool(true);
+        } catch (RequestFailedException e) {
+            throw new IllegalArgumentException("Error evaluating condition: " + e.getMessage());
         }
     }
 
