@@ -925,15 +925,21 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             var valueArray = value.getAsJsonArray();
             // Integer domains are generally represented as an array of 1-4 strings.
             // We want to display that as a non-compound variable for compactness and readability.
-            // As a general heuristic, only arrays containing compound values are displayed as compound variables.
-            boolean cotainsCompound = false;
-            for (JsonElement jsonElement : valueArray) {
-                if (!jsonElement.isJsonPrimitive()) {
-                    cotainsCompound = true;
-                    break;
+            // As a general heuristic, only arrays containing compound values or longer than 4 elements are displayed as compound variables.
+            boolean displayAsCompound;
+            if (valueArray.size() > 4) {
+                displayAsCompound = true;
+            } else {
+                displayAsCompound = false;
+                for (JsonElement jsonElement : valueArray) {
+                    if (!jsonElement.isJsonPrimitive()) {
+                        displayAsCompound = true;
+                        break;
+                    }
                 }
             }
-            if (cotainsCompound || valueArray.size() == 0) {
+
+            if (displayAsCompound) {
                 return compoundVariable(
                         name,
                         type,
