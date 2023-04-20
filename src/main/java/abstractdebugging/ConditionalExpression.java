@@ -3,27 +3,33 @@ package abstractdebugging;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 
+import javax.annotation.Nullable;
+import java.util.Locale;
+
 public record ConditionalExpression(boolean must, String expression) {
 
     private static final String EXPLICIT_MODE_PREFIX = "\\";
 
-    public static ConditionalExpression fromString(String conditionalExpression) {
-        String mode, expression;
+    public static ConditionalExpression fromString(String conditionalExpression, @Nullable Mode defaultMode) {
+        Mode mode;
+        String expression;
         if (hasExplicitMode(conditionalExpression)) {
             String[] parts = conditionalExpression.split("\\s+", 2);
             if (parts.length != 2) {
                 throw new IllegalArgumentException("Invalid expression: " + conditionalExpression);
             }
-            mode = parts[0].substring(EXPLICIT_MODE_PREFIX.length());
+            mode = Mode.fromString(parts[0].substring(EXPLICIT_MODE_PREFIX.length()));
             expression = parts[1];
         } else {
-            mode = "may";
+            if (defaultMode == null) {
+                throw new IllegalArgumentException("Must specify mode explicitly");
+            }
+            mode = defaultMode;
             expression = conditionalExpression;
         }
         return switch (mode) {
-            case "may" -> new ConditionalExpression(false, expression);
-            case "must" -> new ConditionalExpression(true, expression);
-            default -> throw new IllegalArgumentException("Unknown mode: " + mode);
+            case MAY -> new ConditionalExpression(false, expression);
+            case MUST -> new ConditionalExpression(true, expression);
         };
     }
 
@@ -52,6 +58,19 @@ public record ConditionalExpression(boolean must, String expression) {
      */
     public JsonElement evaluateValue(NodeInfo node, ResultsService resultsService) {
         return new JsonPrimitive(evaluateCondition(node, resultsService));
+    }
+
+    public enum Mode {
+        MAY,
+        MUST;
+
+        public static Mode fromString(String mode) {
+            try {
+                return valueOf(mode.toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Unknown mode: " + mode);
+            }
+        }
     }
 
 }
