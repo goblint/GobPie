@@ -27,6 +27,7 @@ public record ConditionalExpression(boolean must, String expression) {
             mode = defaultMode;
             expression = conditionalExpression;
         }
+
         return switch (mode) {
             case MAY -> new ConditionalExpression(false, expression);
             case MUST -> new ConditionalExpression(true, expression);
