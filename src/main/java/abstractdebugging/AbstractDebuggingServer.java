@@ -196,7 +196,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             return candidateNodes;
         } else {
             return candidateNodes.stream()
-                    .filter(n -> condition.evaluate(n, resultsService))
+                    .filter(n -> condition.evaluateCondition(n, resultsService))
                     .toList();
         }
     }
@@ -893,9 +893,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         try {
             if (ConditionalExpression.hasExplicitMode(args.getExpression())) {
                 // If explicit mode is set then defer to ConditionalExpression for evaluation.
-                boolean conditionalResult = ConditionalExpression.fromString(args.getExpression())
-                        .evaluate(frame.getNode(), resultsService);
-                result = new JsonPrimitive(conditionalResult);
+                result = ConditionalExpression.fromString(args.getExpression())
+                        .evaluateValue(frame.getNode(), resultsService);
             } else {
                 // If explicit mode is not set evaluate as a C expression using Goblint.
                 result = resultsService.evaluateExpression(frame.getNode().nodeId(), args.getExpression());
