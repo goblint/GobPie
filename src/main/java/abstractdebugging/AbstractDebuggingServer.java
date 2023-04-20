@@ -3,6 +3,7 @@ package abstractdebugging;
 import api.messages.*;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -890,8 +891,16 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
         JsonElement result;
         try {
-            result = resultsService.evaluateExpression(frame.getNode().nodeId(), args.getExpression());
-        } catch (RequestFailedException e) {
+            if (ConditionalExpression.hasExplicitMode(args.getExpression())) {
+                // If explicit mode is set then defer to ConditionalExpression for evaluation.
+                boolean conditionalResult = ConditionalExpression.fromString(args.getExpression())
+                        .evaluate(frame.getNode(), resultsService);
+                result = new JsonPrimitive(conditionalResult);
+            } else {
+                // If explicit mode is not set evaluate as a C expression using Goblint.
+                result = resultsService.evaluateExpression(frame.getNode().nodeId(), args.getExpression());
+            }
+        } catch (RequestFailedException | IllegalArgumentException e) {
             return CompletableFuture.failedFuture(userFacingError(e.getMessage()));
         }
 
