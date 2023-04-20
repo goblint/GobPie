@@ -2,6 +2,13 @@ package abstractdebugging;
 
 import java.util.List;
 
+/**
+ * Represents the state of a debugging thread.
+ * The state consists of a name, which is assigned when the thread is created, and a list of call stack frames.
+ * <p>
+ * A note about terminology: The topmost frame is the frame that was added by the latest function call and contains the current location of the thread.
+ * It is located at index 0 in the list of frames.
+ */
 public class ThreadState {
 
     private final String name;
@@ -17,7 +24,8 @@ public class ThreadState {
     }
 
     /**
-     * Get list of stack frames with the latest frame first.
+     * Get list of stack frames with the latest/topmost frame first.
+     * Note: Do not manipulate the returned list directly. Use {@link #pushFrame} and {@link #popFrame} instead.
      */
     public List<StackFrameState> getFrames() {
         return frames;

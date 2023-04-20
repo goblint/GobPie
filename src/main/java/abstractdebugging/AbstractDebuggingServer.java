@@ -75,6 +75,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         this.goblintService = goblintService;
     }
 
+    /**
+     * Sets the client used to send events back to the debug adapter client (usually an IDE).
+     */
     public void connectClient(IDebugProtocolClient client) {
         if (this.client != null) {
             throw new IllegalStateException("Client already connected");
@@ -149,6 +152,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 // The character ' causes VSCode to format any following text as a string, which looks strange and causes unwanted line breaks.
                 // As a workaround all ' characters are replaced with a different Unicode apostrophe.
                 // TODO: Find a way to fix this without manipulating the error message.
+                //  Possibly this will need opening an issue in the VSCode issue tracker.
                 breakpointStatus.setMessage(e.getMessage().replace('\'', '’'));
                 continue;
             }
@@ -178,7 +182,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     @Override
     public CompletableFuture<SetExceptionBreakpointsResponse> setExceptionBreakpoints(SetExceptionBreakpointsArguments args) {
-        // TODO: This should not be called by the IDE given our reported capabilities, but VSCode calls it anyway. Why?
+        // This should not be called by the IDE given our reported capabilities, but VSCode calls it anyway.
         var response = new SetExceptionBreakpointsResponse();
         response.setBreakpoints(new Breakpoint[0]);
         return CompletableFuture.completedFuture(response);
@@ -407,7 +411,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         } else if (!targetThread.hasPreviousFrame()) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step out. Reached top of call stack."));
         } else if (targetThread.getPreviousFrame().isAmbiguousFrame()) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step out. Call stack is ambiguous."));
+            return CompletableFuture.failedFuture(userFacingError("Ambiguous caller frame. Use restart frame to choose the desired frame."));
         }
 
         NodeInfo targetCallNode = targetThread.getPreviousFrame().getNode();
@@ -646,6 +650,12 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         onThreadsStopped("step", primaryThreadId);
     }
 
+    /**
+     * Moves all threads to a matching frame. Frame is matched by frame index (position counting from topmost frame) and CFG node.
+     *
+     * @param restart if true, moves to the start of the frame, otherwise preserves current position in frame
+     * @throws IllegalStepException if the primary thread target frame is unavailable or the target frame is ambiguous for some thread.
+     */
     private void stepAllThreadsToMatchingFrame(int primaryThreadId, int primaryTargetFrameIndex, boolean restart) throws IllegalStepException {
         ThreadState targetThread = threads.get(primaryThreadId);
 
@@ -703,6 +713,14 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         onThreadsStopped("step", primaryThreadId);
     }
 
+    /**
+     * Helper method for {@link #stepAllThreadsToMatchingFrame}.
+     * <p>
+     * Finds the matching frame for the given call stack and returns its index.
+     * Returns null if there is no matching frame, either because the desired index is out of range or does not have the desired CFG node.
+     * Note that unavailable frames are considered matching, on the assumption that for them to become unavailable
+     * they must have had a matching CFG node with other threads at some point in the past.
+     */
     private Integer findFrameIndex(List<StackFrameState> frames, int targetPosition, String targetCFGNodeId) {
         // When restarting the frame it might make more sense to compare entry nodes rather than current nodes,
         // however, this can cause unexpected ambiguities when there are ambiguous frames with the same entry node but different current nodes.
@@ -1060,6 +1078,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return stackFrames;
     }
 
+    /**
+     * Finds the entry node for the function that contains the given ARG node.
+     * The entry node is the first node of a function call.
+     * The first node of a function call in the ARG should be a synthetic node added by the CIL and consequently should always be uniquely defined.
+     */
     private NodeInfo getEntryNode(NodeInfo node) {
         NodeInfo entryNode = _getEntryNode(node, new HashSet<>());
         if (entryNode == null) {
@@ -1085,6 +1108,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return null;
     }
 
+    /**
+     * Finds all nodes matching the given condition that are inside the subgraph accessible
+     * by repeatedly traversing edges returned by candidateEdges starting from the given node.
+     */
     private List<NodeInfo> findMatchingNodes(NodeInfo node, Function<NodeInfo, Collection<? extends EdgeInfo>> candidateEdges, Predicate<NodeInfo> condition) {
         List<NodeInfo> foundNodes = new ArrayList<>();
         _findMatchingNodes(node, candidateEdges, condition, new HashSet<>(), foundNodes);
@@ -1148,6 +1175,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         };
     }
 
+    /**
+     * Find a CFG node by its location. Any node that appears at this location or after it, is considered matching.
+     *
+     * @throws RequestFailedException if a matching node was not found.
+     */
     private CFGNodeInfo lookupCFGNode(GoblintLocation location) {
         try {
             return goblintService.cfg_lookup(CFGLookupParams.byLocation(location)).join().toCFGNodeInfo();
@@ -1183,6 +1215,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
     }
 
+    /**
+     * @throws RequestFailedException if evaluating the expression failed, generally because the expression is syntactically or semantically invalid.
+     */
     private JsonElement evaluateExpression(String nodeId, String expression) {
         try {
             return goblintService.arg_eval(new EvalQueryParams(nodeId, expression)).join();
