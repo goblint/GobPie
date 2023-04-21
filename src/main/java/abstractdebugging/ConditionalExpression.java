@@ -10,6 +10,11 @@ public record ConditionalExpression(boolean must, String expression) {
 
     private static final String EXPLICIT_MODE_PREFIX = "\\";
 
+    public enum Mode {
+        MAY,
+        MUST;
+    }
+
     public static ConditionalExpression fromString(String conditionalExpression, @Nullable Mode defaultMode) {
         Mode mode;
         String expression;
@@ -18,7 +23,7 @@ public record ConditionalExpression(boolean must, String expression) {
             if (parts.length != 2) {
                 throw new IllegalArgumentException("Invalid expression: " + conditionalExpression);
             }
-            mode = Mode.fromString(parts[0].substring(EXPLICIT_MODE_PREFIX.length()));
+            mode = parseMode(parts[0].substring(EXPLICIT_MODE_PREFIX.length()));
             expression = parts[1];
         } else {
             if (defaultMode == null) {
@@ -36,6 +41,14 @@ public record ConditionalExpression(boolean must, String expression) {
 
     public static boolean hasExplicitMode(String conditionalExpression) {
         return conditionalExpression.startsWith(EXPLICIT_MODE_PREFIX);
+    }
+
+    private static Mode parseMode(String mode) {
+        try {
+            return Mode.valueOf(mode.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unknown mode: " + mode);
+        }
     }
 
     /**
@@ -59,19 +72,6 @@ public record ConditionalExpression(boolean must, String expression) {
      */
     public JsonElement evaluateValue(NodeInfo node, ResultsService resultsService) {
         return new JsonPrimitive(evaluateCondition(node, resultsService));
-    }
-
-    public enum Mode {
-        MAY,
-        MUST;
-
-        public static Mode fromString(String mode) {
-            try {
-                return valueOf(mode.toUpperCase(Locale.ROOT));
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Unknown mode: " + mode);
-            }
-        }
     }
 
 }
