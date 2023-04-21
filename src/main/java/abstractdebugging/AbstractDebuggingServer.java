@@ -134,7 +134,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 condition = null;
             } else {
                 try {
-                    condition = ConditionalExpression.fromString(breakpoint.getCondition(), ConditionalExpression.Mode.MAY);
+                    condition = ConditionalExpression.fromString(breakpoint.getCondition(), true);
                 } catch (IllegalArgumentException e) {
                     breakpointStatus.setVerified(false);
                     breakpointStatus.setMessage(e.getMessage());
@@ -893,7 +893,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         try {
             if (ConditionalExpression.hasExplicitMode(args.getExpression())) {
                 // If explicit mode is set then defer to ConditionalExpression for evaluation.
-                result = ConditionalExpression.fromString(args.getExpression(), null)
+                result = ConditionalExpression.fromString(args.getExpression(), false)
                         .evaluateValue(frame.getNode(), resultsService);
             } else {
                 // If explicit mode is not set evaluate as a C expression using Goblint.

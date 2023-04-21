@@ -3,52 +3,52 @@ package abstractdebugging;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 
-import javax.annotation.Nullable;
 import java.util.Locale;
 
 public record ConditionalExpression(boolean must, String expression) {
 
     private static final String EXPLICIT_MODE_PREFIX = "\\";
 
-    public enum Mode {
-        MAY,
-        MUST;
-    }
-
-    public static ConditionalExpression fromString(String conditionalExpression, @Nullable Mode defaultMode) {
-        Mode mode;
-        String expression;
+    /**
+     * Creates a ConditionalExpression by parsing a string.
+     * If useDefault is true then expressions without an explicit mode will default to mode may, otherwise an exception is thrown.
+     * <p>
+     * The supported modes are:
+     * * may - true if the given C expression may evaluate to true
+     * * must - true if the given C expression must evaluate to true
+     * <p>
+     * An expression with explicit mode takes the form {@code \<mode> <expression>}.
+     * An expression without explicit mode takes the form {@code <expression>}.
+     *
+     * @throws IllegalArgumentException if parsing the expression fails.
+     *                                  Note that evaluating the expression may also throw, so this method not throwing does not mean the expression is guaranteed to be valid.
+     */
+    public static ConditionalExpression fromString(String conditionalExpression, boolean useDefault) {
+        String mode, expression;
         if (hasExplicitMode(conditionalExpression)) {
             String[] parts = conditionalExpression.split("\\s+", 2);
             if (parts.length != 2) {
                 throw new IllegalArgumentException("Invalid expression: " + conditionalExpression);
             }
-            mode = parseMode(parts[0].substring(EXPLICIT_MODE_PREFIX.length()));
+            mode = parts[0].substring(EXPLICIT_MODE_PREFIX.length()).toLowerCase(Locale.ROOT);
             expression = parts[1];
         } else {
-            if (defaultMode == null) {
+            if (!useDefault) {
                 throw new IllegalArgumentException("Must specify mode explicitly");
             }
-            mode = defaultMode;
+            mode = "may";
             expression = conditionalExpression;
         }
 
         return switch (mode) {
-            case MAY -> new ConditionalExpression(false, expression);
-            case MUST -> new ConditionalExpression(true, expression);
+            case "may" -> new ConditionalExpression(false, expression);
+            case "must" -> new ConditionalExpression(true, expression);
+            default -> throw new IllegalArgumentException("Unknown mode: " + mode);
         };
     }
 
     public static boolean hasExplicitMode(String conditionalExpression) {
         return conditionalExpression.startsWith(EXPLICIT_MODE_PREFIX);
-    }
-
-    private static Mode parseMode(String mode) {
-        try {
-            return Mode.valueOf(mode.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unknown mode: " + mode);
-        }
     }
 
     /**
