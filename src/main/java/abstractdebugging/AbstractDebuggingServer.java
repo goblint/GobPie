@@ -497,6 +497,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             ThreadState thread = threadEntry.getValue();
 
             // Skip all threads that have no known previous frame or whose previous frame has a different location compared to the target thread.
+            // Note that threads with an unavailable current or previous frame are kept.
             if (!thread.hasPreviousFrame() || thread.getPreviousFrame().isAmbiguousFrame()
                     || (thread.getPreviousFrame().getNode() != null && !Objects.equals(thread.getPreviousFrame().getNode().cfgNodeId(), targetCallNode.cfgNodeId()))) {
                 continue;
