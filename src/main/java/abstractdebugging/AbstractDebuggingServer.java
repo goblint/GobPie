@@ -3,7 +3,6 @@ package abstractdebugging;
 import api.messages.*;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,8 +33,9 @@ import java.util.stream.StreamSupport;
  */
 public class AbstractDebuggingServer implements IDebugProtocolServer {
 
-    private static final int CFG_STEP_OFFSET = 1_000_000;
-    private static final int ENTRY_STEP_OFFSET = 2_000_000;
+    private static final int TARGET_BLOCK_SIZE = 1_000_000;
+    private static final int STEP_OVER_OFFSET = TARGET_BLOCK_SIZE;
+    private static final int STEP_IN_OFFSET = 2 * TARGET_BLOCK_SIZE;
 
     /**
      * Multiplier for thread id in frame id.
@@ -272,6 +272,67 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Returns list of valid targets for step in operation. (In VS Code this is used by step into targets).
+     */
+    @Override
+    public CompletableFuture<StepInTargetsResponse> stepInTargets(StepInTargetsArguments args) {
+        NodeInfo currentNode = threads.get(getThreadId(args.getFrameId())).getCurrentFrame().getNode();
+
+        List<StepInTarget> targets = new ArrayList<>();
+        if (currentNode != null) {
+            {
+                var entryEdges = currentNode.outgoingEntryEdges();
+                for (int i = 0; i < entryEdges.size(); i++) {
+                    var edge = entryEdges.get(i);
+                    targets.add(target(
+                            STEP_IN_OFFSET + i,
+                            (edge.createsNewThread() ? "thread: " : "call: ") + edge.function() + "(" + String.join(", ", edge.args()) + ")",
+                            currentNode.location()
+                    ));
+                }
+            }
+
+            // Only show CFG edges as step in targets if there is no stepping over function calls and there is branching
+            if (currentNode.outgoingEntryEdges().isEmpty() && currentNode.outgoingCFGEdges().size() > 1) {
+                var cfgEdges = currentNode.outgoingCFGEdges();
+                for (int i = 0; i < cfgEdges.size(); i++) {
+                    var edge = cfgEdges.get(i);
+                    var node = resultsService.lookupNode(edge.nodeId());
+                    targets.add(target(
+                            STEP_OVER_OFFSET + i,
+                            "branch: " + edge.statementDisplayString(),
+                            node.location()
+                    ));
+                }
+            }
+
+            // Sort targets by the order they appear in code
+            targets.sort(Comparator.comparing(StepInTarget::getLine).thenComparing(StepInTarget::getColumn));
+        }
+
+        var response = new StepInTargetsResponse();
+        response.setTargets(targets.toArray(StepInTarget[]::new));
+        return CompletableFuture.completedFuture(response);
+    }
+
+    /**
+     * Helper method to create StepInTarget.
+     */
+    private StepInTarget target(int id, String label, GoblintLocation location) {
+        var target = new StepInTarget();
+        target.setId(id);
+        target.setLabel(label);
+        target.setLine(location.getLine());
+        target.setColumn(location.getColumn());
+        target.setEndLine(location.getEndLine());
+        target.setEndColumn(location.getEndColumn());
+        return target;
+    }
+
+    /**
+     * DAP next operation. In VS Code this corresponds to step over.
+     */
     @Override
     public CompletableFuture<Void> next(NextArguments args) {
         var targetThread = threads.get(args.getThreadId());
@@ -298,103 +359,50 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         if (currentNode.outgoingCFGEdges().size() > 1) {
             return CompletableFuture.failedFuture(userFacingError("Branching control flow. Use step into target to choose the desired branch."));
         }
-        var targetEdge = currentNode.outgoingCFGEdges().get(0);
-        try {
-            stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges, false);
-            return CompletableFuture.completedFuture(null);
-        } catch (IllegalStepException e) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step over. " + e.getMessage()));
-        }
+        return stepOver(args.getThreadId(), 0);
     }
 
+    /**
+     * DAP step in operation.
+     * Allows explicit target selection by setting targetId. In VS Code this is the step into targets operation.
+     */
     @Override
     public CompletableFuture<Void> stepIn(StepInArguments args) {
         var currentNode = threads.get(args.getThreadId()).getCurrentFrame().getNode();
         if (currentNode == null) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step in. Location is unavailable."));
+            return CompletableFuture.failedFuture(userFacingError((args.getTargetId() == null ? "Cannot step in." : "Cannot step to target.") + " Location is unavailable."));
         }
 
-        int targetId;
-        if (args.getTargetId() != null) {
-            targetId = args.getTargetId();
-        } else if (currentNode.outgoingEntryEdges().size() == 1) {
-            targetId = ENTRY_STEP_OFFSET;
-        } else if (currentNode.outgoingEntryEdges().size() > 1) {
-            return CompletableFuture.failedFuture(userFacingError("Ambiguous function call. Use step into target to choose the desired call"));
+        if (args.getTargetId() == null) {
+            // Normal step in operation
+            if (currentNode.outgoingEntryEdges().isEmpty()) {
+                var nextArgs = new NextArguments();
+                nextArgs.setThreadId(args.getThreadId());
+                nextArgs.setSingleThread(args.getSingleThread());
+                nextArgs.setGranularity(args.getGranularity());
+                return next(nextArgs);
+            } else if (currentNode.outgoingEntryEdges().size() > 1) {
+                return CompletableFuture.failedFuture(userFacingError("Ambiguous function call. Use step into target to choose the desired call"));
+            }
+            return stepIn(args.getThreadId(), 0);
         } else {
-            var nextArgs = new NextArguments();
-            nextArgs.setThreadId(args.getThreadId());
-            nextArgs.setSingleThread(args.getSingleThread());
-            nextArgs.setGranularity(args.getGranularity());
-            return next(nextArgs);
-        }
-
-        try {
-            if (targetId >= ENTRY_STEP_OFFSET) {
-                int targetIndex = targetId - ENTRY_STEP_OFFSET;
-                var targetEdge = currentNode.outgoingEntryEdges().get(targetIndex);
-                stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingEntryEdges, true);
-                return CompletableFuture.completedFuture(null);
-            } else if (targetId >= CFG_STEP_OFFSET) {
-                int targetIndex = targetId - CFG_STEP_OFFSET;
-                var targetEdge = currentNode.outgoingCFGEdges().get(targetIndex);
-                stepAllThreadsAlongMatchingEdge(args.getThreadId(), targetEdge, NodeInfo::outgoingCFGEdges, false);
-                return CompletableFuture.completedFuture(null);
+            // Step into targets operation
+            int targetId = args.getTargetId();
+            if (targetId >= STEP_IN_OFFSET) {
+                int targetIndex = targetId - STEP_IN_OFFSET;
+                return stepIn(args.getThreadId(), targetIndex);
+            } else if (targetId >= STEP_OVER_OFFSET) {
+                int targetIndex = targetId - STEP_OVER_OFFSET;
+                return stepOver(args.getThreadId(), targetIndex);
             } else {
                 return CompletableFuture.failedFuture(new IllegalStateException("Unknown step in target: " + targetId));
             }
-        } catch (IllegalStepException e) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step. " + e.getMessage()));
         }
     }
 
-    @Override
-    public CompletableFuture<StepInTargetsResponse> stepInTargets(StepInTargetsArguments args) {
-        NodeInfo currentNode = threads.get(getThreadId(args.getFrameId())).getCurrentFrame().getNode();
-
-        List<StepInTarget> targets = new ArrayList<>();
-        if (currentNode != null) {
-            var entryEdges = currentNode.outgoingEntryEdges();
-            for (int i = 0; i < entryEdges.size(); i++) {
-                var edge = entryEdges.get(i);
-
-                var target = new StepInTarget();
-                target.setId(ENTRY_STEP_OFFSET + i);
-                target.setLabel((edge.createsNewThread() ? "thread: " : "call: ") + edge.function() + "(" + String.join(", ", edge.args()) + ")");
-                target.setLine(currentNode.location().getLine());
-                target.setColumn(currentNode.location().getColumn());
-                target.setEndLine(currentNode.location().getEndLine());
-                target.setEndColumn(currentNode.location().getEndColumn());
-                targets.add(target);
-            }
-
-            // Only show CFG edges as step in targets if there is no stepping over function calls and there is branching
-            if (currentNode.outgoingEntryEdges().isEmpty() && currentNode.outgoingCFGEdges().size() > 1) {
-                var cfgEdges = currentNode.outgoingCFGEdges();
-                for (int i = 0; i < cfgEdges.size(); i++) {
-                    var edge = cfgEdges.get(i);
-                    var node = resultsService.lookupNode(edge.nodeId());
-
-                    var target = new StepInTarget();
-                    target.setId(CFG_STEP_OFFSET + i);
-                    target.setLabel("branch: " + edge.statementDisplayString());
-                    target.setLine(node.location().getLine());
-                    target.setColumn(node.location().getColumn());
-                    target.setEndLine(node.location().getEndLine());
-                    target.setEndColumn(node.location().getEndColumn());
-                    targets.add(target);
-                }
-            }
-
-            // Sort targets by the order they appear in code
-            targets.sort(Comparator.comparing(StepInTarget::getLine).thenComparing(StepInTarget::getColumn));
-        }
-
-        var response = new StepInTargetsResponse();
-        response.setTargets(targets.toArray(StepInTarget[]::new));
-        return CompletableFuture.completedFuture(response);
-    }
-
+    /**
+     * DAP step out operation.
+     */
     @Override
     public CompletableFuture<Void> stepOut(StepOutArguments args) {
         ThreadState targetThread = threads.get(args.getThreadId());
@@ -411,6 +419,77 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         if (targetCallNode.outgoingCFGEdges().isEmpty()) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step out. Function never returns."));
         }
+
+        return stepOut(args.getThreadId());
+    }
+
+    /**
+     * DAP step back operation.
+     */
+    @Override
+    public CompletableFuture<Void> stepBack(StepBackArguments args) {
+        var targetThread = threads.get(args.getThreadId());
+        var currentNode = targetThread.getCurrentFrame().getNode();
+        if (currentNode == null) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Location is unavailable."));
+        } else if (currentNode.incomingCFGEdges().isEmpty()) {
+            // Reached start of function
+            if (!targetThread.hasPreviousFrame()) {
+                return CompletableFuture.failedFuture(userFacingError("Cannot step back. Reached start of program."));
+            } else if (targetThread.getPreviousFrame().isAmbiguousFrame()) {
+                return CompletableFuture.failedFuture(userFacingError("Ambiguous previous frame. Use restart frame to choose desired frame."));
+            }
+            return stepBackOut(args.getThreadId(), 1);
+        } else if (currentNode.incomingCFGEdges().size() > 1) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Previous location is ambiguous."));
+        }
+
+        return stepBackOver(args.getThreadId(), 0);
+    }
+
+    // Concrete implementations of step operations. These are called from the respective requests as well as from stepIn if a corresponding target is requested.
+
+    /**
+     * Implements step over for a specific target edge.
+     *
+     * @param targetIndex index of the target edge
+     */
+    private CompletableFuture<Void> stepOver(int targetThreadId, int targetIndex) {
+        NodeInfo currentNode = threads.get(targetThreadId).getCurrentFrame().getNode();
+        assert currentNode != null;
+        try {
+            var targetEdge = currentNode.outgoingCFGEdges().get(targetIndex);
+            stepAllThreadsAlongMatchingEdge(targetThreadId, targetEdge, NodeInfo::outgoingCFGEdges, false);
+            return CompletableFuture.completedFuture(null);
+        } catch (IllegalStepException e) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step over. " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Implements step in for a specific target edge.
+     *
+     * @param targetIndex index of the target edge
+     */
+    private CompletableFuture<Void> stepIn(int targetThreadId, int targetIndex) {
+        NodeInfo currentNode = threads.get(targetThreadId).getCurrentFrame().getNode();
+        assert currentNode != null;
+        try {
+            var targetEdge = currentNode.outgoingEntryEdges().get(targetIndex);
+            stepAllThreadsAlongMatchingEdge(targetThreadId, targetEdge, NodeInfo::outgoingEntryEdges, true);
+            return CompletableFuture.completedFuture(null);
+        } catch (IllegalStepException e) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step in. " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Implements step out. Assumes that the target thread has already been checked and is known to be available and have a previous frame.
+     */
+    private CompletableFuture<Void> stepOut(int targetThreadId) {
+        ThreadState targetThread = threads.get(targetThreadId);
+        NodeInfo targetCallNode = targetThread.getPreviousFrame().getNode();
+        assert targetCallNode != null;
 
         Map<Integer, NodeInfo> targetNodes = new HashMap<>();
         for (var threadEntry : threads.entrySet()) {
@@ -471,35 +550,15 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             thread.getCurrentFrame().setNode(targetNodes.get(threadId));
         }
 
-        onThreadsStopped("step", args.getThreadId());
+        onThreadsStopped("step", targetThreadId);
 
         return CompletableFuture.completedFuture(null);
     }
 
-    @Override
-    public CompletableFuture<Void> stepBack(StepBackArguments args) {
-        var targetThread = threads.get(args.getThreadId());
-        var currentNode = targetThread.getCurrentFrame().getNode();
-        if (currentNode == null) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Location is unavailable."));
-        } else if (currentNode.incomingCFGEdges().isEmpty()) {
-            // Reached start of function
-            if (!targetThread.hasPreviousFrame()) {
-                return CompletableFuture.failedFuture(userFacingError("Cannot step back. Reached start of program."));
-            } else if (targetThread.getPreviousFrame().isAmbiguousFrame()) {
-                return CompletableFuture.failedFuture(userFacingError("Ambiguous previous frame. Use restart frame to choose desired frame."));
-            }
-            try {
-                stepAllThreadsToMatchingFrame(args.getThreadId(), 1, false);
-                return CompletableFuture.completedFuture(null);
-            } catch (IllegalStepException e) {
-                return CompletableFuture.failedFuture(userFacingError("Cannot step back. " + e.getMessage()));
-            }
-        } else if (currentNode.incomingCFGEdges().size() > 1) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Previous location is ambiguous."));
-        }
-
-        var targetCFGNodeId = currentNode.incomingCFGEdges().get(0).cfgNodeId();
+    private CompletableFuture<Void> stepBackOver(int targetThreadId, int targetIndex) {
+        NodeInfo currentNode = threads.get(targetThreadId).getCurrentFrame().getNode();
+        assert currentNode != null;
+        var targetCFGNodeId = currentNode.incomingCFGEdges().get(targetIndex).cfgNodeId();
 
         List<Pair<ThreadState, NodeInfo>> steps = new ArrayList<>();
         for (var thread : threads.values()) {
@@ -531,9 +590,18 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             thread.getCurrentFrame().setNode(targetNode);
         }
 
-        onThreadsStopped("step", args.getThreadId());
+        onThreadsStopped("step", targetThreadId);
 
         return CompletableFuture.completedFuture(null);
+    }
+
+    private CompletableFuture<Void> stepBackOut(int targetThreadId, int targetIndex) {
+        try {
+            stepAllThreadsToMatchingFrame(targetThreadId, targetIndex, false);
+            return CompletableFuture.completedFuture(null);
+        } catch (IllegalStepException e) {
+            return CompletableFuture.failedFuture(userFacingError("Cannot step back. " + e.getMessage()));
+        }
     }
 
     /**
