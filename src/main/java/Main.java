@@ -8,9 +8,7 @@ import goblintserver.GoblintServer;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
-import magpiebridge.core.MagpieServer;
 import magpiebridge.core.ServerAnalysis;
-import magpiebridge.core.ServerConfiguration;
 import magpiebridge.core.ToolAnalysis;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -56,8 +54,10 @@ public class Main {
 
     private static void createMagpieServer() {
         // set up configuration for MagpieServer
-        ServerConfiguration serverConfig = new ServerConfiguration();
+        GoblintServerConfiguration serverConfig = new GoblintServerConfiguration();
         serverConfig.setUseMagpieHTTPServer(false);
+        //TODO: Track any relevant changes in https://github.com/MagpieBridge/MagpieBridge/issues/88 and update this accordingly.
+        serverConfig.setLanguageExtensionHandler(new GoblintLanguageExtensionHandler(serverConfig.getLanguageExtensionHandler()));
         magpieServer = new GoblintMagpieServer(serverConfig);
         // launch MagpieServer
         // note that the server will not accept messages until configurationDone is called
