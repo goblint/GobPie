@@ -1,8 +1,8 @@
 package api.messages;
 
 import analysis.GoblintMessagesAnalysisResult;
-import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
+import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import magpiebridge.core.AnalysisResult;
 
 import java.io.File;
@@ -75,35 +75,54 @@ public class GoblintMessagesResult {
         return type;
     }
 
-    public List<AnalysisResult> convert() {
-        List<AnalysisResult> results = new ArrayList<>();
+    public List<AnalysisResult> convertSingle() {
+        GoblintMessagesAnalysisResult result = createGoblintAnalysisResult();
+        return new ArrayList<>(List.of(result));
+    }
 
-        if (multipiece.group_text == null) {
-            GoblintMessagesAnalysisResult result = createGoblintAnalysisResult();
-            results.add(result);
-        } else {
-            List<GoblintMessagesAnalysisResult> intermresults = new ArrayList<>();
-            List<multipiece.pieces> pieces = multipiece.pieces;
-            for (multipiece.pieces piece : pieces) {
-                GoblintMessagesAnalysisResult result = createGoblintAnalysisResult(piece);
-                intermresults.add(result);
-            }
-            // Add related warnings to all the group elements
-            List<GoblintMessagesAnalysisResult> addedRelated = new ArrayList<>();
-            for (GoblintMessagesAnalysisResult res1 : intermresults) {
-                List<Pair<Position, String>> related = new ArrayList<>();
-                for (GoblintMessagesAnalysisResult res2 : intermresults) {
-                    if (res1 != res2) {
-                        related.add(Pair.make(res2.position(), res2.text()));
-                    }
-                }
-                addedRelated.add(new GoblintMessagesAnalysisResult(res1.position(), res1.group_text() + "\n" + res1.text(),
-                        res1.severityStr(), related));
-            }
-            results.addAll(addedRelated);
+    public List<AnalysisResult> convertGroupToSeparateWarnings() {
+        List<GoblintMessagesAnalysisResult> resultsWithoutRelated =
+                multipiece.pieces.stream().map(piece -> createGoblintAnalysisResult(piece, true)).toList();
+        // Add related warnings to all the pieces in the group
+        List<GoblintMessagesAnalysisResult> resultsWithRelated = new ArrayList<>();
+        for (GoblintMessagesAnalysisResult result : resultsWithoutRelated) {
+            resultsWithRelated.add(
+                    new GoblintMessagesAnalysisResult(
+                            result.position(),
+                            result.group_text() + "\n" + result.text(),
+                            result.severityStr(),
+                            resultsWithoutRelated.stream()
+                                    .filter(res -> res != result)
+                                    .map(res -> Pair.make(res.position(), res.text()))
+                                    .toList()));
         }
+        return new ArrayList<>(resultsWithRelated);
+    }
 
-        return results;
+    public List<AnalysisResult> convertGroup() {
+        List<Pair<Position, String>> relatedFromPieces =
+                multipiece.pieces.stream()
+                        .map(piece -> createGoblintAnalysisResult(piece, false))
+                        .map(result -> Pair.make(result.position(), result.text()))
+                        .toList();
+        GoblintMessagesAnalysisResult result = createGoblintAnalysisResult(multipiece, relatedFromPieces);
+        return new ArrayList<>(List.of(result));
+    }
+
+    public List<AnalysisResult> convertExplode() {
+        if (multipiece.group_text == null) {
+            return convertSingle();
+        } else {
+            return convertGroupToSeparateWarnings();
+        }
+    }
+
+    public List<AnalysisResult> convertNonExplode() {
+        if (multipiece.group_text == null) {
+            return convertSingle();
+        } else {
+            return convertGroup();
+        }
     }
 
     public GoblintPosition locationToPosition(loc loc) {
@@ -119,41 +138,49 @@ public class GoblintMessagesResult {
         }
     }
 
+    public GoblintPosition getLocation(loc loc) {
+        try {
+            return loc == null
+                    ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
+                    : locationToPosition(loc);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public GoblintPosition getRandomLocation(multipiece multipiece) {
+        for (GoblintMessagesResult.multipiece.pieces piece : multipiece.pieces) {
+            if (piece.loc != null) return getLocation(piece.loc);
+        }
+        return getLocation(multipiece.loc);
+    }
 
     public GoblintMessagesAnalysisResult createGoblintAnalysisResult() {
-        try {
-            GoblintPosition pos = multipiece.loc == null
-                    ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
-                    : locationToPosition(multipiece.loc);
-            String msg = tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
-            return new GoblintMessagesAnalysisResult(pos, msg, severity);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+        GoblintPosition pos = getLocation(multipiece.loc);
+        String msg = tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
+        return new GoblintMessagesAnalysisResult(pos, msg, severity);
+
     }
 
-
-    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(multipiece.pieces piece) {
-        try {
-            GoblintPosition pos = piece.loc == null
-                    ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
-                    : locationToPosition(piece.loc);
-            return new GoblintMessagesAnalysisResult(pos,
-                    tags.stream().map(tag::toString).collect(Collectors.joining("")) + " Group: " + multipiece.group_text,
-                    piece.text, severity);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(multipiece.pieces piece, boolean addGroupText) {
+        GoblintPosition pos = getLocation(piece.loc);
+        return new GoblintMessagesAnalysisResult(
+                pos,
+                addGroupText
+                        ? tags.stream().map(tag::toString).collect(Collectors.joining("")) + " Group: " + multipiece.group_text
+                        : "",
+                piece.text,
+                severity);
     }
 
-
-    // public List<String> getFiles() {
-    //     Set<String> allFiles = new HashSet<>();
-    //     for (Entry<String, List<String>> entry : files.entrySet()) {
-    //         allFiles.add(entry.getKey());
-    //         allFiles.addAll(entry.getValue());
-    //     }
-    //     return new ArrayList<>(allFiles);
-    // }
-
+    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(multipiece multipiece, List<Pair<Position, String>> related) {
+        GoblintPosition pos = multipiece.loc != null
+                ? getLocation(multipiece.loc)
+                : getRandomLocation(multipiece);
+        return new GoblintMessagesAnalysisResult(
+                pos,
+                tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + this.multipiece.group_text,
+                severity,
+                related);
+    }
 }

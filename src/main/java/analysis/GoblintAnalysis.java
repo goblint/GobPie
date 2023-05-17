@@ -224,7 +224,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         didAnalysisNotSucceed(analysisResult);
         // Get warning messages
         CompletableFuture<List<GoblintMessagesResult>> messagesCompletableFuture = goblintService.messages();
-        if (!gobpieConfiguration.getShowCfg()) {
+        if (!gobpieConfiguration.showCfg()) {
             return messagesCompletableFuture.thenApply(this::convertMessagesFromJson);
         }
         // Get list of functions
@@ -242,7 +242,9 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
 
     private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessagesResult> response) {
-        return response.stream().map(GoblintMessagesResult::convert).flatMap(List::stream).collect(Collectors.toList());
+        return gobpieConfiguration.explodeGroupWarnings()
+                ? response.stream().map(GoblintMessagesResult::convertExplode).flatMap(List::stream).toList()
+                : response.stream().map(GoblintMessagesResult::convertNonExplode).flatMap(List::stream).toList();
     }
 
     private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctionsResult> response) {
