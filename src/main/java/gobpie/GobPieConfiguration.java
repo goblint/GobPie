@@ -8,13 +8,25 @@ package gobpie;
  * @author Karoliine Holter
  * @since 0.0.2
  */
-
 public class GobPieConfiguration {
 
+    private final String goblintExecutable;
     private String goblintConf;
     private String[] preAnalyzeCommand;
-    private Boolean showCfg;
-    private Boolean explodeGroupWarnings;
+    private final boolean showCfg;
+    private final boolean explodeGroupWarnings;
+    private final boolean incrementalAnalysis;
+
+    private GobPieConfiguration() {
+        goblintExecutable = "goblint";
+        showCfg = false;
+        explodeGroupWarnings = true;
+        incrementalAnalysis = true;
+    }
+
+    public String getGoblintExecutable() {
+        return this.goblintExecutable;
+    }
 
     public String getGoblintConf() {
         return this.goblintConf;
@@ -25,11 +37,16 @@ public class GobPieConfiguration {
         return this.preAnalyzeCommand;
     }
 
-    public Boolean showCfg() {
+    public boolean showCfg() {
         return this.showCfg;
     }
 
-    public Boolean explodeGroupWarnings() {
-        return explodeGroupWarnings == null || explodeGroupWarnings;
+    public boolean explodeGroupWarnings() {
+        return explodeGroupWarnings;
     }
+
+    public boolean useIncrementalAnalysis() {
+        return incrementalAnalysis;
+    }
+
 }

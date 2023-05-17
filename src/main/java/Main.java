@@ -2,16 +2,13 @@ import HTTPserver.GobPieHTTPServer;
 import analysis.GoblintAnalysis;
 import analysis.ShowCFGCommand;
 import api.GoblintService;
-import api.messages.Params;
-import api.GoblintClient;
 import api.GoblintServiceLauncher;
+import api.messages.Params;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
-import magpiebridge.core.MagpieServer;
 import magpiebridge.core.ServerAnalysis;
-import magpiebridge.core.ServerConfiguration;
 import magpiebridge.core.ToolAnalysis;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,22 +22,18 @@ public class Main {
 
     private static final String gobPieConfFileName = "gobpie.json";
     private static final Logger log = LogManager.getLogger(Main.class);
-    private static MagpieServer magpieServer;
+    private static GoblintMagpieServer magpieServer;
 
     public static void main(String... args) {
 
         try {
             createMagpieServer();
             addAnalysis();
-            // launch magpieServer
-            magpieServer.launchOnStdio();
+            magpieServer.configurationDone();
             log.info("MagpieBridge server launched.");
-            magpieServer.doAnalysis("c", true);
         } catch (GobPieException e) {
             String message = e.getMessage();
-            String terminalMessage;
-            if (e.getCause() == null) terminalMessage = message;
-            else terminalMessage = message + " Cause: " + e.getCause().getMessage();
+            String terminalMessage = e.getCause() == null ? message : message + " Cause: " + e.getCause().getMessage();
             forwardErrorMessageToClient(message, terminalMessage);
             switch (e.getType()) {
                 case GOBLINT_EXCEPTION:
@@ -61,10 +54,14 @@ public class Main {
 
     private static void createMagpieServer() {
         // set up configuration for MagpieServer
-        ServerConfiguration serverConfig = new ServerConfiguration();
-        serverConfig.setDoAnalysisByFirstOpen(false);
+        GoblintServerConfiguration serverConfig = new GoblintServerConfiguration();
         serverConfig.setUseMagpieHTTPServer(false);
-        magpieServer = new MagpieServer(serverConfig);
+        //TODO: Track any relevant changes in https://github.com/MagpieBridge/MagpieBridge/issues/88 and update this accordingly.
+        serverConfig.setLanguageExtensionHandler(new GoblintLanguageExtensionHandler(serverConfig.getLanguageExtensionHandler()));
+        magpieServer = new GoblintMagpieServer(serverConfig);
+        // launch MagpieServer
+        // note that the server will not accept messages until configurationDone is called
+        magpieServer.launchOnStdio();
     }
 
 
@@ -84,30 +81,27 @@ public class Main {
         // define language
         String language = "c";
 
-        // read gobpie configuration file
+        // read GobPie configuration file
         GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
         GobPieConfiguration gobpieConfiguration = gobPieConfReader.readGobPieConfiguration();
 
         // start GoblintServer
-        GoblintServer goblintServer = new GoblintServer(gobpieConfiguration.getGoblintConf(), magpieServer);
+        GoblintServer goblintServer = new GoblintServer(magpieServer, gobpieConfiguration);
         goblintServer.startGoblintServer();
 
-        // create GoblintClient
-        GoblintClient localEndpoint = new GoblintClient();
-
         // launch GoblintService
-        GoblintServiceLauncher.Builder builder = new GoblintServiceLauncher.Builder();
-        GoblintServiceLauncher goblintServiceLauncher = builder.create(localEndpoint);
-        goblintServiceLauncher.startListening();
-        GoblintService goblintService = localEndpoint.getServer();
+        GoblintServiceLauncher launcher = new GoblintServiceLauncher();
+        GoblintService goblintService = launcher.connect(goblintServer.getGoblintSocket());
 
         // read Goblint configurations
-        goblintService.read_config(new Params(new File(goblintServer.getGoblintConf()).getAbsolutePath()))
-                .whenComplete((res, ex) -> {
-                    String msg = "Goblint was unable to successfully read the new configuration. " + ex.getMessage();
+        goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath()))
+                .exceptionally(ex -> {
+                    String msg = "Goblint was unable to successfully read the configuration: " + ex.getMessage();
                     magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
                     log.error(msg);
-                });
+                    return null;
+                })
+                .join();
 
         // add analysis to the MagpieServer
         ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobpieConfiguration);
@@ -115,7 +109,7 @@ public class Main {
         magpieServer.addAnalysis(analysis, language);
 
         // add HTTP server for showing CFGs, only if the option is specified in the configuration
-        if (gobpieConfiguration.showCfg() != null && gobpieConfiguration.showCfg()) {
+        if (gobpieConfiguration.showCfg()) {
             String httpServerAddress = new GobPieHTTPServer(goblintService).start();
             magpieServer.addHttpServer(httpServerAddress);
             magpieServer.addCommand("showcfg", new ShowCFGCommand(httpServerAddress));
@@ -132,7 +126,7 @@ public class Main {
 
     private static void forwardErrorMessageToClient(String popUpMessage, String terminalMessage) {
         magpieServer.forwardMessageToClient(
-                new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Please check the output terminal of GobPie extension for more information.")
+                new MessageParams(MessageType.Error, "Unable to start GobPie extension: " + popUpMessage + " Check the output terminal of GobPie extension for more information.")
         );
         log.error(terminalMessage);
     }

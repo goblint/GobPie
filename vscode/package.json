@@ -3,7 +3,7 @@
   "displayName": "GobPie",
   "description": "The interactive Goblint analyzer extension",
   "author": "Karoliine Holter",
-  "license": "EPL-2.0",
+  "license": "MIT",
   "version": "0.0.3",
   "repository": {
     "type": "git",
@@ -20,7 +20,7 @@
   "activationEvents": [
     "onLanguage:c"
   ],
-  "main": "./out/main.js",
+  "main": "./dist/extension",
   "contributes": {
     "configuration": {
       "type": "object",
@@ -47,16 +47,18 @@
           "c"
         ],
         "extensions": [
-          ".c"
+          ".c",
+          ".h",
+          ".i"
         ]
       }
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run esbuild-base -- --minify",
-    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
-    "esbuild": "npm run esbuild-base -- --sourcemap",
-    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "vscode:prepublish": "shx cp ../target/gobpie-0.0.3-SNAPSHOT.jar gobpie-0.0.3-SNAPSHOT.jar && npm run package",
+    "webpack": "webpack --mode development",
+    "webpack-dev": "webpack --mode development --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
     "test-compile": "tsc -p ./"
   },
   "dependencies": {
@@ -65,7 +67,10 @@
   },
   "devDependencies": {
     "@types/vscode": "^1.1.37",
-    "esbuild": "^0.17.4",
-    "typescript": "^4.8.4"
+    "shx": "^0.3.4",
+    "ts-loader": "^9.4.2",
+    "typescript": "^4.8.4",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1"
   }
 }

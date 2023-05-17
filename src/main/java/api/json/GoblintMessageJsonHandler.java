@@ -1,7 +1,7 @@
 package api.json;
 
-import com.google.gson.GsonBuilder;
 import api.messages.GoblintMessagesResult;
+import com.google.gson.GsonBuilder;
 import org.eclipse.lsp4j.jsonrpc.json.JsonRpcMethod;
 import org.eclipse.lsp4j.jsonrpc.json.MessageJsonHandler;
 import org.eclipse.lsp4j.jsonrpc.json.adapters.*;

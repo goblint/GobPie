@@ -46,8 +46,8 @@ public class GoblintSocketMessageConsumer implements MessageConsumer, MessageCon
             synchronized (outputLock) {
                 output.write(contentBytes);
                 output.flush();
-                log.info("Request written to socket.");
             }
+            log.debug("Request written to socket.");
         } catch (IOException exception) {
             throw new JsonRpcException(exception);
         }

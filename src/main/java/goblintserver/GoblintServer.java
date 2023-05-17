@@ -1,6 +1,6 @@
 package goblintserver;
 
-import api.util.DirectoryWatchingUtility;
+import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
 import org.apache.logging.log4j.LogManager;
@@ -14,9 +14,7 @@ import org.zeroturnaround.exec.listener.ProcessListener;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.*;
 import java.util.Arrays;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import static gobpie.GobPieExceptionType.GOBLINT_EXCEPTION;
@@ -28,14 +26,16 @@ import static gobpie.GobPieExceptionType.GOBLINT_EXCEPTION;
  * Starts Goblint Server and waits for the unix socket to be created.
  *
  * @author Karoliine Holter
+ * @author Juhan Oskar Hennoste
  * @since 0.0.2
  */
 
 public class GoblintServer {
 
-    private final String goblintSocket = "goblint.sock";
-    private final String goblintConf;
+    private static final String GOBLINT_SOCKET = "goblint.sock";
+
     private final MagpieServer magpieServer;
+    private final GobPieConfiguration configuration;
     private final String[] goblintRunCommand;
 
     private StartedProcess goblintRunProcess;
@@ -43,19 +43,18 @@ public class GoblintServer {
     private final Logger log = LogManager.getLogger(GoblintServer.class);
 
 
-    public GoblintServer(String goblintConfName, MagpieServer magpieServer) {
-        this.goblintConf = goblintConfName;
+    public GoblintServer(MagpieServer magpieServer, GobPieConfiguration configuration) {
         this.magpieServer = magpieServer;
+        this.configuration = configuration;
         this.goblintRunCommand = constructGoblintRunCommand();
-    }
-
-
-    public String getGoblintConf() {
-        return goblintConf;
     }
 
     public StartedProcess getGoblintRunProcess() {
         return goblintRunProcess;
+    }
+
+    public String getGoblintSocket() {
+        return GOBLINT_SOCKET;
     }
 
 
@@ -65,15 +64,14 @@ public class GoblintServer {
      *
      * @throws GobPieException when running Goblint failed.
      */
-
     private String[] constructGoblintRunCommand() {
-        return Arrays.stream(new String[]{
-                        "goblint",
-                        "--enable", "server.enabled",
-                        "--enable", "server.reparse",
-                        "--set", "server.mode", "unix",
-                        "--set", "server.unix-socket", new File(goblintSocket).getAbsolutePath()})
-                .toArray(String[]::new);
+        return new String[]{
+                configuration.getGoblintExecutable(),
+                "--enable", "server.enabled",
+                "--enable", "server.reparse",
+                "--set", "server.mode", "unix",
+                "--set", "server.unix-socket", new File(getGoblintSocket()).getAbsolutePath()
+        };
     }
 
 
@@ -82,29 +80,14 @@ public class GoblintServer {
      *
      * @throws GobPieException when running Goblint fails.
      */
-
     public void startGoblintServer() {
-
         try {
             // run command to start goblint
             log.info("Goblint run with command: " + String.join(" ", goblintRunCommand));
             goblintRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand);
-
-            // wait until Goblint socket is created before continuing
-            if (!new File(goblintSocket).exists()) {
-                watch();
-            }
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
             throw new GobPieException("Running Goblint failed.", e, GOBLINT_EXCEPTION);
         }
-    }
-
-    private void watch() throws IOException, InterruptedException {
-        Path path = Paths.get(System.getProperty("user.dir"));
-        DirectoryWatchingUtility socketWatchingUtility = new DirectoryWatchingUtility(path);
-        socketWatchingUtility.watch().thenAccept(res -> {
-            log.info("Goblint server started.");
-        });
     }
 
 
@@ -115,8 +98,7 @@ public class GoblintServer {
      * @param command The command to run.
      * @return An object that represents a process that has started. It may or may not have finished.
      */
-
-    public StartedProcess runCommand(File dirPath, String[] command) throws IOException, InterruptedException, InvalidExitValueException, TimeoutException {
+    private StartedProcess runCommand(File dirPath, String[] command) throws IOException, InterruptedException, InvalidExitValueException, TimeoutException {
         ProcessListener listener = new ProcessListener() {
 
             public void afterStop(Process process) {
@@ -126,7 +108,7 @@ public class GoblintServer {
                     log.info("Goblint server has been killed.");
                 } else {
                     magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error. Please check the output terminal of GobPie extension for more information."));
-                    log.error("Goblint server exited due to an error (code: " + process.exitValue() + "). Please fix the issue reported above and restart the extension.");
+                    log.error("Goblint server exited due to an error (code: " + process.exitValue() + "). Please fix the issue reported above and rerun the analysis to restart the extension.");
                 }
                 magpieServer.cleanUp();
                 // TODO: throw an exception? where (and how) can it be caught to be handled though?

@@ -11,7 +11,7 @@
         <dependency>
             <groupId>org.eclipse.lsp4j</groupId>
             <artifactId>org.eclipse.lsp4j.jsonrpc</artifactId>
-            <version>0.19.0</version>
+            <version>0.20.1</version>
         </dependency>
 
 
@@ -31,7 +31,7 @@
         <!-- graphviz-java -->
         <dependency>
             <groupId>guru.nidi</groupId>
-            <artifactId>graphviz-java</artifactId>
+            <artifactId>graphviz-java-all-j2v8</artifactId>
             <version>0.18.1</version>
         </dependency>
 
@@ -69,14 +69,6 @@
             <artifactId>thymeleaf</artifactId>
             <version>3.1.1.RELEASE</version>
         </dependency>
-
-        <!-- https://mvnrepository.com/artifact/io.methvin/directory-watcher -->
-        <dependency>
-            <groupId>io.methvin</groupId>
-            <artifactId>directory-watcher</artifactId>
-            <version>0.17.1</version>
-        </dependency>
-
 
         <!-- log4j -->
         <dependency>
@@ -124,6 +116,7 @@
                                     <artifact>*:*</artifact>
                                     <excludes>
                                         <exclude>META-INF/*</exclude>
+                                        <exclude>META-INF/versions/**</exclude>
                                         <exclude>about.html</exclude>
                                     </excludes>
                                 </filter>
