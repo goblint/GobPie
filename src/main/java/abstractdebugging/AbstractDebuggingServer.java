@@ -918,6 +918,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                         : varinfo.getOriginalName() + " (" + varinfo.getName() + ")";
                 JsonElement value = domainValues.get(varinfo.getName());
                 if (value == null) {
+                    if (varinfo.getFunction() != null) {
+                        // Skip local variables that are not present in base domain, because this generally means we are on a special ARG node where local variables are not tracked.
+                        continue;
+                    }
                     // If domain does not contain variable value use Goblint to evaluate the value.
                     // This generally happens for global variables in multithreaded mode.
                     value = resultsService.evaluateExpression(currentNode.nodeId(), varinfo.getName());
