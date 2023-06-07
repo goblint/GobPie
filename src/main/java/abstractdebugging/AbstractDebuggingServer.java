@@ -1,6 +1,8 @@
 package abstractdebugging;
 
-import api.messages.*;
+import api.messages.GoblintLocation;
+import api.messages.GoblintVarinfo;
+import api.messages.LookupParams;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.tuple.Pair;
@@ -459,9 +461,12 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         assert currentNode != null;
         try {
             var targetEdge = currentNode.outgoingCFGEdges().get(targetIndex);
-            stepAllThreadsAlongMatchingEdge(targetThreadId, targetEdge, NodeInfo::outgoingCFGEdges, false);
+            stepAllThreadsOverMatchingEdge(targetThreadId, targetEdge, NodeInfo::outgoingCFGEdges);
             return CompletableFuture.completedFuture(null);
         } catch (IllegalStepException e) {
+            // Log error because if 'Step into target' menu is open then errors returned by this function are not shown in VSCode.
+            // TODO: Open issue about this in VSCode issue tracker.
+            log.error("Cannot step over. " + e.getMessage());
             return CompletableFuture.failedFuture(userFacingError("Cannot step over. " + e.getMessage()));
         }
     }
@@ -476,9 +481,12 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         assert currentNode != null;
         try {
             var targetEdge = currentNode.outgoingEntryEdges().get(targetIndex);
-            stepAllThreadsAlongMatchingEdge(targetThreadId, targetEdge, NodeInfo::outgoingEntryEdges, true);
+            stepAllThreadsIntoMatchingEdge(targetThreadId, targetEdge, NodeInfo::outgoingEntryEdges);
             return CompletableFuture.completedFuture(null);
         } catch (IllegalStepException e) {
+            // Log error because if 'Step into target' menu is open then errors returned by this function are not shown in VSCode.
+            // TODO: Open issue about this in VSCode issue tracker.
+            log.error("Cannot step in. " + e.getMessage());
             return CompletableFuture.failedFuture(userFacingError("Cannot step in. " + e.getMessage()));
         }
     }
@@ -559,41 +567,16 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     private CompletableFuture<Void> stepBackOver(int targetThreadId, int targetIndex) {
         NodeInfo currentNode = threads.get(targetThreadId).getCurrentFrame().getNode();
         assert currentNode != null;
-        var targetCFGNodeId = currentNode.incomingCFGEdges().get(targetIndex).cfgNodeId();
-
-        List<Pair<ThreadState, NodeInfo>> steps = new ArrayList<>();
-        for (var thread : threads.values()) {
-            var currentFrame = thread.getCurrentFrame();
-
-            NodeInfo targetNode;
-            if (currentFrame.getNode() != null) {
-                List<CFGEdgeInfo> targetEdges = currentFrame.getNode().incomingCFGEdges().stream()
-                        .filter(e -> e.cfgNodeId().equals(targetCFGNodeId))
-                        .toList();
-                if (targetEdges.isEmpty()) {
-                    return CompletableFuture.failedFuture(userFacingError("Cannot step back. No matching path from " + thread.getName()));
-                } else if (targetEdges.size() > 1) {
-                    return CompletableFuture.failedFuture(userFacingError("Cannot step back. Path is ambiguous from " + thread.getName()));
-                }
-                targetNode = resultsService.lookupNode(targetEdges.get(0).nodeId());
-            } else if (currentFrame.getLastReachableNode() != null && currentFrame.getLastReachableNode().cfgNodeId().equals(targetCFGNodeId)) {
-                targetNode = currentFrame.getLastReachableNode();
-            } else {
-                continue;
-            }
-
-            steps.add(Pair.of(thread, targetNode));
+        EdgeInfo targetEdge = currentNode.incomingCFGEdges().get(targetIndex);
+        try {
+            stepAllThreadsOverMatchingEdge(targetThreadId, targetEdge, NodeInfo::incomingCFGEdges);
+            return CompletableFuture.completedFuture(null);
+        } catch (IllegalStepException e) {
+            // Log error because if 'Step into target' menu is open then errors returned by this function are not shown in VSCode.
+            // TODO: Open issue about this in VSCode issue tracker.
+            log.error("Cannot step back. " + e.getMessage());
+            return CompletableFuture.failedFuture(userFacingError("Cannot step back. " + e.getMessage()));
         }
-
-        for (var step : steps) {
-            ThreadState thread = step.getLeft();
-            NodeInfo targetNode = step.getRight();
-            thread.getCurrentFrame().setNode(targetNode);
-        }
-
-        onThreadsStopped("step", targetThreadId);
-
-        return CompletableFuture.completedFuture(null);
     }
 
     private CompletableFuture<Void> stepBackOut(int targetThreadId, int targetIndex) {
@@ -658,57 +641,93 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
      *
      * @throws IllegalStepException if the target node is ambiguous ie there are multiple candidate edges that have the target CFG node.
      */
-    private void stepAllThreadsAlongMatchingEdge(int primaryThreadId, EdgeInfo primaryTargetEdge, Function<NodeInfo, List<? extends EdgeInfo>> getCandidateEdges, boolean addFrame)
+    private void stepAllThreadsOverMatchingEdge(int primaryThreadId, EdgeInfo primaryTargetEdge, Function<NodeInfo, List<? extends EdgeInfo>> getCandidateEdges)
             throws IllegalStepException {
-        // Note: It is important that all threads, including threads with unavailable location, are stepped, because otherwise the number of added stack frames could get out of sync.
+        List<Pair<ThreadState, NodeInfo>> steps = new ArrayList<>();
+        for (var thread : threads.values()) {
+            StackFrameState currentFrame = thread.getCurrentFrame();
+
+            NodeInfo targetNode;
+            if (currentFrame.getNode() != null) {
+                List<? extends EdgeInfo> candidateEdges = getCandidateEdges.apply(currentFrame.getNode());
+                EdgeInfo targetEdge = findTargetEdge(primaryTargetEdge, candidateEdges, thread.getName());
+                targetNode = targetEdge == null ? null : resultsService.lookupNode(targetEdge.nodeId());
+            } else if (currentFrame.getLastReachableNode() != null && currentFrame.getLastReachableNode().cfgNodeId().equals(primaryTargetEdge.cfgNodeId())) {
+                targetNode = currentFrame.getLastReachableNode();
+            } else {
+                continue;
+            }
+
+            steps.add(Pair.of(thread, targetNode));
+        }
+
+        for (var step : steps) {
+            ThreadState thread = step.getLeft();
+            NodeInfo targetNode = step.getRight();
+            thread.getCurrentFrame().setNode(targetNode);
+        }
+
+        onThreadsStopped("step", primaryThreadId);
+    }
+
+    /**
+     * Steps all threads along an edge matching primaryTargetEdge and adds a new stack frame with the target node.
+     * Edges are matched by ARG node. If no edge with matching ARG node is found then edges are matched by CFG node.
+     * If no edge with matching CFG node is found then thread becomes unavailable.
+     *
+     * @throws IllegalStepException if the target node is ambiguous ie there are multiple candidate edges that have the target CFG node.
+     */
+    private void stepAllThreadsIntoMatchingEdge(int primaryThreadId, EdgeInfo primaryTargetEdge, Function<NodeInfo, List<? extends EdgeInfo>> getCandidateEdges)
+            throws IllegalStepException {
+        // Note: It is important that all threads, including threads with unavailable location, are stepped, because otherwise the number of added stack frames will get out of sync.
         List<Pair<ThreadState, EdgeInfo>> steps = new ArrayList<>();
         for (var thread : threads.values()) {
-            // This is will throw if there are multiple distinct target edges with the same target CFG node.
-            // TODO: Somehow ensure this can never happen.
-            //  Options:
-            //  * Throw error (current approach) (problem: might make it impossible to step at all in some cases. it is difficult to provide meaningful error messages for all cases)
-            //  * Split thread into multiple threads. (problem: complicates 'step back' and maintaining thread ordering)
-            //  * Identify true source of branching and use it to disambiguate (problem: there might not be a source of branching in all cases. complicates stepping logic)
-            //  * Make ambiguous threads unavailable (problem: complicates mental model of when threads become unavailable.)
+            StackFrameState currentFrame = thread.getCurrentFrame();
+
             EdgeInfo targetEdge;
-            if (thread.getCurrentFrame().getNode() == null) {
-                targetEdge = null;
+            if (currentFrame.getNode() != null) {
+                List<? extends EdgeInfo> candidateEdges = getCandidateEdges.apply(currentFrame.getNode());
+                targetEdge = findTargetEdge(primaryTargetEdge, candidateEdges, thread.getName());
             } else {
-                List<? extends EdgeInfo> candidateEdges = getCandidateEdges.apply(thread.getCurrentFrame().getNode());
-                EdgeInfo targetEdgeByARGNode = candidateEdges.stream()
-                        .filter(e -> e.nodeId().equals(primaryTargetEdge.nodeId()))
-                        .findAny().orElse(null);
-                if (targetEdgeByARGNode != null) {
-                    targetEdge = targetEdgeByARGNode;
-                } else {
-                    List<? extends EdgeInfo> targetEdgesByCFGNode = candidateEdges.stream()
-                            .filter(e -> e.cfgNodeId().equals(primaryTargetEdge.cfgNodeId()))
-                            .toList();
-                    if (targetEdgesByCFGNode.size() > 1) {
-                        // Log error because if 'Step into target' menu is open then errors returned by this function are not shown in VSCode.
-                        // TODO: Open issue about this in VSCode issue tracker.
-                        log.error("Cannot step. Path is ambiguous for " + thread.getName() + ".");
-                        throw new IllegalStepException("Cannot step. Path is ambiguous for " + thread.getName() + ".");
-                    }
-                    targetEdge = targetEdgesByCFGNode.size() == 1 ? targetEdgesByCFGNode.get(0) : null;
-                }
+                targetEdge = null;
             }
 
             steps.add(Pair.of(thread, targetEdge));
         }
+
         for (var step : steps) {
             ThreadState thread = step.getLeft();
             EdgeInfo targetEdge = step.getRight();
-            NodeInfo targetNode = targetEdge == null ? null : resultsService.lookupNode(targetEdge.nodeId());
-            if (addFrame) {
-                boolean isNewThread = targetEdge instanceof FunctionCallEdgeInfo fce && fce.createsNewThread();
-                thread.pushFrame(new StackFrameState(targetNode, false, thread.getCurrentFrame().getLocalThreadIndex() - (isNewThread ? 1 : 0)));
-            } else {
-                thread.getCurrentFrame().setNode(targetNode);
-            }
+            NodeInfo targetNode = resultsService.lookupNode(targetEdge.nodeId());
+            boolean isNewThread = targetEdge instanceof FunctionCallEdgeInfo fce && fce.createsNewThread();
+            thread.pushFrame(new StackFrameState(targetNode, false, thread.getCurrentFrame().getLocalThreadIndex() - (isNewThread ? 1 : 0)));
         }
 
         onThreadsStopped("step", primaryThreadId);
+    }
+
+    private EdgeInfo findTargetEdge(EdgeInfo primaryTargetEdge, List<? extends EdgeInfo> candidateEdges, String threadName) throws IllegalStepException {
+        // This is will throw if there are multiple distinct target edges with the same target CFG node.
+        // TODO: Somehow ensure this can never happen.
+        //  Options:
+        //  * Throw error (current approach) (problem: might make it impossible to step at all in some cases. it is difficult to provide meaningful error messages for all cases)
+        //  * Split thread into multiple threads. (problem: complicates 'step back' and maintaining thread ordering)
+        //  * Identify true source of branching and use it to disambiguate (problem: there might not be a source of branching in all cases. complicates stepping logic)
+        //  * Make ambiguous threads unavailable (problem: complicates mental model of when threads become unavailable.)
+
+        EdgeInfo targetEdgeByARGNode = candidateEdges.stream()
+                .filter(e -> e.nodeId().equals(primaryTargetEdge.nodeId()))
+                .findAny().orElse(null);
+        if (targetEdgeByARGNode != null) {
+            return targetEdgeByARGNode;
+        }
+        List<? extends EdgeInfo> targetEdgesByCFGNode = candidateEdges.stream()
+                .filter(e -> e.cfgNodeId().equals(primaryTargetEdge.cfgNodeId()))
+                .toList();
+        if (targetEdgesByCFGNode.size() > 1) {
+            throw new IllegalStepException("Path is ambiguous for " + threadName + ".");
+        }
+        return targetEdgesByCFGNode.size() == 1 ? targetEdgesByCFGNode.get(0) : null;
     }
 
     /**
