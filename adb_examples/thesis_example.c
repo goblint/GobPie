@@ -8,7 +8,7 @@ void f(int a) {
     printf("%i", a);
 }
 
-int g(int b) {
+void g(int b) {
     if (b >= 50) {
         f(b - 50);
     } else {
@@ -17,7 +17,7 @@ int g(int b) {
     }
 }
 
-int h(int c) {
+void h(int c) {
     if (c == 0) {
         pthread_mutex_lock(&lukk);
     }
