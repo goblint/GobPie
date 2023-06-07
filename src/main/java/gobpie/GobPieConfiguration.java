@@ -14,11 +14,13 @@ public class GobPieConfiguration {
     private String goblintConf;
     private String[] preAnalyzeCommand;
     private final boolean showCfg;
+    private final boolean explodeGroupWarnings;
     private final boolean incrementalAnalysis;
 
     private GobPieConfiguration() {
         goblintExecutable = "goblint";
         showCfg = false;
+        explodeGroupWarnings = true;
         incrementalAnalysis = true;
     }
 
@@ -35,8 +37,12 @@ public class GobPieConfiguration {
         return this.preAnalyzeCommand;
     }
 
-    public boolean getShowCfg() {
+    public boolean showCfg() {
         return this.showCfg;
+    }
+
+    public boolean explodeGroupWarnings() {
+        return explodeGroupWarnings;
     }
 
     public boolean useIncrementalAnalysis() {

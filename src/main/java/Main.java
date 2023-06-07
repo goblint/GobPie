@@ -12,7 +12,6 @@ import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
 import magpiebridge.core.ServerAnalysis;
-import magpiebridge.core.ServerConfiguration;
 import magpiebridge.core.ToolAnalysis;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -83,10 +82,11 @@ public class Main {
 
     private static GoblintMagpieServer createMagpieServer() {
         // set up configuration for MagpieServer
-        ServerConfiguration serverConfig = new ServerConfiguration();
+        GoblintServerConfiguration serverConfig = new GoblintServerConfiguration();
         serverConfig.setUseMagpieHTTPServer(false);
+        //TODO: Track any relevant changes in https://github.com/MagpieBridge/MagpieBridge/issues/88 and update this accordingly.
+        serverConfig.setLanguageExtensionHandler(new GoblintLanguageExtensionHandler(serverConfig.getLanguageExtensionHandler()));
         GoblintMagpieServer magpieServer = new GoblintMagpieServer(serverConfig);
-
         // launch MagpieServer
         // note that the server will not accept messages until configurationDone is called
         magpieServer.launchOnStdio();
@@ -150,7 +150,7 @@ public class Main {
         magpieServer.addAnalysis(analysis, language);
 
         // add HTTP server for showing CFGs, only if the option is specified in the configuration
-        if (gobpieConfiguration.getShowCfg()) {
+        if (gobpieConfiguration.showCfg()) {
             String httpServerAddress = new GobPieHTTPServer(goblintService).start();
             magpieServer.addHttpServer(httpServerAddress);
             magpieServer.addCommand("showcfg", new ShowCFGCommand(httpServerAddress));

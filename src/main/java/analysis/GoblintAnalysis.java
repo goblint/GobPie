@@ -15,7 +15,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
-import org.thymeleaf.util.ListUtils;
 import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
@@ -213,16 +212,35 @@ public class GoblintAnalysis implements ServerAnalysis {
     private CompletableFuture<Collection<AnalysisResult>> getComposedAnalysisResults(GoblintAnalysisResult analysisResult) {
         didAnalysisNotSucceed(analysisResult);
         // Get warning messages
-        CompletableFuture<Collection<AnalysisResult>> messagesFuture = goblintService.messages()
-                .thenApply(messages -> messages.stream().flatMap(m -> m.convert().stream()).toList());
-        if (!gobpieConfiguration.getShowCfg()) {
-            return messagesFuture;
+        CompletableFuture<Collection<AnalysisResult>> messagesCompletableFuture = goblintService.messages()
+                .thenApply(this::convertMessagesFromJson);
+        if (!gobpieConfiguration.showCfg()) {
+            return messagesCompletableFuture;
         }
         // Get list of functions
-        CompletableFuture<Collection<AnalysisResult>> functionsFuture = goblintService.functions()
-                .thenApply(functions -> functions.stream().flatMap(f -> f.convert().stream()).toList());
-        return messagesFuture
-                .thenCombine(functionsFuture, (m, f) -> Stream.concat(m.stream(), f.stream()).toList());
+        CompletableFuture<Collection<AnalysisResult>> functionsCompletableFuture = goblintService.functions()
+                .thenApply(this::convertFunctionsFromJson);
+        return messagesCompletableFuture
+                .thenCombine(functionsCompletableFuture, (messages, functions) -> Stream.concat(messages.stream(), functions.stream()).toList());
+    }
+
+
+    /**
+     * Deserializes json from the response and converts the information
+     * into AnalysisResult objects, which Magpie uses to generate IDE messages.
+     *
+     * @param response that was read from the socket and needs to be converted to AnalysisResults.
+     * @return A collection of AnalysisResult objects.
+     */
+
+    private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessagesResult> response) {
+        return gobpieConfiguration.explodeGroupWarnings()
+                ? response.stream().map(GoblintMessagesResult::convertExplode).flatMap(List::stream).toList()
+                : response.stream().map(GoblintMessagesResult::convertNonExplode).flatMap(List::stream).toList();
+    }
+
+    private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctionsResult> response) {
+        return response.stream().map(GoblintFunctionsResult::convert).flatMap(List::stream).toList();
     }
 
 
