@@ -38,6 +38,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     private static final int TARGET_BLOCK_SIZE = 1_000_000;
     private static final int STEP_OVER_OFFSET = TARGET_BLOCK_SIZE;
     private static final int STEP_IN_OFFSET = 2 * TARGET_BLOCK_SIZE;
+    private static final int STEP_BACK_OVER_OFFSET = 3 * TARGET_BLOCK_SIZE;
+    private static final int STEP_BACK_OUT_OFFSET = 4 * TARGET_BLOCK_SIZE;
 
     /**
      * Multiplier for thread id in frame id.
@@ -279,17 +281,20 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
      */
     @Override
     public CompletableFuture<StepInTargetsResponse> stepInTargets(StepInTargetsArguments args) {
-        NodeInfo currentNode = threads.get(getThreadId(args.getFrameId())).getCurrentFrame().getNode();
+        ThreadState currentThread = threads.get(getThreadId(args.getFrameId()));
+        NodeInfo currentNode = currentThread.getCurrentFrame().getNode();
 
         List<StepInTarget> targets = new ArrayList<>();
         if (currentNode != null) {
+            List<StepInTarget> forwardTargets = new ArrayList<>();
+
             {
                 var entryEdges = currentNode.outgoingEntryEdges();
                 for (int i = 0; i < entryEdges.size(); i++) {
                     var edge = entryEdges.get(i);
-                    targets.add(target(
+                    forwardTargets.add(target(
                             STEP_IN_OFFSET + i,
-                            (edge.createsNewThread() ? "thread: " : "call: ") + edge.function() + "(" + String.join(", ", edge.args()) + ")",
+                            "Step in: " + (edge.createsNewThread() ? "thread " : "call ") + edge.function() + "(" + String.join(", ", edge.args()) + ")",
                             currentNode.location()
                     ));
                 }
@@ -301,16 +306,50 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 for (int i = 0; i < cfgEdges.size(); i++) {
                     var edge = cfgEdges.get(i);
                     var node = resultsService.lookupNode(edge.nodeId());
-                    targets.add(target(
+                    forwardTargets.add(target(
                             STEP_OVER_OFFSET + i,
-                            "branch: " + edge.statementDisplayString(),
+                            "Step: " + edge.statementDisplayString(),
                             node.location()
                     ));
                 }
             }
 
-            // Sort targets by the order they appear in code
-            targets.sort(Comparator.comparing(StepInTarget::getLine).thenComparing(StepInTarget::getColumn));
+            // Sort forward stepping targets by the order they appear in code
+            forwardTargets.sort(Comparator.comparing(StepInTarget::getLine).thenComparing(StepInTarget::getColumn));
+            targets.addAll(forwardTargets);
+
+            // Backward stepping entry targets are not sorted, to ensure their order matches the order of stack frames
+            if (currentThread.hasPreviousFrame() && currentThread.getPreviousFrame().isAmbiguousFrame()) {
+                var frames = currentThread.getFrames();
+                for (int i = 1; i < frames.size(); i++) {
+                    var node = frames.get(i).getNode();
+                    assert node != null; // Ambiguous frames can't be unavailable
+                    targets.add(target(
+                            STEP_BACK_OUT_OFFSET + i,
+                            "Step back: " + node.function() + " " + node.nodeId(),
+                            node.location()
+                    ));
+                }
+            }
+
+            List<StepInTarget> backwardTargets = new ArrayList<>();
+
+            if (currentNode.incomingCFGEdges().size() > 1) {
+                var cfgEdges = currentNode.incomingCFGEdges();
+                for (int i = 0; i < cfgEdges.size(); i++) {
+                    var edge = cfgEdges.get(i);
+                    var node = resultsService.lookupNode(edge.nodeId());
+                    backwardTargets.add(target(
+                            STEP_BACK_OVER_OFFSET + i,
+                            "Step back: " + edge.statementDisplayString(),
+                            node.location()
+                    ));
+                }
+            }
+
+            // Sort backward stepping CFG targets by the order they appear in code
+            backwardTargets.sort(Comparator.comparing(StepInTarget::getLine).thenComparing(StepInTarget::getColumn));
+            targets.addAll(backwardTargets);
         }
 
         var response = new StepInTargetsResponse();
@@ -390,7 +429,13 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         } else {
             // Step into targets operation
             int targetId = args.getTargetId();
-            if (targetId >= STEP_IN_OFFSET) {
+            if (targetId >= STEP_BACK_OUT_OFFSET) {
+                int targetIndex = targetId - STEP_BACK_OUT_OFFSET;
+                return stepBackOut(args.getThreadId(), targetIndex);
+            } else if (targetId >= STEP_BACK_OVER_OFFSET) {
+                int targetIndex = targetId - STEP_BACK_OVER_OFFSET;
+                return stepBackOver(args.getThreadId(), targetIndex);
+            } else if (targetId >= STEP_IN_OFFSET) {
                 int targetIndex = targetId - STEP_IN_OFFSET;
                 return stepIn(args.getThreadId(), targetIndex);
             } else if (targetId >= STEP_OVER_OFFSET) {
@@ -413,6 +458,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         } else if (!targetThread.hasPreviousFrame()) {
             return CompletableFuture.failedFuture(userFacingError("Cannot step out. Reached top of call stack."));
         } else if (targetThread.getPreviousFrame().isAmbiguousFrame()) {
+            // Restart frame isn't equivalent to step out, it moves you to the start of the frame, which means you have to step to your target location manually.
+            // TODO: Find/create a better alternative for stepping out with ambiguous caller.
             return CompletableFuture.failedFuture(userFacingError("Ambiguous caller frame. Use restart frame to choose the desired frame."));
         }
 
@@ -439,11 +486,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             if (!targetThread.hasPreviousFrame()) {
                 return CompletableFuture.failedFuture(userFacingError("Cannot step back. Reached start of program."));
             } else if (targetThread.getPreviousFrame().isAmbiguousFrame()) {
-                return CompletableFuture.failedFuture(userFacingError("Ambiguous previous frame. Use restart frame to choose desired frame."));
+                return CompletableFuture.failedFuture(userFacingError("Ambiguous previous frame. Use step into target to choose desired frame."));
             }
             return stepBackOut(args.getThreadId(), 1);
         } else if (currentNode.incomingCFGEdges().size() > 1) {
-            return CompletableFuture.failedFuture(userFacingError("Cannot step back. Previous location is ambiguous."));
+            return CompletableFuture.failedFuture(userFacingError("Ambiguous previous location. Use step into target to choose desired location."));
         }
 
         return stepBackOver(args.getThreadId(), 0);
