@@ -10,15 +10,19 @@ public record ConditionalExpression(boolean must, String expression) {
     private static final String EXPLICIT_MODE_PREFIX = "\\";
 
     /**
+     * <p>
      * Creates a ConditionalExpression by parsing a string.
      * If useDefault is true then expressions without an explicit mode will default to mode may, otherwise an exception is thrown.
-     * <p>
-     * The supported modes are:
-     * * may - true if the given C expression may evaluate to true
-     * * must - true if the given C expression must evaluate to true
+     * </p>
      * <p>
      * An expression with explicit mode takes the form {@code \<mode> <expression>}.
      * An expression without explicit mode takes the form {@code <expression>}.
+     * </p>
+     * <p>
+     * The supported modes are:
+     * <li>may - true if the given C expression may evaluate to true</li>
+     * <li>must - true if the given C expression must evaluate to true</li>
+     * </p>
      *
      * @throws IllegalArgumentException if parsing the expression fails.
      *                                  Note that evaluating the expression may also throw, so this method not throwing does not mean the expression is guaranteed to be valid.

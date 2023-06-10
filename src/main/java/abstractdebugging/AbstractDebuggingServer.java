@@ -29,6 +29,7 @@ import java.util.stream.StreamSupport;
 
 /**
  * Abstract debugging server.
+ * An instance of this corresponds to a single debugging session.
  * Implements the core logic of abstract debugging with the lsp4j DAP interface.
  *
  * @author Juhan Oskar Hennoste
@@ -88,6 +89,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         this.client = client;
     }
 
+    /**
+     * DAP request to initialize debugger and report supported capabilities.
+     * For the abstract debugger this is a no-op (except for returning supported capabilities).
+     */
     @Override
     public CompletableFuture<Capabilities> initialize(InitializeRequestArguments args) {
         Capabilities capabilities = new Capabilities();
@@ -100,6 +105,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(capabilities);
     }
 
+    /**
+     * DAP request to set breakpoints.
+     */
     @Override
     public CompletableFuture<SetBreakpointsResponse> setBreakpoints(SetBreakpointsArguments args) {
         Path absoluteSourcePath = Path.of(args.getSource().getPath()).toAbsolutePath();
@@ -183,15 +191,21 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(response);
     }
 
+    /**
+     * DAP request to set exception breakpoints.
+     * Note: This should not be called by the IDE given our reported capabilities, but VSCode calls it anyway.
+     * It is implemented as a no-op to avoid errors.
+     */
     @Override
     public CompletableFuture<SetExceptionBreakpointsResponse> setExceptionBreakpoints(SetExceptionBreakpointsArguments args) {
-        // This should not be called by the IDE given our reported capabilities, but VSCode calls it anyway.
         var response = new SetExceptionBreakpointsResponse();
         response.setBreakpoints(new Breakpoint[0]);
         return CompletableFuture.completedFuture(response);
     }
 
     /**
+     * Finds target nodes having the given CFG node and matching the conditional expression if provided.
+     *
      * @throws IllegalArgumentException if evaluating the condition failed.
      */
     private List<NodeInfo> findTargetNodes(CFGNodeInfo cfgNode, @Nullable ConditionalExpression condition) {
@@ -205,6 +219,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
     }
 
+    /**
+     * Notifies the debugger that all initial configuration requests have been made.
+     * Launching waits for this to arrive before starting the debugger.
+     */
     @Override
     public CompletableFuture<Void> configurationDone(ConfigurationDoneArguments args) {
         log.info("Debug adapter configuration done");
@@ -213,12 +231,19 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * DAP request to attach to debugger.
+     * Note: Attach doesn't make sense for abstract debugging, but to avoid issues in case the client requests it anyway we just treat it as a launch request.
+     */
     @Override
     public CompletableFuture<Void> attach(Map<String, Object> args) {
-        // Attach doesn't make sense for abstract debugging, but to avoid issues in case the client requests it anyway we just treat it as a launch request.
         return launch(args);
     }
 
+    /**
+     * DAP request to launch debugger.
+     * Launches the abstract debugger and runs to first breakpoint. Waits for configuration before launching.
+     */
     @Override
     public CompletableFuture<Void> launch(Map<String, Object> args) {
         // Start configuration by notifying that client is initialized.
@@ -233,23 +258,37 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 });
     }
 
+    /**
+     * Disconnects the debugger. For abstract debugging this is a no-op.
+     */
     @Override
     public CompletableFuture<Void> disconnect(DisconnectArguments args) {
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Runs to next breakpoint.
+     * Note: Breakpoints are run in the order in which the client sent them, not in any content based ordering.
+     * In VS Code breakpoints appear to be sent in the order of their line numbers.
+     */
     @Override
     public CompletableFuture<ContinueResponse> continue_(ContinueArguments args) {
         runToNextBreakpoint(1);
         return CompletableFuture.completedFuture(new ContinueResponse());
     }
 
+    /**
+     * Runs to previous breakpoint.
+     */
     @Override
     public CompletableFuture<Void> reverseContinue(ReverseContinueArguments args) {
         runToNextBreakpoint(-1);
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Restarts the given frame at the start of the function. In VS Code this can be accessed as an icon on the right side of the stack frame in the call stacks view.
+     */
     @Override
     public CompletableFuture<Void> restartFrame(RestartFrameArguments args) {
         int targetThreadId = getThreadId(args.getFrameId());
@@ -262,6 +301,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
     }
 
+    /**
+     * Terminates (removes) a thread. In VS Code this can be accessed by right-clicking on a thread in the call stacks view.
+     */
     @Override
     public CompletableFuture<Void> terminateThreads(TerminateThreadsArguments args) {
         for (int threadId : args.getThreadIds()) {
@@ -893,6 +935,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(response);
     }
 
+    /**
+     * Returns the stack trace for the given thread.
+     */
     @Override
     public CompletableFuture<StackTraceResponse> stackTrace(StackTraceArguments args) {
         var thread = threads.get(args.getThreadId());
@@ -928,6 +973,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(response);
     }
 
+    /**
+     * Returns variable scopes for the given stack frame.
+     */
     @Override
     public CompletableFuture<ScopesResponse> scopes(ScopesArguments args) {
         var frame = getFrame(args.getFrameId());
@@ -1014,6 +1062,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(response);
     }
 
+    /**
+     * Returns variables for the given variable reference (a variable reference is generally a variable scope or a complex variable).
+     */
     @Override
     public CompletableFuture<VariablesResponse> variables(VariablesArguments args) {
         var response = new VariablesResponse();
@@ -1021,6 +1072,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(response);
     }
 
+    /**
+     * Evaluates the given expression and returns the result.
+     */
     @Override
     public CompletableFuture<EvaluateResponse> evaluate(EvaluateArguments args) {
         var frame = getFrame(args.getFrameId());
@@ -1049,6 +1103,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return CompletableFuture.completedFuture(response);
     }
 
+    /**
+     * Converts a Goblint domain value into a DAP variable.
+     * Note: Variables may contain variable references. Variable references are only valid until the next step.
+     */
     private Variable domainValueToVariable(String name, @Nullable String type, JsonElement value) {
         if (value.isJsonObject()) {
             return compoundVariable(
@@ -1091,6 +1149,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return variable(name, type, domainValueToString(value));
     }
 
+    /**
+     * Converts a Goblint domain value into a string.
+     */
     private static String domainValueToString(JsonElement value) {
         if (value.isJsonPrimitive()) {
             return value.getAsString();
@@ -1107,6 +1168,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
     }
 
+    /**
+     * Convenience function to construct a DAP scope.
+     */
     private Scope scope(String name, List<Variable> variables) {
         Scope scope = new Scope();
         scope.setName(name);
@@ -1114,6 +1178,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return scope;
     }
 
+    /**
+     * Convenience function to construct a DAP compound variable.
+     * Note: The given fields are stored as variable references. Variable references are only valid until the next step.
+     */
     private Variable compoundVariable(String name, @Nullable String type, boolean isArray, Variable... fields) {
         Variable variable = new Variable();
         variable.setName(name);
@@ -1125,6 +1193,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         return variable;
     }
 
+    /**
+     * Constructs a preview string for a compound variable.
+     */
     private static String compoundVariablePreview(boolean isArray, Variable... fields) {
         if (fields.length == 0) {
             return isArray ? "[]" : "{}";
@@ -1138,6 +1209,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         }
     }
 
+    /**
+     * Convenience function to construct a DAP variable.
+     */
     private static Variable variable(String name, @Nullable String type, String value) {
         Variable variable = new Variable();
         variable.setName(name);
@@ -1148,20 +1222,32 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     // Helper methods:
 
+    /**
+     * Get stack frame by frame id.
+     */
     private StackFrameState getFrame(int frameId) {
         int threadId = getThreadId(frameId);
         int frameIndex = getFrameIndex(frameId);
         return threads.get(threadId).getFrames().get(frameIndex);
     }
 
+    /**
+     * Construct stack frame id from thread id and frame index.
+     */
     private static int getFrameId(int threadId, int frameIndex) {
         return threadId * FRAME_ID_THREAD_ID_MULTIPLIER + frameIndex;
     }
 
+    /**
+     * Extract thread id from frame id.
+     */
     private int getThreadId(int frameId) {
         return frameId / FRAME_ID_THREAD_ID_MULTIPLIER;
     }
 
+    /**
+     * Extract frame index from frame id.
+     */
     private int getFrameIndex(int frameId) {
         return frameId % FRAME_ID_THREAD_ID_MULTIPLIER;
     }
@@ -1203,6 +1289,9 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         client.stopped(event);
     }
 
+    /**
+     * Logic to assemble a stack trace with the given start node as the topmost frame.
+     */
     private List<StackFrameState> assembleStackTrace(NodeInfo startNode) {
         int curThreadId = 0;
         List<StackFrameState> stackFrames = new ArrayList<>();
