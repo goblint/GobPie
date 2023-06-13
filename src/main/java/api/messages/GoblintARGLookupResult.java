@@ -9,6 +9,10 @@ import com.google.gson.annotations.SerializedName;
 
 import java.util.List;
 
+/**
+ * @since 0.0.4
+ */
+
 public class GoblintARGLookupResult {
 
     private String node;

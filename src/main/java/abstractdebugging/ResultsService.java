@@ -14,6 +14,8 @@ import java.util.concurrent.CompletionException;
 /**
  * Synchronous convenience methods for working with GoblintService for abstract debugging.
  * In the future this can be converted to an interface and mocked for testing purposes.
+ *
+ * @since 0.0.4
  */
 public class ResultsService {
 

@@ -1,5 +1,9 @@
 package api.messages;
 
+/**
+ * @since 0.0.4
+ */
+
 public class EvalQueryParams {
 
     private String node;

@@ -1,5 +1,9 @@
 package abstractdebugging;
 
+/**
+ * @since 0.0.4
+ */
+
 public class CFGEdgeInfo extends EdgeInfo {
 
     private final String statementDisplayString;

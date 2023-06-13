@@ -8,7 +8,7 @@ The Integration of the static analyzer [Goblint](https://github.com/goblint/anal
 
 1. Install [Goblint](https://github.com/goblint/analyzer#installing).
 2. Download [GobPie plugin](https://nightly.link/goblint/GobPie/workflows/build/master/gobpie-plugin.zip) and unzip the archive.
-3. Install the extension into VSCode with `code --install-extension gobpie-0.0.3.vsix`.
+3. Install the extension into VSCode with `code --install-extension gobpie-0.0.4.vsix`.
 
 When installing goblint locally (as recommended), **make sure that GobPie can find the correct version Goblint**.
 This can be done in two ways:

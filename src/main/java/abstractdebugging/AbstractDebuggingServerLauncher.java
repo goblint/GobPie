@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
  * Responsible for exposing the DAP-based abstract debugging server over a UNIX domain socket.
  *
  * @author Juhan Oskar Hennoste
+ * @since 0.0.4
  */
 public class AbstractDebuggingServerLauncher {
 

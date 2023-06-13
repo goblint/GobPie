@@ -6,6 +6,9 @@ import com.google.gson.annotations.SerializedName;
 import javax.annotation.Nullable;
 import java.math.BigInteger;
 
+/**
+ * @since 0.0.4
+ */
 public class EvalIntResult {
 
     private JsonElement raw;

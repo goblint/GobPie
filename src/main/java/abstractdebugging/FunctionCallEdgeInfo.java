@@ -2,6 +2,10 @@ package abstractdebugging;
 
 import java.util.List;
 
+/**
+ * @since 0.0.4
+ */
+
 public class FunctionCallEdgeInfo extends EdgeInfo {
 
     private final String function;

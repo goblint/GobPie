@@ -7,12 +7,14 @@ import java.util.List;
 
 /**
  * Represents information about an ARG node.
- * @param nodeId The ARG node id assigned by Goblint
+ *
+ * @param nodeId    The ARG node id assigned by Goblint
  * @param cfgNodeId The corresponding CFG node id assigned by Goblint
  * @param contextId The corresponding context id assigned by Goblint
- * @param pathId The corresponding path id assigned by Goblint
- * @param location Location of node in source code
- * @param function Name of function that contains this node
+ * @param pathId    The corresponding path id assigned by Goblint
+ * @param location  Location of node in source code
+ * @param function  Name of function that contains this node
+ * @since 0.0.4
  */
 public record NodeInfo(
         String nodeId,

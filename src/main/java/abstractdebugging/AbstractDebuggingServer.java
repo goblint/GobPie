@@ -33,6 +33,7 @@ import java.util.stream.StreamSupport;
  * Implements the core logic of abstract debugging with the lsp4j DAP interface.
  *
  * @author Juhan Oskar Hennoste
+ * @since 0.0.4
  */
 public class AbstractDebuggingServer implements IDebugProtocolServer {
 

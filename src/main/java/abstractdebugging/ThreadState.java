@@ -8,6 +8,9 @@ import java.util.List;
  * <p>
  * A note about terminology: The topmost frame is the frame that was added by the latest function call and contains the current location of the thread.
  * It is located at index 0 in the list of frames.
+ *
+ * @author Juhan Oskar Hennoste
+ * @since 0.0.4
  */
 public class ThreadState {
 

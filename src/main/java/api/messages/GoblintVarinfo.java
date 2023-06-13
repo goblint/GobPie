@@ -2,6 +2,10 @@ package api.messages;
 
 import javax.annotation.Nullable;
 
+/**
+ * @since 0.0.4
+ */
+
 public class GoblintVarinfo {
 
     private long vid;

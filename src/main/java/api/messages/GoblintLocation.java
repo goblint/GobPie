@@ -9,7 +9,7 @@ import java.net.MalformedURLException;
  * Goblint CIL location.
  *
  * @author Juhan Oskar Hennoste
- * @since 0.0.3
+ * @since 0.0.4
  */
 public class GoblintLocation {
 

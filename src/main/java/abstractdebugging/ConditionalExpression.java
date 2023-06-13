@@ -5,6 +5,10 @@ import com.google.gson.JsonPrimitive;
 
 import java.util.Locale;
 
+/**
+ * @since 0.0.4
+ */
+
 public record ConditionalExpression(boolean must, String expression) {
 
     private static final String EXPLICIT_MODE_PREFIX = "\\";
