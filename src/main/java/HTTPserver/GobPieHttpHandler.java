@@ -1,10 +1,8 @@
 package HTTPserver;
 
 import api.GoblintService;
-import api.messages.GoblintARGResult;
-import api.messages.GoblintCFGResult;
-import api.messages.NodeParams;
-import api.messages.Params;
+import api.messages.params.NodeParams;
+import api.messages.params.Params;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;

@@ -2,6 +2,7 @@ package abstractdebugging;
 
 import api.GoblintService;
 import api.messages.*;
+import api.messages.params.*;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;

@@ -5,7 +5,7 @@ import analysis.GoblintAnalysis;
 import analysis.ShowCFGCommand;
 import api.GoblintService;
 import api.GoblintServiceLauncher;
-import api.messages.Params;
+import api.messages.params.Params;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;

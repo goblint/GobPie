@@ -2,6 +2,8 @@ package analysis;
 
 import api.GoblintService;
 import api.messages.*;
+import api.messages.params.AnalyzeParams;
+import api.messages.params.Params;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
@@ -32,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**

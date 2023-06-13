@@ -2,7 +2,7 @@ package abstractdebugging;
 
 import api.messages.GoblintLocation;
 import api.messages.GoblintVarinfo;
-import api.messages.LookupParams;
+import api.messages.params.LookupParams;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.tuple.Pair;
