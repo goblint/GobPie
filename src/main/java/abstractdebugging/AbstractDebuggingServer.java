@@ -63,6 +63,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
     private final ResultsService resultsService;
 
+    private final EventQueue eventQueue = new EventQueue();
     private IDebugProtocolClient client;
     private CompletableFuture<Void> configurationDoneFuture = new CompletableFuture<>();
 
@@ -88,6 +89,13 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             throw new IllegalStateException("Client already connected");
         }
         this.client = client;
+    }
+
+    /**
+     * Gets event queue where sending DAP events will be queued.
+     */
+    public EventQueue getEventQueue() {
+        return eventQueue;
     }
 
     /**
@@ -284,6 +292,14 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
     @Override
     public CompletableFuture<Void> reverseContinue(ReverseContinueArguments args) {
         runToNextBreakpoint(-1);
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * DAP request to pause a thread. Abstract debugger threads are always paused so this is a no-op.
+     */
+    @Override
+    public CompletableFuture<Void> pause(PauseArguments args) {
         return CompletableFuture.completedFuture(null);
     }
 
@@ -1277,17 +1293,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         storedVariables.clear();
         nodeScopes.clear();
 
-        // Sending the stopped event before the response to the step request is a violation of the DAP spec.
-        // There is no clean way to do the operations in the correct order with lsp4j (see https://github.com/eclipse/lsp4j/issues/229),
-        // multiple debug adapters seem to have the same issue, including the official https://github.com/microsoft/vscode-mock-debug,
-        // and this has caused no issues in testing with VSCode.
-        // Given all these considerations doing this in the wrong order is considered acceptable for now.
-        // TODO: If https://github.com/eclipse/lsp4j/issues/229 ever gets resolved do this in the correct order.
         var event = new StoppedEventArguments();
         event.setReason(stopReason);
         event.setThreadId(primaryThreadId);
         event.setAllThreadsStopped(true);
-        client.stopped(event);
+        eventQueue.queue(() -> client.stopped(event));
     }
 
     /**
