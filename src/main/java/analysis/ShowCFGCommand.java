@@ -41,9 +41,8 @@ public class ShowCFGCommand implements WorkspaceCommand {
             }
             showHTMLinClientOrBrowser(server, client, funName);
         } catch (IOException e) {
-            // Note: Logging the exception using log.error("Error:", e) causes a strange bug where all subsequent calls to
-            // MagpieClient.showMessage, MagpieClient.showHTML and possibly other MagpieClient methods do nothing and produce no error.
-            // TODO: Figure out why and how this happens and create/link relevant issues.
+            // Note: Logging the exception using log.error("Error:", e) causes JSON-RPC communication with VS Code to break.
+            // This is caused by a warning printed to stdout by log4j. See https://github.com/apache/logging-log4j2/issues/1484 for more info.
             log.error("Error running showcfg command:");
             e.printStackTrace();
         }
