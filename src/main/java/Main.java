@@ -12,7 +12,6 @@ import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
 import magpiebridge.core.ServerAnalysis;
-import magpiebridge.core.ToolAnalysis;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
@@ -49,7 +48,7 @@ public class Main {
             magpieServer.configurationDone();
             log.info("MagpieBridge server launched.");
 
-            if (args.length > 0) {
+            if (args.length > 0 && gobpieConfiguration.enableAbstractDebugging()) {
                 // Launch abstract debugging server
                 String socketAddress = args[0];
                 launchAbstractDebuggingServer(socketAddress, goblintService);
@@ -63,14 +62,6 @@ public class Main {
             if (e.getCause() == null) terminalMessage = message;
             else terminalMessage = message + " Cause: " + e.getCause().getMessage();
             forwardErrorMessageToClient(magpieServer, message, terminalMessage);
-            switch (e.getType()) {
-                case GOBLINT_EXCEPTION:
-                    break;
-                case GOBPIE_EXCEPTION:
-                    break;
-                case GOBPIE_CONF_EXCEPTION:
-                    break;
-            }
         }
 
     }
@@ -146,8 +137,7 @@ public class Main {
 
         // add analysis to the MagpieServer
         ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobpieConfiguration);
-        Either<ServerAnalysis, ToolAnalysis> analysis = Either.forLeft(serverAnalysis);
-        magpieServer.addAnalysis(analysis, language);
+        magpieServer.addAnalysis(Either.forLeft(serverAnalysis), language);
 
         // add HTTP server for showing CFGs, only if the option is specified in the configuration
         if (gobpieConfiguration.showCfg()) {

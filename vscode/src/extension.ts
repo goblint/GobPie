@@ -155,7 +155,7 @@ class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDe
             await vscode.workspace.fs.stat(Uri.file(socketPath));
         } catch (e) {
             if (e.code == 'FileNotFound' || e.code == 'ENOENT') {
-                throw 'GobPie is not running. Open a C file to start GobPie.'
+                throw 'GobPie Abstract Debugger is not running. Ensure abstract debugging is enabled in gobpie.json and open a C file to start GobPie.'
             } else {
                 throw e;
             }

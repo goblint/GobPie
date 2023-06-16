@@ -40,6 +40,7 @@ Example GobPie configuration file `gobpie.json`:
     "goblintConf": "goblint.json",
     "goblintExecutable": "/home/user/goblint/analyzer/goblint",
     "preAnalyzeCommand": ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"],
+    "abstractDebugging": true,
     "showCfg": true,
     "incrementalAnalysis": false
 }
@@ -48,6 +49,7 @@ Example GobPie configuration file `gobpie.json`:
 * `goblintConf` - the relative path from the project root to the Goblint configuration file (required)
 * `goblintExecutable` - the absolute or relative path to the Goblint executable (optional, default `goblint`, meaning Goblint is expected to be on `PATH`)
 * `preAnalyzeCommand` - the command to run before analysing (e.g. command for building/updating the compilation database for some automation) (optional)
+* `abstractDebugging` - if [abstract debugging](#abstract-debugging) is enabled (this automatically enables ARG generation) (optional, default `false`)
 * `showCfg` - if the code actions for showing the function's CFGs are shown (optional, default `false`)
 * `incrementalAnalyisis` - if Goblint should use incremental analysis (disabling this may, in some cases, improve the stability of Goblint) (optional, default `true`)
 
@@ -70,7 +72,8 @@ Example values for `files`:
 
 GobPie includes a special debugger called an **abstract debugger**, that uses the results of Goblint's analysis to emulate a standard debugger, but operates on abstract states instead of an actual running program.
 
-Once GobPie is installed and configured (see previous section), the debugger can be started by simply selecting "C (GobPie Abstract Debugger)" from the Run and Debug panel in VS Code and starting the debugger as normal.
+Once GobPie is installed and configured (see previous two sections), the debugger can be started by simply selecting "C (GobPie Abstract Debugger)" from the Run and Debug panel in VS Code and starting the debugger as normal.  
+Note: Abstract debugging is disabled by default. It must be explicitly enabled in `gobpie.json` before starting GobPie.
 
 The debugger supports breakpoints, including conditional breakpoints, shows the call stack and values of variables, allows interactively evaluating expressions and setting watch expressions and supports most standard stepping operations.
 

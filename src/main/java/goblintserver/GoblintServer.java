@@ -3,6 +3,7 @@ package goblintserver;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
@@ -64,14 +65,17 @@ public class GoblintServer {
      * Files to analyse must be defined in goblint conf.
      */
     private String[] constructGoblintRunCommand() {
-        return new String[]{
+        String[] command = new String[]{
                 configuration.getGoblintExecutable(),
-                "--enable", "exp.arg",
                 "--enable", "server.enabled",
                 "--enable", "server.reparse",
                 "--set", "server.mode", "unix",
                 "--set", "server.unix-socket", new File(getGoblintSocket()).getAbsolutePath()
         };
+        if (configuration.enableAbstractDebugging()) {
+            command = ArrayUtils.addAll(command, "--enable", "exp.arg");
+        }
+        return command;
     }
 
 
