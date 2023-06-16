@@ -41,6 +41,9 @@ public class ShowCFGCommand implements WorkspaceCommand {
             }
             showHTMLinClientOrBrowser(server, client, funName);
         } catch (IOException e) {
+            // Note: Logging the exception using log.error("Error:", e) causes a strange bug where all subsequent calls to
+            // MagpieClient.showMessage, MagpieClient.showHTML and possibly other MagpieClient methods do nothing and produce no error.
+            // TODO: Figure out why and how this happens and create/link relevant issues.
             log.error("Error running showcfg command:");
             e.printStackTrace();
         }
