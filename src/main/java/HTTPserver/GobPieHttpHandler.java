@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutionException;
 public class GobPieHttpHandler implements HttpHandler {
 
     private static final int HTTP_OK_STATUS = 200;
+    private static final int HTTP_INTERNAL_ERROR_STATUS = 500;
     private final String httpServerAddress;
     private final GoblintService goblintService;
 
@@ -66,38 +67,50 @@ public class GobPieHttpHandler implements HttpHandler {
         TemplateEngine templateEngine = createTemplateEngine("/templates/", ".html", TemplateMode.HTML);
         Context context = new Context();
 
-        if (exchange.getRequestMethod().equalsIgnoreCase("post")) {
-            response = switch (path) {
-                case "/cfg/" -> {
-                    String funName = readRequestBody(is).get("funName").getAsString();
-                    context.setVariable("cfgSvg", getCFG(funName));
-                    context.setVariable("url", httpServerAddress + "node/");
-                    context.setVariable("jsonTreeCss", httpServerAddress + "static/jsonTree.css/");
-                    context.setVariable("jsonTreeJs", httpServerAddress + "static/jsonTree.js/");
-                    log.info("Showing CFG for function: " + funName);
-                    yield templateEngine.process("base", context);
-                }
-                case "/node/" -> {
-                    String nodeId = readRequestBody(is).get("node").getAsString();
-                    List<JsonObject> states = getNodeStates(nodeId);
-                    log.info("Showing state info for node with ID: " + nodeId);
-                    yield states.get(0).toString();
-                }
-                default -> templateEngine.process("index", context);
-            };
-        } else {
-            response = switch (path) {
-                case "/static/jsonTree.css/" -> {
-                    templateEngine = createTemplateEngine("/json-viewer/", ".css", TemplateMode.CSS);
-                    yield templateEngine.process("jquery.json-viewer", context);
-                }
-                case "/static/jsonTree.js/" -> {
-                    templateEngine = createTemplateEngine("/json-viewer/", ".js", TemplateMode.JAVASCRIPT);
-                    yield templateEngine.process("jquery.json-viewer", context);
-                }
-                default -> templateEngine.process("index", context);
-            };
+        try {
+            if (exchange.getRequestMethod().equalsIgnoreCase("post")) {
+                response = switch (path) {
+                    case "/cfg/" -> {
+                        String funName = readRequestBody(is).get("funName").getAsString();
+                        context.setVariable("cfgSvg", getCFG(funName));
+                        context.setVariable("url", httpServerAddress + "node/");
+                        context.setVariable("jsonTreeCss", httpServerAddress + "static/jsonTree.css/");
+                        context.setVariable("jsonTreeJs", httpServerAddress + "static/jsonTree.js/");
+                        log.info("Showing CFG for function: " + funName);
+                        yield templateEngine.process("base", context);
+                    }
+                    case "/node/" -> {
+                        String nodeId = readRequestBody(is).get("node").getAsString();
+                        List<JsonObject> states = getNodeStates(nodeId);
+                        log.info("Showing state info for node with ID: " + nodeId);
+                        yield states.get(0).toString();
+                    }
+                    default -> templateEngine.process("index", context);
+                };
+            } else {
+                response = switch (path) {
+                    case "/static/jsonTree.css/" -> {
+                        templateEngine = createTemplateEngine("/json-viewer/", ".css", TemplateMode.CSS);
+                        yield templateEngine.process("jquery.json-viewer", context);
+                    }
+                    case "/static/jsonTree.js/" -> {
+                        templateEngine = createTemplateEngine("/json-viewer/", ".js", TemplateMode.JAVASCRIPT);
+                        yield templateEngine.process("jquery.json-viewer", context);
+                    }
+                    default -> templateEngine.process("index", context);
+                };
+            }
+        } catch (Exception e) {
+            log.error("Error generating HTTP response:");
+            e.printStackTrace();
+
+            String errorMessage = "ERROR:\n" + e.getMessage();
+            exchange.sendResponseHeaders(HTTP_INTERNAL_ERROR_STATUS, errorMessage.getBytes().length);
+            writeResponse(os, errorMessage);
+
+            return;
         }
+
         exchange.sendResponseHeaders(HTTP_OK_STATUS, response.getBytes().length);
         writeResponse(os, response);
     }
@@ -152,7 +165,8 @@ public class GobPieHttpHandler implements HttpHandler {
             }
             return cfg2svg(cfg);
         } catch (ExecutionException | InterruptedException e) {
-            throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
+            Throwable cause = e instanceof ExecutionException ? e.getCause() : e;
+            throw new GobPieException("Requesting data from Goblint failed: " + cause.getMessage(), e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }
     }
 
@@ -190,7 +204,8 @@ public class GobPieHttpHandler implements HttpHandler {
         try {
             return goblintService.cfg_state(params).get();
         } catch (ExecutionException | InterruptedException e) {
-            throw new GobPieException("Sending the request to or receiving result from the server failed.", e, GobPieExceptionType.GOBLINT_EXCEPTION);
+            Throwable cause = e instanceof ExecutionException ? e.getCause() : e;
+            throw new GobPieException("Requesting data from Goblint failed: " + cause.getMessage(), e, GobPieExceptionType.GOBLINT_EXCEPTION);
         }
     }
 

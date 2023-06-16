@@ -18,7 +18,6 @@ import org.eclipse.lsp4j.services.LanguageClient;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 
 public class ShowCFGCommand implements WorkspaceCommand {
@@ -41,10 +40,9 @@ public class ShowCFGCommand implements WorkspaceCommand {
                 funName = (String) uriJson;
             }
             showHTMLinClientOrBrowser(server, client, funName);
-        } catch (IOException | URISyntaxException e) {
-            MagpieServer.ExceptionLogger.log(e);
+        } catch (IOException e) {
+            log.error("Error running showcfg command:");
             e.printStackTrace();
-            log.error(e);
         }
     }
 
@@ -55,11 +53,10 @@ public class ShowCFGCommand implements WorkspaceCommand {
      * @param server  The MagpieServer
      * @param client  The IDE/Editor
      * @param funName The name of the function to show the CFG for
-     * @throws IOException        IO exception
-     * @throws URISyntaxException URI exception
+     * @throws IOException IO exception
      */
 
-    public void showHTMLinClientOrBrowser(MagpieServer server, LanguageClient client, String funName) throws IOException, URISyntaxException {
+    public void showHTMLinClientOrBrowser(MagpieServer server, LanguageClient client, String funName) throws IOException {
         if (server.clientSupportShowHTML()) {
             if (client instanceof MagpieClient) {
                 String json = "{\"funName\": \"" + funName + "\"}";
