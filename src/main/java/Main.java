@@ -52,7 +52,7 @@ public class Main {
                 // Launch abstract debugging server
                 String socketAddress = args[0];
                 launchAbstractDebuggingServer(socketAddress, goblintService);
-                log.info("Abstract debugging server launched.");
+                log.info("Abstract debugging server launched on: " + socketAddress);
             } else {
                 log.info("Abstract debugging server disabled.");
             }

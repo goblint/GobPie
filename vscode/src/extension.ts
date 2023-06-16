@@ -23,12 +23,13 @@ import {
 } from 'vscode-languageclient';
 import {XMLHttpRequest} from 'xmlhttprequest-ts';
 import * as crypto from "crypto";
+import * as os from "os";
 
 // Track currently webview panel
 let panel: vscode.WebviewPanel | undefined = undefined;
 
 export function activate(context: ExtensionContext) {
-    const adbSocketPath = `gobpie_adb_${crypto.randomBytes(6).toString('base64url')}.sock`
+    const adbSocketPath = `${os.tmpdir()}/gobpie_adb_${crypto.randomBytes(6).toString('base64url')}.sock`
 
     const script = 'java';
     const args = ['-jar', context.asAbsolutePath('gobpie-0.0.4-SNAPSHOT.jar'), adbSocketPath];
@@ -150,9 +151,8 @@ class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDe
 
     async createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): Promise<vscode.DebugAdapterDescriptor> {
         // TODO: Make sure that GobPie is actually guaranteed to run and create a socket in the workspace folder (in particular multiple workspaces might violate this assumption)
-        const socketPath = session.workspaceFolder.uri.path + '/' + this.adbSocketPath;
         try {
-            await vscode.workspace.fs.stat(Uri.file(socketPath));
+            await vscode.workspace.fs.stat(Uri.file(this.adbSocketPath));
         } catch (e) {
             if (e.code == 'FileNotFound' || e.code == 'ENOENT') {
                 throw 'GobPie Abstract Debugger is not running. Ensure abstract debugging is enabled in gobpie.json and open a C file to start GobPie.'
@@ -160,7 +160,7 @@ class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDe
                 throw e;
             }
         }
-        return new vscode.DebugAdapterNamedPipeServer(socketPath);
+        return new vscode.DebugAdapterNamedPipeServer(this.adbSocketPath);
     }
 
 }
