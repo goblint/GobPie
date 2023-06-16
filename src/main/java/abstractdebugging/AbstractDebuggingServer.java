@@ -37,6 +37,11 @@ import java.util.stream.StreamSupport;
  */
 public class AbstractDebuggingServer implements IDebugProtocolServer {
 
+    /**
+     * Step in target id-s are calculated as offset + index, where offset determines the specific operation and index is the index of the target edge.
+     * Offset is one of the *_OFFSET constants. All offsets are multiples of TARGET_BLOCK_SIZE.
+     * This allows the retrieval of the index simply by subtracting the offset, provided that the index is less than TARGET_BLOCK_SIZE.
+     */
     private static final int TARGET_BLOCK_SIZE = 1_000_000;
     private static final int STEP_OVER_OFFSET = TARGET_BLOCK_SIZE;
     private static final int STEP_IN_OFFSET = 2 * TARGET_BLOCK_SIZE;
