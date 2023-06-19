@@ -3,7 +3,6 @@ import analysis.GoblintAnalysis;
 import analysis.ShowCFGCommand;
 import api.GoblintService;
 import api.GoblintServiceLauncher;
-import api.messages.Params;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
@@ -15,8 +14,6 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
-
-import java.io.File;
 
 public class Main {
 
@@ -92,16 +89,6 @@ public class Main {
         // launch GoblintService
         GoblintServiceLauncher launcher = new GoblintServiceLauncher();
         GoblintService goblintService = launcher.connect(goblintServer.getGoblintSocket());
-
-        // read Goblint configurations
-        goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath()))
-                .exceptionally(ex -> {
-                    String msg = "Goblint was unable to successfully read the configuration: " + ex.getMessage();
-                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
-                    log.error(msg);
-                    return null;
-                })
-                .join();
 
         // add analysis to the MagpieServer
         ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobpieConfiguration);

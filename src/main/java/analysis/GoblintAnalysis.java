@@ -58,7 +58,8 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final GobPieConfiguration gobpieConfiguration;
     private final FileWatcher goblintConfWatcher;
 
-    private static Future<?> lastAnalysisTask;
+    private static boolean configValid = false;
+    private static Future<?> lastAnalysisTask = null;
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
@@ -114,9 +115,13 @@ public class GoblintAnalysis implements ServerAnalysis {
             }
         }
 
-        magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, source() + " started analyzing the code."));
-
         refreshGoblintConfig();
+
+        if (!configValid) {
+            return;
+        }
+
+        magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, source() + " started analyzing the code."));
 
         preAnalyse();
 
@@ -125,8 +130,8 @@ public class GoblintAnalysis implements ServerAnalysis {
             consumer.consume(new ArrayList<>(response), source());
             log.info("--------------------- Analysis finished ----------------------");
             magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, source() + " finished analyzing the code."));
-        }).exceptionally(e -> {
-            Throwable cause = e instanceof CompletionException ce ? ce.getCause() : e;
+        }).exceptionally(ex -> {
+            Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
             // TODO: handle closed socket exceptions:
             //      org.eclipse.lsp4j.jsonrpc.JsonRpcException: java.net.SocketException: Broken pipe; errno=32
             //  and org.eclipse.lsp4j.jsonrpc.JsonRpcException: org.newsclub.net.unix.SocketClosedException: Not open
@@ -150,18 +155,22 @@ public class GoblintAnalysis implements ServerAnalysis {
 
 
     /**
-     * Reloads Goblint config if it has been changed
+     * Reloads Goblint config if it has been changed or is currently invalid.
      */
     private void refreshGoblintConfig() {
-        if (goblintConfWatcher.checkModified()) {
-            goblintService.reset_config()
+        if (goblintConfWatcher.checkModified() || !configValid) {
+            configValid = goblintService.reset_config()
                     .thenCompose(_res ->
                             goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath())))
-                    .exceptionally(ex -> {
-                        String msg = "Goblint was unable to successfully read the new configuration: " + ex.getMessage();
-                        magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
-                        log.error(msg);
-                        return null;
+                    .handle((_res, ex) -> {
+                        if (ex != null) {
+                            Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
+                            String msg = "Goblint was unable to successfully read the new configuration: " + cause.getMessage();
+                            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, msg));
+                            log.error(msg);
+                            return false;
+                        }
+                        return true;
                     })
                     .join();
         }
