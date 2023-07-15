@@ -1,4 +1,4 @@
-#include "precise_stdlib.h"
+#include <stdlib.h>
 
 struct s {
     int n;
