@@ -3,8 +3,7 @@ package api.messages;
 import analysis.GoblintCFGAnalysisResult;
 import magpiebridge.core.AnalysisResult;
 
-import java.io.File;
-import java.net.MalformedURLException;
+import java.util.List;
 
 /**
  * The Class GoblintFunctionsResult.
@@ -21,29 +20,19 @@ public class GoblintFunctionsResult {
     String type = getClass().getName();
 
     private String funName;
-    private location location;
-
-    static class location {
-        private String file;
-        private int line;
-        private int column;
-        private int endLine;
-        private int endColumn;
-    }
+    private GoblintLocation location;
 
     public String getType() {
         return type;
     }
 
-    public AnalysisResult convert() {
-        try {
-            return new GoblintCFGAnalysisResult(
-                    new GoblintPosition(location.line, location.endLine, location.column, location.endColumn, new File(location.file).toURI().toURL()),
-                    funName,
-                    new File(location.file).getName()
-            );
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
+    public List<AnalysisResult> convert() {
+        var cfgResult = new GoblintCFGAnalysisResult(location.toPosition(), "show cfg", funName);
+        if (funName.equals("main")) {
+            AnalysisResult argResult = new GoblintCFGAnalysisResult(location.toPosition(), "show arg", "<arg>");
+            return List.of(argResult, cfgResult);
+        } else {
+            return List.of(cfgResult);
         }
     }
 

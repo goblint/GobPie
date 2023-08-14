@@ -2,6 +2,8 @@ package analysis;
 
 import api.GoblintService;
 import api.messages.*;
+import api.messages.params.AnalyzeParams;
+import api.messages.params.Params;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
@@ -32,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -209,27 +210,19 @@ public class GoblintAnalysis implements ServerAnalysis {
             throw new GobPieException("Analysis returned VerifyError.", GobPieExceptionType.GOBLINT_EXCEPTION);
     }
 
-    private CompletableFuture<Collection<AnalysisResult>> convertAndCombineResults(
-            CompletableFuture<List<GoblintMessagesResult>> messagesCompletableFuture,
-            CompletableFuture<List<GoblintFunctionsResult>> functionsCompletableFuture) {
-        return messagesCompletableFuture
-                .thenCombine(functionsCompletableFuture, (messages, functions) ->
-                        Stream.concat(
-                                convertMessagesFromJson(messages).stream(),
-                                convertFunctionsFromJson(functions).stream()
-                        ).collect(Collectors.toList()));
-    }
-
     private CompletableFuture<Collection<AnalysisResult>> getComposedAnalysisResults(GoblintAnalysisResult analysisResult) {
         didAnalysisNotSucceed(analysisResult);
         // Get warning messages
-        CompletableFuture<List<GoblintMessagesResult>> messagesCompletableFuture = goblintService.messages();
+        CompletableFuture<Collection<AnalysisResult>> messagesCompletableFuture = goblintService.messages()
+                .thenApply(this::convertMessagesFromJson);
         if (!gobpieConfiguration.showCfg()) {
-            return messagesCompletableFuture.thenApply(this::convertMessagesFromJson);
+            return messagesCompletableFuture;
         }
         // Get list of functions
-        CompletableFuture<List<GoblintFunctionsResult>> functionsCompletableFuture = goblintService.functions();
-        return convertAndCombineResults(messagesCompletableFuture, functionsCompletableFuture);
+        CompletableFuture<Collection<AnalysisResult>> functionsCompletableFuture = goblintService.functions()
+                .thenApply(this::convertFunctionsFromJson);
+        return messagesCompletableFuture
+                .thenCombine(functionsCompletableFuture, (messages, functions) -> Stream.concat(messages.stream(), functions.stream()).toList());
     }
 
 
@@ -248,7 +241,7 @@ public class GoblintAnalysis implements ServerAnalysis {
     }
 
     private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctionsResult> response) {
-        return response.stream().map(GoblintFunctionsResult::convert).collect(Collectors.toList());
+        return response.stream().map(GoblintFunctionsResult::convert).flatMap(List::stream).toList();
     }
 
 

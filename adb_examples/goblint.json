@@ -1,0 +1,14 @@
+{
+  "files": [
+    "thesis_example.c"
+  ],
+  "ana": {
+    "int": {
+      "interval": true,
+      "congruence": true,
+      "refinement": "fixpoint",
+      "interval_threshold_widening" : true,
+      "def_exc_widen_by_join" : true
+    }
+  }
+}

@@ -95,7 +95,7 @@ public class GoblintSocketMessageProducer implements MessageProducer, Closeable,
 
         try {
             String content = inputReader.readLine();
-            log.debug("Response read from socket.");
+            log.debug("READ: {}", content);
             try {
                 if (content != null) {
                     Message message = jsonHandler.parseMessage(content);
@@ -105,10 +105,14 @@ public class GoblintSocketMessageProducer implements MessageProducer, Closeable,
                 }
             } catch (MessageIssueException exception) {
                 // An issue was found while parsing or validating the message
-                if (issueHandler != null)
+                if (issueHandler != null) {
                     issueHandler.handle(exception.getRpcMessage(), exception.getIssues());
-                else
+                } else {
                     fireError(exception);
+                    for (var issue : exception.getIssues()) {
+                        fireError(issue.getCause());
+                    }
+                }
                 return false;
             }
         } catch (Exception exception) {

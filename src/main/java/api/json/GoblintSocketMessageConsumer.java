@@ -47,7 +47,7 @@ public class GoblintSocketMessageConsumer implements MessageConsumer, MessageCon
                 output.write(contentBytes);
                 output.flush();
             }
-            log.debug("Request written to socket.");
+            log.debug("WRITTEN: {}", content);
         } catch (IOException exception) {
             throw new JsonRpcException(exception);
         }
