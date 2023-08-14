@@ -4,7 +4,7 @@
   "description": "The interactive Goblint analyzer extension",
   "author": "Karoliine Holter",
   "license": "MIT",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "repository": {
     "type": "git",
     "url": "https://github.com/goblint/GobPie.git"
@@ -18,7 +18,9 @@
     "vscode": "^1.30.0"
   },
   "activationEvents": [
-    "onLanguage:c"
+    "onLanguage:c",
+    "onDebugResolve:c_adb",
+    "onDebugDynamicConfigurations:c_adb"
   ],
   "main": "./dist/extension",
   "contributes": {
@@ -52,10 +54,47 @@
           ".i"
         ]
       }
+    ],
+    "breakpoints": [
+      {
+        "language": "c"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "c_adb",
+        "languages": [
+          "c"
+        ],
+        "label": "C (GobPie Abstract Debugger)",
+        "configurationAttributes": {
+          "launch": {
+            "properties": {}
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "c_adb",
+            "request": "launch",
+            "name": "C (GobPie Abstract Debugger)"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "C (GobPie Abstract Debugger)",
+            "description": "Debug C using Gobpie Abstract Debugger",
+            "body": {
+              "type": "c_adb",
+              "request": "launch",
+              "name": "C (GobPie Abstract Debugger)"
+            }
+          }
+        ]
+      }
     ]
   },
   "scripts": {
-    "vscode:prepublish": "shx cp ../target/gobpie-0.0.3-SNAPSHOT.jar gobpie-0.0.3-SNAPSHOT.jar && npm run package",
+    "vscode:prepublish": "shx cp ../target/gobpie-0.0.4-SNAPSHOT.jar gobpie-0.0.4-SNAPSHOT.jar && npm run package",
     "webpack": "webpack --mode development",
     "webpack-dev": "webpack --mode development --watch",
     "package": "webpack --mode production --devtool hidden-source-map",

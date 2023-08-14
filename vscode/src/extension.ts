@@ -1,6 +1,14 @@
 'use strict';
 import * as vscode from 'vscode';
-import {ExtensionContext, ViewColumn, window, workspace} from 'vscode';
+import {
+    CancellationToken,
+    DebugConfiguration,
+    ExtensionContext, Uri,
+    ViewColumn,
+    window,
+    workspace,
+    WorkspaceFolder
+} from 'vscode';
 import {
     ClientCapabilities,
     DocumentSelector,
@@ -14,13 +22,17 @@ import {
     ServerOptions
 } from 'vscode-languageclient';
 import {XMLHttpRequest} from 'xmlhttprequest-ts';
+import * as crypto from "crypto";
+import * as os from "os";
 
 // Track currently webview panel
 let panel: vscode.WebviewPanel | undefined = undefined;
 
 export function activate(context: ExtensionContext) {
-    let script = 'java';
-    let args = ['-jar', context.asAbsolutePath('gobpie-0.0.3-SNAPSHOT.jar')];
+    const adbSocketPath = `${os.tmpdir()}/gobpie_adb_${crypto.randomBytes(6).toString('base64url')}.sock`
+
+    const script = 'java';
+    const args = ['-jar', context.asAbsolutePath('gobpie-0.0.4-SNAPSHOT.jar'), adbSocketPath];
 
     // Use this for communicating on stdio 
     let serverOptions: ServerOptions = {
@@ -57,6 +69,10 @@ export function activate(context: ExtensionContext) {
     let lc: LanguageClient = new LanguageClient('GobPie', 'GobPie', serverOptions, clientOptions);
     lc.registerFeature(new MagpieBridgeSupport(lc));
     lc.start();
+
+    context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('c_adb', new AbstractDebuggingAdapterDescriptorFactory(adbSocketPath)));
+    context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('c_adb', new AbstractDebuggingConfigurationResolver()));
+    context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('c_adb', new AbstractDebuggingConfigurationProvider(), vscode.DebugConfigurationProviderTriggerKind.Dynamic));
 }
 
 
@@ -81,7 +97,7 @@ export class MagpieBridgeSupport implements DynamicFeature<undefined> {
 
     createWebView(content: string) {
         const columnToShowIn = ViewColumn.Beside;
-        
+
         if (panel) {
             // If we already have a panel, show it in the target column
             panel.reveal(columnToShowIn);
@@ -128,3 +144,48 @@ export class MagpieBridgeSupport implements DynamicFeature<undefined> {
 
 }
 
+class AbstractDebuggingAdapterDescriptorFactory implements vscode.DebugAdapterDescriptorFactory {
+
+    constructor(private adbSocketPath: string) {
+    }
+
+    async createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): Promise<vscode.DebugAdapterDescriptor> {
+        // TODO: Make sure that GobPie is actually guaranteed to run and create a socket in the workspace folder (in particular multiple workspaces might violate this assumption)
+        try {
+            await vscode.workspace.fs.stat(Uri.file(this.adbSocketPath));
+        } catch (e) {
+            if (e.code == 'FileNotFound' || e.code == 'ENOENT') {
+                throw 'GobPie Abstract Debugger is not running. Ensure abstract debugging is enabled in gobpie.json and open a C file to start GobPie.'
+            } else {
+                throw e;
+            }
+        }
+        return new vscode.DebugAdapterNamedPipeServer(this.adbSocketPath);
+    }
+
+}
+
+class AbstractDebuggingConfigurationProvider implements vscode.DebugConfigurationProvider {
+
+    provideDebugConfigurations(folder: WorkspaceFolder | undefined, token?: CancellationToken): DebugConfiguration[] {
+        return [{
+            type: "c_adb",
+            request: "launch",
+            name: "C (GobPie Abstract Debugger)"
+        }];
+    }
+
+}
+
+class AbstractDebuggingConfigurationResolver implements vscode.DebugConfigurationProvider {
+
+    resolveDebugConfiguration(folder: WorkspaceFolder | undefined, debugConfiguration: DebugConfiguration, token?: CancellationToken): DebugConfiguration {
+        return {
+            type: "c_adb",
+            request: "launch",
+            name: "C (GobPie Abstract Debugger)",
+            ...debugConfiguration
+        };
+    }
+
+}

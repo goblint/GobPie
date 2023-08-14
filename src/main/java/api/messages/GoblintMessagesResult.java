@@ -1,8 +1,8 @@
 package api.messages;
 
 import analysis.GoblintMessagesAnalysisResult;
-import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
+import com.ibm.wala.util.collections.Pair;
 import magpiebridge.core.AnalysisResult;
 
 import java.io.File;
@@ -25,15 +25,15 @@ import java.util.stream.Collectors;
 public class GoblintMessagesResult {
 
     private final String type = getClass().getName();
-    private final List<tag> tags = new ArrayList<>();
+    private final List<Tag> tags = new ArrayList<>();
     private String severity;
-    private multipiece multipiece;
+    private Multipiece multipiece;
 
-    public interface tag {
+    public interface Tag {
         String toString();
     }
 
-    public static class Category implements tag {
+    public static class Category implements Tag {
         private final List<String> Category = new ArrayList<>();
 
         @Override
@@ -42,7 +42,7 @@ public class GoblintMessagesResult {
         }
     }
 
-    public static class CWE implements tag {
+    public static class CWE implements Tag {
         private Integer CWE;
 
         @Override
@@ -51,23 +51,15 @@ public class GoblintMessagesResult {
         }
     }
 
-    static class loc {
-        private String file;
-        private int line;
-        private int column;
-        private int endLine;
-        private int endColumn;
-    }
-
-    static class multipiece {
-        private loc loc;
+    static class Multipiece {
+        private GoblintLocation loc;
         private String text;
         private String group_text;
-        private final List<pieces> pieces = new ArrayList<>();
+        private final List<Piece> pieces = new ArrayList<>();
 
-        static class pieces {
+        static class Piece {
             private String text;
-            private loc loc;
+            private GoblintLocation loc;
         }
     }
 
@@ -125,31 +117,18 @@ public class GoblintMessagesResult {
         }
     }
 
-    public GoblintPosition locationToPosition(loc loc) {
-        try {
-            return new GoblintPosition(
-                    loc.line,
-                    loc.endLine,
-                    loc.column < 0 ? 0 : loc.column - 1,
-                    loc.endColumn < 0 ? 10000 : loc.endColumn - 1,
-                    new File(loc.file).toURI().toURL());
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public GoblintPosition getLocation(loc loc) {
+    public GoblintPosition getLocation(GoblintLocation loc) {
         try {
             return loc == null
                     ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
-                    : locationToPosition(loc);
+                    : loc.toPosition();
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public GoblintPosition getRandomLocation(multipiece multipiece) {
-        for (GoblintMessagesResult.multipiece.pieces piece : multipiece.pieces) {
+    public GoblintPosition getRandomLocation(Multipiece multipiece) {
+        for (GoblintMessagesResult.Multipiece.Piece piece : multipiece.pieces) {
             if (piece.loc != null) return getLocation(piece.loc);
         }
         return getLocation(multipiece.loc);
@@ -157,29 +136,29 @@ public class GoblintMessagesResult {
 
     public GoblintMessagesAnalysisResult createGoblintAnalysisResult() {
         GoblintPosition pos = getLocation(multipiece.loc);
-        String msg = tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
+        String msg = tags.stream().map(Tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
         return new GoblintMessagesAnalysisResult(pos, msg, severity);
 
     }
 
-    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(multipiece.pieces piece, boolean addGroupText) {
+    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(Multipiece.Piece piece, boolean addGroupText) {
         GoblintPosition pos = getLocation(piece.loc);
         return new GoblintMessagesAnalysisResult(
                 pos,
                 addGroupText
-                        ? tags.stream().map(tag::toString).collect(Collectors.joining("")) + " Group: " + multipiece.group_text
+                        ? tags.stream().map(Tag::toString).collect(Collectors.joining("")) + " Group: " + multipiece.group_text
                         : "",
                 piece.text,
                 severity);
     }
 
-    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(multipiece multipiece, List<Pair<Position, String>> related) {
+    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(Multipiece multipiece, List<Pair<Position, String>> related) {
         GoblintPosition pos = multipiece.loc != null
                 ? getLocation(multipiece.loc)
                 : getRandomLocation(multipiece);
         return new GoblintMessagesAnalysisResult(
                 pos,
-                tags.stream().map(tag::toString).collect(Collectors.joining("")) + " " + this.multipiece.group_text,
+                tags.stream().map(Tag::toString).collect(Collectors.joining("")) + " " + this.multipiece.group_text,
                 severity,
                 related);
     }
