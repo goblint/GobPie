@@ -17,7 +17,6 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
-
 import java.io.File;
 
 public class Main {
