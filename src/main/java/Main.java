@@ -5,6 +5,7 @@ import analysis.GoblintAnalysis;
 import analysis.ShowCFGCommand;
 import api.GoblintService;
 import api.GoblintServiceLauncher;
+import api.messages.params.Params;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
@@ -16,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import java.io.File;
 
 public class Main {
 
