@@ -60,7 +60,7 @@ public class GoblintMessagesResult {
         private GoblintLocation loc;
 
         /**
-         * Converts the Single (Piece) type of Goblint messages from the
+         * Converts the Single (Piece type of) Goblint messages from the
          * GoblintMessagesResult type to AnalysisResult that are needed for MagPieBridge.
          *
          * @param tags     the tags of the warning given by Goblint
@@ -82,7 +82,7 @@ public class GoblintMessagesResult {
         private final List<Piece> pieces = new ArrayList<>();
 
         /**
-         * Converts the Single (Piece) type of Goblint messages from the
+         * Converts the Group Goblint messages from the
          * GoblintMessagesResult type to AnalysisResult that are needed for MagPieBridge.
          *
          * @param tags     the tags of the warning given by Goblint
