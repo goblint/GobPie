@@ -244,9 +244,7 @@ public class GoblintAnalysis implements ServerAnalysis {
      */
 
     private Collection<AnalysisResult> convertMessagesFromJson(List<GoblintMessagesResult> response) {
-        return gobpieConfiguration.explodeGroupWarnings()
-                ? response.stream().map(GoblintMessagesResult::convertExplode).flatMap(List::stream).toList()
-                : response.stream().map(GoblintMessagesResult::convertNonExplode).flatMap(List::stream).toList();
+        return response.stream().map(msg -> msg.convert(gobpieConfiguration.explodeGroupWarnings())).flatMap(List::stream).toList();
     }
 
     private Collection<AnalysisResult> convertFunctionsFromJson(List<GoblintFunctionsResult> response) {

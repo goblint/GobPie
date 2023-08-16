@@ -27,7 +27,7 @@ public class GoblintMessagesResult {
     private final String type = getClass().getName();
     private final List<Tag> tags = new ArrayList<>();
     private String severity;
-    private Multipiece multipiece;
+    private MultiPiece multipiece;
 
     public interface Tag {
         String toString();
@@ -51,73 +51,96 @@ public class GoblintMessagesResult {
         }
     }
 
-    static class Multipiece {
-        private GoblintLocation loc;
+    public interface MultiPiece {
+        List<AnalysisResult> convert(List<Tag> tags, String severity, boolean explode);
+    }
+
+    public static class Piece implements MultiPiece {
         private String text;
+        private GoblintLocation loc;
+
+        /**
+         * Converts the Single (Piece) type of Goblint messages from the
+         * GoblintMessagesResult type to AnalysisResult that are needed for MagPieBridge.
+         *
+         * @param tags     the tags of the warning given by Goblint
+         * @param severity the severity of the warning given by Goblint
+         * @param explode  is not used here and is only used for group warnings
+         * @return A collection of AnalysisResult objects.
+         */
+        public List<AnalysisResult> convert(List<Tag> tags, String severity, boolean explode) {
+            GoblintPosition pos = getLocation(loc);
+            String msg = joinTags(tags) + " " + text;
+            GoblintMessagesAnalysisResult result = new GoblintMessagesAnalysisResult(pos, msg, severity);
+            return new ArrayList<>(List.of(result));
+        }
+    }
+
+    public static class Group implements MultiPiece {
         private String group_text;
+        private GoblintLocation group_loc;
         private final List<Piece> pieces = new ArrayList<>();
 
-        static class Piece {
-            private String text;
-            private GoblintLocation loc;
+        /**
+         * Converts the Single (Piece) type of Goblint messages from the
+         * GoblintMessagesResult type to AnalysisResult that are needed for MagPieBridge.
+         *
+         * @param tags     the tags of the warning given by Goblint
+         * @param severity the severity of the warning given by Goblint
+         * @param explode  the group warnings are exploded to have one IDE warning for each piece in the group if true,
+         *                 if false, only one warning per one Goblint warning is shown in the IDE
+         * @return A collection of AnalysisResult objects.
+         */
+        public List<AnalysisResult> convert(List<Tag> tags, String severity, boolean explode) {
+            return explode
+                    ? convertGroupExplode(tags, severity)
+                    : convertGroup(tags, severity);
+        }
+
+        public List<AnalysisResult> convertGroupExplode(List<Tag> tags, String severity) {
+            String groupText = joinTags(tags) + " Group: " + group_text;
+            List<GoblintMessagesAnalysisResult> resultsWithoutRelated =
+                    pieces.stream().map(piece -> new GoblintMessagesAnalysisResult(getLocation(piece.loc), groupText, piece.text, severity)).toList();
+            // Add related warnings to all the pieces in the group
+            List<GoblintMessagesAnalysisResult> resultsWithRelated = new ArrayList<>();
+            for (GoblintMessagesAnalysisResult result : resultsWithoutRelated) {
+                resultsWithRelated.add(
+                        new GoblintMessagesAnalysisResult(
+                                result.position(),
+                                result.group_text() + "\n" + result.text(),
+                                result.severityStr(),
+                                resultsWithoutRelated.stream()
+                                        .filter(res -> res != result)
+                                        .map(res -> Pair.make(res.position(), res.text()))
+                                        .toList()));
+            }
+            return new ArrayList<>(resultsWithRelated);
+        }
+
+        public List<AnalysisResult> convertGroup(List<Tag> tags, String severity) {
+            // Convert all pieces to pairs of position and text to be used as related warnings
+            List<Pair<Position, String>> relatedFromPieces =
+                    pieces.stream().map(piece -> Pair.make((Position) getLocation(piece.loc), piece.text)).toList();
+            // Use the group location for the warning if defined, or a random one from one of the pieces otherwise
+            GoblintPosition pos =
+                    group_loc != null
+                            ? group_loc.toPosition()
+                            : pieces.stream()
+                            .filter(piece -> piece.loc != null)
+                            .findFirst()
+                            .map(piece -> piece.loc.toPosition())
+                            .orElse(getLocation(group_loc));
+            GoblintMessagesAnalysisResult result =
+                    new GoblintMessagesAnalysisResult(pos, joinTags(tags) + " " + group_text, severity, relatedFromPieces);
+            return new ArrayList<>(List.of(result));
         }
     }
 
-    public String getType() {
-        return type;
+    private static String joinTags(List<Tag> tags) {
+        return tags.stream().map(Tag::toString).collect(Collectors.joining(""));
     }
 
-    public List<AnalysisResult> convertSingle() {
-        GoblintMessagesAnalysisResult result = createGoblintAnalysisResult();
-        return new ArrayList<>(List.of(result));
-    }
-
-    public List<AnalysisResult> convertGroupToSeparateWarnings() {
-        List<GoblintMessagesAnalysisResult> resultsWithoutRelated =
-                multipiece.pieces.stream().map(piece -> createGoblintAnalysisResult(piece, true)).toList();
-        // Add related warnings to all the pieces in the group
-        List<GoblintMessagesAnalysisResult> resultsWithRelated = new ArrayList<>();
-        for (GoblintMessagesAnalysisResult result : resultsWithoutRelated) {
-            resultsWithRelated.add(
-                    new GoblintMessagesAnalysisResult(
-                            result.position(),
-                            result.group_text() + "\n" + result.text(),
-                            result.severityStr(),
-                            resultsWithoutRelated.stream()
-                                    .filter(res -> res != result)
-                                    .map(res -> Pair.make(res.position(), res.text()))
-                                    .toList()));
-        }
-        return new ArrayList<>(resultsWithRelated);
-    }
-
-    public List<AnalysisResult> convertGroup() {
-        List<Pair<Position, String>> relatedFromPieces =
-                multipiece.pieces.stream()
-                        .map(piece -> createGoblintAnalysisResult(piece, false))
-                        .map(result -> Pair.make(result.position(), result.text()))
-                        .toList();
-        GoblintMessagesAnalysisResult result = createGoblintAnalysisResult(multipiece, relatedFromPieces);
-        return new ArrayList<>(List.of(result));
-    }
-
-    public List<AnalysisResult> convertExplode() {
-        if (multipiece.group_text == null) {
-            return convertSingle();
-        } else {
-            return convertGroupToSeparateWarnings();
-        }
-    }
-
-    public List<AnalysisResult> convertNonExplode() {
-        if (multipiece.group_text == null) {
-            return convertSingle();
-        } else {
-            return convertGroup();
-        }
-    }
-
-    public GoblintPosition getLocation(GoblintLocation loc) {
+    private static GoblintPosition getLocation(GoblintLocation loc) {
         try {
             return loc == null
                     ? new GoblintPosition(1, 1, 1, new File("").toURI().toURL())
@@ -127,39 +150,8 @@ public class GoblintMessagesResult {
         }
     }
 
-    public GoblintPosition getRandomLocation(Multipiece multipiece) {
-        for (GoblintMessagesResult.Multipiece.Piece piece : multipiece.pieces) {
-            if (piece.loc != null) return getLocation(piece.loc);
-        }
-        return getLocation(multipiece.loc);
+    public List<AnalysisResult> convert(boolean explode) {
+        return multipiece.convert(tags, severity, explode);
     }
 
-    public GoblintMessagesAnalysisResult createGoblintAnalysisResult() {
-        GoblintPosition pos = getLocation(multipiece.loc);
-        String msg = tags.stream().map(Tag::toString).collect(Collectors.joining("")) + " " + multipiece.text;
-        return new GoblintMessagesAnalysisResult(pos, msg, severity);
-
-    }
-
-    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(Multipiece.Piece piece, boolean addGroupText) {
-        GoblintPosition pos = getLocation(piece.loc);
-        return new GoblintMessagesAnalysisResult(
-                pos,
-                addGroupText
-                        ? tags.stream().map(Tag::toString).collect(Collectors.joining("")) + " Group: " + multipiece.group_text
-                        : "",
-                piece.text,
-                severity);
-    }
-
-    public GoblintMessagesAnalysisResult createGoblintAnalysisResult(Multipiece multipiece, List<Pair<Position, String>> related) {
-        GoblintPosition pos = multipiece.loc != null
-                ? getLocation(multipiece.loc)
-                : getRandomLocation(multipiece);
-        return new GoblintMessagesAnalysisResult(
-                pos,
-                tags.stream().map(Tag::toString).collect(Collectors.joining("")) + " " + this.multipiece.group_text,
-                severity,
-                related);
-    }
 }
