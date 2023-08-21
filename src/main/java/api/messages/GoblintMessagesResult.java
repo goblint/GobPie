@@ -72,7 +72,7 @@ public class GoblintMessagesResult {
             GoblintPosition pos = getLocation(loc);
             String msg = joinTags(tags) + " " + text;
             GoblintMessagesAnalysisResult result = new GoblintMessagesAnalysisResult(pos, msg, severity);
-            return new ArrayList<>(List.of(result));
+            return List.of(result);
         }
     }
 
@@ -102,7 +102,7 @@ public class GoblintMessagesResult {
             List<GoblintMessagesAnalysisResult> resultsWithoutRelated =
                     pieces.stream().map(piece -> new GoblintMessagesAnalysisResult(getLocation(piece.loc), groupText, piece.text, severity)).toList();
             // Add related warnings to all the pieces in the group
-            List<GoblintMessagesAnalysisResult> resultsWithRelated = new ArrayList<>();
+            List<AnalysisResult> resultsWithRelated = new ArrayList<>();
             for (GoblintMessagesAnalysisResult result : resultsWithoutRelated) {
                 resultsWithRelated.add(
                         new GoblintMessagesAnalysisResult(
@@ -114,7 +114,7 @@ public class GoblintMessagesResult {
                                         .map(res -> Pair.make(res.position(), res.text()))
                                         .toList()));
             }
-            return new ArrayList<>(resultsWithRelated);
+            return resultsWithRelated;
         }
 
         public List<AnalysisResult> convertGroup(List<Tag> tags, String severity) {
@@ -132,7 +132,7 @@ public class GoblintMessagesResult {
                             .orElse(getLocation(group_loc));
             GoblintMessagesAnalysisResult result =
                     new GoblintMessagesAnalysisResult(pos, joinTags(tags) + " " + group_text, severity, relatedFromPieces);
-            return new ArrayList<>(List.of(result));
+            return List.of(result);
         }
     }
 
