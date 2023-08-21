@@ -30,7 +30,8 @@ public class GoblintMessageJsonHandler extends MessageJsonHandler {
                 .registerTypeAdapterFactory(new TupleTypeAdapters.TwoTypeAdapterFactory())
                 .registerTypeAdapterFactory(new EnumTypeAdapter.Factory())
                 .registerTypeAdapterFactory(new GoblintMessageTypeAdapter.Factory(this))
-                .registerTypeAdapter(GoblintMessagesResult.Tag.class, new GoblintTagInterfaceAdapter());
+                .registerTypeAdapter(GoblintMessagesResult.Tag.class, new GoblintTagInterfaceAdapter())
+                .registerTypeAdapter(GoblintMessagesResult.MultiPiece.class, new GoblintMultiPieceInterfaceAdapter());
     }
 
 }
