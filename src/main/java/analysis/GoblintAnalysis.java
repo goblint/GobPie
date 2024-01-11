@@ -100,7 +100,7 @@ public class GoblintAnalysis implements ServerAnalysis {
             return;
         }
 
-        if (!goblintServer.getGoblintRunProcess().getProcess().isAlive()) {
+        if (!goblintServer.isAlive()) {
             // Goblint server has crashed. Exit GobPie because without the server no analysis is possible.
             magpieServer.exit();
             return;

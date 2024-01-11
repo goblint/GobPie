@@ -102,6 +102,10 @@ public class GoblintServer {
         }
     }
 
+    public boolean isAlive() {
+        return goblintRunProcess.getProcess().isAlive();
+    }
+
 
     /**
      * Checks Goblint command reported version.
