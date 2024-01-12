@@ -6,6 +6,7 @@ import analysis.ShowCFGCommand;
 import api.GoblintService;
 import api.GoblintServiceLauncher;
 import api.messages.params.Params;
+import goblintserver.GoblintConfWatcher;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
@@ -17,7 +18,10 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import util.FileWatcher;
+
 import java.io.File;
+import java.nio.file.Path;
 
 public class Main {
 
@@ -40,8 +44,11 @@ public class Main {
             // Connect GoblintService and read configuration
             GoblintService goblintService = connectGoblintService(magpieServer, gobpieConfiguration, goblintServer);
 
+            // Create file watcher for Goblint configuration
+            GoblintConfWatcher goblintConfWatcher = getGoblintConfWatcher(magpieServer, goblintService, gobpieConfiguration);
+
             // Add analysis
-            addAnalysis(magpieServer, gobpieConfiguration, goblintServer, goblintService);
+            addAnalysis(magpieServer, gobpieConfiguration, goblintServer, goblintService, goblintConfWatcher);
 
             // Launch magpieServer
             magpieServer.configurationDone();
@@ -123,6 +130,11 @@ public class Main {
         return goblintService;
     }
 
+    private static GoblintConfWatcher getGoblintConfWatcher(GoblintMagpieServer magpieServer, GoblintService goblintService, GobPieConfiguration gobpieConfiguration) {
+        FileWatcher fileWatcher = new FileWatcher(Path.of(gobpieConfiguration.getGoblintConf()));
+        return new GoblintConfWatcher(magpieServer, goblintService, gobpieConfiguration, fileWatcher);
+    }
+
 
     /**
      * Method for creating and adding Goblint analysis to MagpieBridge server.
@@ -130,12 +142,12 @@ public class Main {
      * Creates the GoblintAnalysis classes.
      */
     private static void addAnalysis(MagpieServer magpieServer, GobPieConfiguration gobpieConfiguration,
-                                    GoblintServer goblintServer, GoblintService goblintService) {
+                                    GoblintServer goblintServer, GoblintService goblintService, GoblintConfWatcher goblintConfWatcher) {
         // define language
         String language = "c";
 
         // add analysis to the MagpieServer
-        ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobpieConfiguration);
+        ServerAnalysis serverAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobpieConfiguration, goblintConfWatcher);
         magpieServer.addAnalysis(Either.forLeft(serverAnalysis), language);
 
         // add HTTP server for showing CFGs, only if the option is specified in the configuration
