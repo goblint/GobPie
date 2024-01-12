@@ -5,6 +5,7 @@ import api.messages.*;
 import api.messages.params.AnalyzeParams;
 import api.messages.params.Params;
 import com.ibm.wala.classLoader.Module;
+import goblintserver.GoblintConfWatcher;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
@@ -20,11 +21,9 @@ import org.eclipse.lsp4j.MessageType;
 import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
-import util.FileWatcher;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,20 +53,18 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final GoblintServer goblintServer;
     private final GoblintService goblintService;
     private final GobPieConfiguration gobpieConfiguration;
-    private final FileWatcher goblintConfWatcher;
-
-    private static boolean configValid = false;
+    private final GoblintConfWatcher goblintConfWatcher;
     private static Future<?> lastAnalysisTask = null;
 
     private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
 
-    public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintService goblintService, GobPieConfiguration gobpieConfiguration) {
+    public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintService goblintService, GobPieConfiguration gobpieConfiguration, GoblintConfWatcher goblintConfWatcher) {
         this.magpieServer = magpieServer;
         this.goblintServer = goblintServer;
         this.goblintService = goblintService;
         this.gobpieConfiguration = gobpieConfiguration;
-        this.goblintConfWatcher = new FileWatcher(Path.of(gobpieConfiguration.getGoblintConf()));
+        this.goblintConfWatcher = goblintConfWatcher;
     }
 
 
@@ -113,9 +110,7 @@ public class GoblintAnalysis implements ServerAnalysis {
             }
         }
 
-        refreshGoblintConfig();
-
-        if (!configValid) {
+        if (!goblintConfWatcher.refreshGoblintConfig()) {
             return;
         }
 
@@ -138,29 +133,6 @@ public class GoblintAnalysis implements ServerAnalysis {
             magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, source() + " failed to analyze the code:\n" + cause.getMessage()));
             return null;
         });
-    }
-
-
-    /**
-     * Reloads Goblint config if it has been changed or is currently invalid.
-     */
-    private void refreshGoblintConfig() {
-        if (goblintConfWatcher.checkModified() || !configValid) {
-            configValid = goblintService.reset_config()
-                    .thenCompose(_res ->
-                            goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath())))
-                    .handle((_res, ex) -> {
-                        if (ex != null) {
-                            Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
-                            String msg = "Goblint was unable to successfully read the new configuration: " + cause.getMessage();
-                            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, msg));
-                            log.error(msg);
-                            return false;
-                        }
-                        return true;
-                    })
-                    .join();
-        }
     }
 
 
