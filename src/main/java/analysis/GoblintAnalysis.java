@@ -20,7 +20,6 @@ import org.eclipse.lsp4j.MessageType;
 import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
-import org.zeroturnaround.process.UnixProcess;
 import util.FileWatcher;
 
 import java.io.File;
@@ -50,8 +49,6 @@ import java.util.stream.Stream;
  */
 
 public class GoblintAnalysis implements ServerAnalysis {
-
-    private final static int SIGINT = 2;
 
     private final MagpieServer magpieServer;
     private final GoblintServer goblintServer;
@@ -109,7 +106,7 @@ public class GoblintAnalysis implements ServerAnalysis {
         if (lastAnalysisTask != null && !lastAnalysisTask.isDone()) {
             lastAnalysisTask.cancel(true);
             try {
-                abortAnalysis();
+                goblintServer.abortAnalysis();
                 log.info("--------------- This analysis has been aborted -------------");
             } catch (IOException e) {
                 log.error("Aborting analysis failed.");
@@ -141,17 +138,6 @@ public class GoblintAnalysis implements ServerAnalysis {
             magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, source() + " failed to analyze the code:\n" + cause.getMessage()));
             return null;
         });
-    }
-
-
-    /**
-     * Aborts the previous running analysis by sending a SIGINT signal to Goblint.
-     */
-    private void abortAnalysis() throws IOException {
-        Process goblintProcess = goblintServer.getGoblintRunProcess().getProcess();
-        int pid = Math.toIntExact(goblintProcess.pid());
-        UnixProcess unixProcess = new UnixProcess(pid);
-        unixProcess.kill(SIGINT);
     }
 
 

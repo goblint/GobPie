@@ -12,6 +12,7 @@ import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.StartedProcess;
 import org.zeroturnaround.exec.listener.ProcessListener;
+import org.zeroturnaround.process.UnixProcess;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -35,7 +36,7 @@ import static gobpie.GobPieExceptionType.GOBLINT_EXCEPTION;
 public class GoblintServer {
 
     private static final String GOBLINT_SOCKET = "goblint.sock";
-
+    private static final int SIGINT = 2;
     private final MagpieServer magpieServer;
     private final GobPieConfiguration configuration;
     private final String[] goblintRunCommand;
@@ -51,8 +52,14 @@ public class GoblintServer {
         this.goblintRunCommand = constructGoblintRunCommand();
     }
 
-    public StartedProcess getGoblintRunProcess() {
-        return goblintRunProcess;
+    /**
+     * Aborts the previous running analysis by sending a SIGINT signal to Goblint.
+     */
+    public void abortAnalysis() throws IOException {
+        Process goblintProcess = goblintRunProcess.getProcess();
+        int pid = Math.toIntExact(goblintProcess.pid());
+        UnixProcess unixProcess = new UnixProcess(pid);
+        unixProcess.kill(SIGINT);
     }
 
     public String getGoblintSocket() {
