@@ -9,12 +9,9 @@ import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.MagpieServer;
-import nl.altindag.log.LogCaptor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LogEvent;
 import org.junit.jupiter.api.Test;
-
-import javax.swing.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -22,8 +19,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 class GoblintAnalysisTest {
