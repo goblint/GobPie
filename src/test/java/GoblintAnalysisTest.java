@@ -74,39 +74,38 @@ class GoblintAnalysisTest {
 
 
     @Test
-    void preAnalysetest() {
+    void preAnalyseTest() {
         // Mock everything needed for creating preAnalysis
         MagpieServer magpieServer = mock(MagpieServer.class);
-        GoblintServer goblintServer = mock(GoblintServer.class);
         GoblintService goblintService = mock(GoblintService.class);
-        GobPieConfiguration gobPieConfigurationMock = mock(GobPieConfiguration.class);
+        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
+        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
         GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
 
-
-        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfigurationMock, goblintConfWatcher);
+        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
 
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
-        when(goblintServer.isAlive()).thenReturn(true);
+        doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
         // Mock that the command to execute is not empty
         String[] preAnalyzeCommand = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"};
-        when(gobPieConfigurationMock.getPreAnalyzeCommand()).thenReturn(new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"});
+        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
-        // Mock that the analyses of goblint have started but not completed (still run)
+        // Mock that the analyses of Goblint have started but not completed (still run)
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfigurationMock.useIncrementalAnalysis()).thenReturn(true);
+        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
         // Mock the arguments for calling the goblintAnalyze.analyze method
         Collection<? extends Module> files = new ArrayDeque<>();
         AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
-
         // Verify that preAnalysis was indeed called once
         verify(goblintServer).preAnalyse();
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Preanalyze command ran: ")));
     }
 
     /**
