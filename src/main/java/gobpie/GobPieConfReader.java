@@ -1,6 +1,10 @@
 package gobpie;
 
+import analysis.GoblintAnalysis;
+import api.GoblintService;
 import com.google.gson.*;
+import goblintserver.GoblintConfWatcher;
+import goblintserver.GoblintServer;
 import magpiebridge.core.MagpieServer;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
@@ -13,6 +17,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+
+import static org.mockito.Mockito.mock;
 
 /**
  * The Class GobPieConfReader.
@@ -90,7 +96,7 @@ public class GobPieConfReader {
      *                         </ul>
      */
 
-    private GobPieConfiguration parseGobPieConf() {
+    public GobPieConfiguration parseGobPieConf() {
         try {
             log.debug("Reading GobPie configuration from json");
             Gson gson = new GsonBuilder().create();
@@ -107,7 +113,7 @@ public class GobPieConfReader {
     }
 
 
-    /**
+/**
      * Method for forwarding Error messages to MagpieServer.
      *
      * @param popUpMessage    The message shown on the pop-up message.

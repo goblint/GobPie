@@ -62,6 +62,34 @@ public class GoblintServer {
         unixProcess.kill(SIGINT);
     }
 
+
+    /**
+     * The method that is triggered before each analysis.
+     * <p>
+     * preAnalyzeCommand is read from the GobPie configuration file.
+     * Can be used for automating the compilation database generation.
+     */
+    public void preAnalyse() {
+        String[] preAnalyzeCommand = configuration.getPreAnalyzeCommand();
+
+        //Miks seda ei ilmu kuhugile??
+        log.info(preAnalyzeCommand);
+        System.out.println(preAnalyzeCommand);
+        System.out.println();
+
+        if (preAnalyzeCommand != null) {
+            try {
+                log.info("Preanalyze command ran: \"" + Arrays.toString(preAnalyzeCommand) + "\"");
+                runCommand(new File(System.getProperty("user.dir")), preAnalyzeCommand);
+                log.info("Preanalyze command finished.");
+            } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
+                this.magpieServer.forwardMessageToClient(
+                        new MessageParams(MessageType.Warning, "Running preanalysis command failed. " + e.getMessage()));
+            }
+        }
+    }
+
+
     public String getGoblintSocket() {
         return GOBLINT_SOCKET;
     }

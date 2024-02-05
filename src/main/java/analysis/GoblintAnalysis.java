@@ -56,7 +56,9 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final GoblintConfWatcher goblintConfWatcher;
     private static Future<?> lastAnalysisTask = null;
 
-    private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
+    //private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
+    private  Logger log = LogManager.getLogger(GoblintAnalysis.class);
+
 
 
     public GoblintAnalysis(MagpieServer magpieServer, GoblintServer goblintServer, GoblintService goblintService, GobPieConfiguration gobpieConfiguration, GoblintConfWatcher goblintConfWatcher) {
@@ -115,15 +117,16 @@ public class GoblintAnalysis implements ServerAnalysis {
         }
 
         magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, source() + " started analyzing the code."));
-
-        preAnalyse();
-
+        goblintServer.preAnalyse();
         log.info("---------------------- Analysis started ----------------------");
+
         lastAnalysisTask = reanalyse().thenAccept(response -> {
             consumer.consume(new ArrayList<>(response), source());
+
             log.info("--------------------- Analysis finished ----------------------");
             magpieServer.forwardMessageToClient(new MessageParams(MessageType.Info, source() + " finished analyzing the code."));
         }).exceptionally(ex -> {
+
             Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
             // TODO: handle closed socket exceptions:
             //      org.eclipse.lsp4j.jsonrpc.JsonRpcException: java.net.SocketException: Broken pipe; errno=32
@@ -136,25 +139,6 @@ public class GoblintAnalysis implements ServerAnalysis {
     }
 
 
-    /**
-     * The method that is triggered before each analysis.
-     * <p>
-     * preAnalyzeCommand is read from the GobPie configuration file.
-     * Can be used for automating the compilation database generation.
-     */
-    private void preAnalyse() {
-        String[] preAnalyzeCommand = gobpieConfiguration.getPreAnalyzeCommand();
-        if (preAnalyzeCommand != null) {
-            try {
-                log.info("Preanalyze command ran: \"" + Arrays.toString(preAnalyzeCommand) + "\"");
-                runCommand(new File(System.getProperty("user.dir")), preAnalyzeCommand);
-                log.info("Preanalyze command finished.");
-            } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
-                this.magpieServer.forwardMessageToClient(
-                        new MessageParams(MessageType.Warning, "Running preanalysis command failed. " + e.getMessage()));
-            }
-        }
-    }
 
     /**
      * Sends the requests to Goblint server and gets their results.
@@ -165,8 +149,10 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @return a CompletableFuture of a collection of warning messages and cfg code lenses if request was successful.
      * @throws GobPieException in case the analysis was aborted or returned a VerifyError.
      */
-    private CompletableFuture<Collection<AnalysisResult>> reanalyse() {
+    public CompletableFuture<Collection<AnalysisResult>> reanalyse() {
+        //return goblintService.analyze(new AnalyzeParams(true))
         return goblintService.analyze(new AnalyzeParams(!gobpieConfiguration.useIncrementalAnalysis()))
+
                 .thenCompose(this::getComposedAnalysisResults);
     }
 
