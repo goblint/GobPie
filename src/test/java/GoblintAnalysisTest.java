@@ -9,31 +9,24 @@ import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.MagpieServer;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LogEvent;
 import org.junit.jupiter.api.Test;
-import java.io.ByteArrayOutputStream;
+import org.junit.jupiter.api.extension.ExtendWith;
+import uk.org.webcompere.systemstubs.jupiter.SystemStub;
+import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
+import uk.org.webcompere.systemstubs.stream.SystemOut;
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(SystemStubsExtension.class)
 class GoblintAnalysisTest {
 
-    private final List<String> logMessages = new ArrayList<>();
-
-
-
-    public void append(LogEvent event) {
-        logMessages.add(event.getMessage().getFormattedMessage());
-    }
-
-    public boolean contains(String logMessage) {
-        return logMessages.contains(logMessage);
-    }
+    @SystemStub
+    private SystemOut systemOut;
 
     /**
      * Mock test to ensure @analyze function
@@ -49,11 +42,6 @@ class GoblintAnalysisTest {
         GoblintService goblintService = mock(GoblintService.class);
         GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
         GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
-        org.apache.logging.log4j.Logger log = LogManager.getLogger(GoblintAnalysis.class);
-
-
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        String consoleOutput = byteArrayOutputStream.toString();
 
         GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
 
@@ -61,7 +49,7 @@ class GoblintAnalysisTest {
         when(goblintServer.isAlive()).thenReturn(true);
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
-        // Mock that the analyses of goblint have started but not completed (still run)
+        // Mock that the analyses of Goblint have started but not completed (still run)
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
@@ -74,15 +62,9 @@ class GoblintAnalysisTest {
         goblintAnalysis.analyze(files, analysisConsumer, true);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
-        System.out.println(consoleOutput);
-
-        System.out.println("--------------- This analysis has been aborted -------------");
-        System.out.println(log.getName());
-
-        //assertTrue(consoleOutput, "--------------- This analysis has been aborted -------------");
-
         // Verify that abortAnalysis was indeed called once
         verify(goblintServer).abortAnalysis();
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------- This analysis has been aborted -------------")));
     }
     /**
      * Mock test to ensure @preAnalyse function
