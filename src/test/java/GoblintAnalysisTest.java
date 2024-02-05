@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -31,7 +32,6 @@ class GoblintAnalysisTest {
     /**
      * Mock test to ensure @analyze function
      * behaviour in abort situation
-     *
      */
     @Test
     void abortAnalysis() throws IOException {
@@ -66,10 +66,10 @@ class GoblintAnalysisTest {
         verify(goblintServer).abortAnalysis();
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------- This analysis has been aborted -------------")));
     }
+
     /**
      * Mock test to ensure @preAnalyse function
      * is functional and is called out in @analyze function
-     *
      */
 
 
@@ -90,8 +90,8 @@ class GoblintAnalysisTest {
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
         // Mock that the command to execute is not empty
-        String[] preAnalyzeCommand  = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"};
-        when( gobPieConfigurationMock.getPreAnalyzeCommand()).thenReturn(new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"});
+        String[] preAnalyzeCommand = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"};
+        when(gobPieConfigurationMock.getPreAnalyzeCommand()).thenReturn(new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"});
 
         // Mock that the analyses of goblint have started but not completed (still run)
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
@@ -110,13 +110,10 @@ class GoblintAnalysisTest {
     }
 
     /**
-     ** Mock test to ensure @preAnalyse function
-     *
-     *
+     * * Mock test to ensure @preAnalyse function
+     * <p>
+     * <p>
      * is functional and is called out in @analyze function
-     *
-     *
-     *
      */
     @Test
     void preanalyzeError() {
@@ -138,8 +135,8 @@ class GoblintAnalysisTest {
 
         // Mock that the command to execute is not empty
         // Make mistake to catch exception -  correct - {"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"}
-        String[] preAnalyzeCommand  = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-V", "bdghdhgfjhy"};
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand );
+        String[] preAnalyzeCommand = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-V", "bdghdhgfjhy"};
+        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of goblint have started but not completed (still run)
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
@@ -156,25 +153,13 @@ class GoblintAnalysisTest {
 
         System.out.println(logger.getLoggerContext().toString());
 
-        assert(logger.getLoggerContext().toString().contains("Running preanalysis command failed. "));
+        assert (logger.getLoggerContext().toString().contains("Running preanalysis command failed. "));
 
         //verify(log, times (1)).info("Running preanalysis command failed. ");
 
         // Verify that preAnalysis was indeed called once
         verify(goblintServer).preAnalyse();
     }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 }
