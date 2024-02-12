@@ -75,7 +75,6 @@ public class GoblintServer {
             try {
                 String preAnalyzeCommandString = Arrays.toString(preAnalyzeCommand);
                 log.info("PreAnalysis command ran: '" + preAnalyzeCommandString + "'");
-                System.out.println("kaust: " + System.getProperty("user.dir"));
                 ProcessListener processListener = new ProcessListener() {};
                 StartedProcess preAnalysisProcess = runCommand(new File(System.getProperty("user.dir")), preAnalyzeCommand, processListener);
                 switch (preAnalysisProcess.getProcess().waitFor()) {
