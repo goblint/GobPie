@@ -241,14 +241,16 @@ class GoblintAnalysisTest {
         doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
-        // Mock that the command to execute is not empty
-        // Make mistake to catch exception -  correct - {"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"}
-        String[] preAnalyzeCommand = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"};
+        // Mock that Goblint returns some messages
+        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
+
+        // Mock that the command to execute is not empty and is something that is not a valid command
+        String processName = "asdf";
+        String[] preAnalyzeCommand = new String[]{processName};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(null));
-        //.throw
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
@@ -261,7 +263,8 @@ class GoblintAnalysisTest {
         // Verify that preAnalysis was indeed called once
         verify(goblintServer).preAnalyse();
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
-        //verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Warning, "Running preanalysis command failed."));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Warning, "Running preanalysis command failed."));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
     }
 
 }
