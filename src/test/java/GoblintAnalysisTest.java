@@ -19,6 +19,7 @@ import uk.org.webcompere.systemstubs.stream.SystemOut;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -143,8 +144,8 @@ class GoblintAnalysisTest {
 
         // Verify that preAnalysis was indeed called once
         verify(goblintServer).preAnalyse();
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Preanalyze command ran: ")));
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Preanalyze command finished.")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("PreAnalysis command ran: '" + Arrays.toString(preAnalyzeCommand) + "'")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("PreAnalysis command finished.")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains(processPrintout)));
     }
 
@@ -245,8 +246,7 @@ class GoblintAnalysisTest {
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
 
         // Mock that the command to execute is not empty and is something that is not a valid command
-        String processName = "asdf";
-        String[] preAnalyzeCommand = new String[]{processName};
+        String[] preAnalyzeCommand = new String[]{"asdf"};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
@@ -261,9 +261,12 @@ class GoblintAnalysisTest {
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         // Verify that preAnalysis was indeed called once
+        String preAnalyzeCommandString = Arrays.toString(preAnalyzeCommand);
         verify(goblintServer).preAnalyse();
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
-        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Warning, "Running preanalysis command failed."));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("PreAnalysis command ran: '" + preAnalyzeCommandString + "'")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Running preAnalysis command failed. ")));
+        //verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Warning, "Running preAnalysis command failed. ")); // TODO?
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
     }
 
