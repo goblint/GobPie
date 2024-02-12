@@ -125,8 +125,9 @@ class GoblintAnalysisTest {
         doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
-        // Mock that the command to execute is not empty
-        String[] preAnalyzeCommand = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"};
+        // A process that must be run before analysis
+        String processPrintout = "'Hello'";
+        String[] preAnalyzeCommand = new String[]{"echo", processPrintout};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
@@ -144,6 +145,7 @@ class GoblintAnalysisTest {
         verify(goblintServer).preAnalyse();
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Preanalyze command ran: ")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Preanalyze command finished.")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains(processPrintout)));
     }
 
     /**
