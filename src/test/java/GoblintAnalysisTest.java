@@ -1,14 +1,14 @@
 import analysis.GoblintAnalysis;
 import api.GoblintService;
 import api.messages.params.AnalyzeParams;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.LoggerContext;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintConfWatcher;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
 import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.MagpieServer;
+import org.eclipse.lsp4j.MessageParams;
+import org.eclipse.lsp4j.MessageType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
@@ -29,13 +29,51 @@ class GoblintAnalysisTest {
     @SystemStub
     private SystemOut systemOut;
 
+
+    @Test
+    void analyzeFailed() {
+        // Mock everything needed for creating GoblintAnalysis
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        GoblintServer goblintServer = mock(GoblintServer.class);
+        GoblintService goblintService = mock(GoblintService.class);
+        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
+        GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
+        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
+
+        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
+        doReturn(true).when(goblintServer).isAlive();
+        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+
+        // Mock that the analyses of Goblint have started but not completed (still run)
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
+
+        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
+        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
+
+        // Mock the arguments for calling the goblintAnalyze.analyze method
+        // And call the method twice
+        Collection<? extends Module> files = new ArrayDeque<>();
+        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
+        goblintAnalysis.analyze(files, null, true);
+
+        // Verify that Analysis has failed
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("---------------------- Analysis started ----------------------")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------------- Analysis finished ----------------------")));
+        //assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------------- Analysis failed  ----------------------")));
+
+    }
+
+
+
+
+
+
     /**
      * Mock test to ensure @analyze function
      * behaviour in abort situation
      */
     @Test
     void abortAnalysis() throws IOException {
-
         // Mock everything needed for creating GoblintAnalysis
         MagpieServer magpieServer = mock(MagpieServer.class);
         GoblintServer goblintServer = mock(GoblintServer.class);
@@ -46,7 +84,7 @@ class GoblintAnalysisTest {
         GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
 
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
-        when(goblintServer.isAlive()).thenReturn(true);
+        doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
         // Mock that the analyses of Goblint have started but not completed (still run)
@@ -81,7 +119,6 @@ class GoblintAnalysisTest {
         GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
         GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
         GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
-
         GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
 
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
@@ -106,6 +143,7 @@ class GoblintAnalysisTest {
         // Verify that preAnalysis was indeed called once
         verify(goblintServer).preAnalyse();
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Preanalyze command ran: ")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Preanalyze command finished.")));
     }
 
     /**
@@ -115,26 +153,22 @@ class GoblintAnalysisTest {
      * is functional and is called out in @analyze function
      */
     @Test
-    void preanalyzeError() {
+    void preanalyzeEmptyString() {
         // Mock everything needed for creating preAnalysis
         MagpieServer magpieServer = mock(MagpieServer.class);
-        GoblintServer goblintServer = mock(GoblintServer.class);
         GoblintService goblintService = mock(GoblintService.class);
         GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
+        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
         GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
-        LoggerContext context = new LoggerContext();
-        Logger logger = context.getLogger("testLogger");
-
-
         GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
 
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
-        when(goblintServer.isAlive()).thenReturn(true);
+        doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
         // Mock that the command to execute is not empty
         // Make mistake to catch exception -  correct - {"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"}
-        String[] preAnalyzeCommand = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-V", "bdghdhgfjhy"};
+        String[] preAnalyzeCommand = new String[]{""};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of goblint have started but not completed (still run)
@@ -148,16 +182,85 @@ class GoblintAnalysisTest {
         AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
-        goblintServer.preAnalyse();
-
-        System.out.println(logger.getLoggerContext().toString());
-
-        assert (logger.getLoggerContext().toString().contains("Running preanalysis command failed. "));
-
-        //verify(log, times (1)).info("Running preanalysis command failed. ");
 
         // Verify that preAnalysis was indeed called once
         verify(goblintServer).preAnalyse();
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Warning, "Running preanalysis command failed.  file or directory"));
+    }
+
+    @Test
+    void preanalyzeEmptyNull() {
+        // Mock everything needed for creating preAnalysis
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        GoblintService goblintService = mock(GoblintService.class);
+        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
+        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
+        GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
+        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
+
+        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
+        doReturn(true).when(goblintServer).isAlive();
+        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+
+        // Mock that the command to execute is not empty
+        // Make mistake to catch exception -  correct - {"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"}
+        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(null);
+
+
+        // Mock that the analyses of goblint have started but not completed (still run)
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
+
+        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
+        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
+
+        // Mock the arguments for calling the goblintAnalyze.analyze method
+        Collection<? extends Module> files = new ArrayDeque<>();
+        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
+        goblintAnalysis.analyze(files, analysisConsumer, true);
+
+
+        // Verify that preAnalysis was indeed called once
+        verify(goblintServer).preAnalyse();
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
+    }
+
+    @Test
+    void preanalyzeError() {
+        // Mock everything needed for creating preAnalysis
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        GoblintService goblintService = mock(GoblintService.class);
+        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
+        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
+        GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
+        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
+
+        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
+        doReturn(true).when(goblintServer).isAlive();
+        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+
+        // Mock that the command to execute is not empty
+        // Make mistake to catch exception -  correct - {"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"}
+        String[] preAnalyzeCommand = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"};
+        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
+
+        // Mock that the analyses of goblint have started but not completed (still run)
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
+        //.throw
+
+        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
+        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
+
+        // Mock the arguments for calling the goblintAnalyze.analyze method
+        Collection<? extends Module> files = new ArrayDeque<>();
+        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
+        goblintAnalysis.analyze(files, analysisConsumer, true);
+
+
+        // Verify that preAnalysis was indeed called once
+        verify(goblintServer).preAnalyse();
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Warning, "Running preanalysis command failed."));
     }
 
 

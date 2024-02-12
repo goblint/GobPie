@@ -71,15 +71,10 @@ public class GoblintServer {
      */
     public void preAnalyse() {
         String[] preAnalyzeCommand = configuration.getPreAnalyzeCommand();
-
-        //Miks seda ei ilmu kuhugile??
-        log.info(preAnalyzeCommand);
-        System.out.println(preAnalyzeCommand);
-        System.out.println();
-
-        if (preAnalyzeCommand != null) {
+        if (preAnalyzeCommand != null && preAnalyzeCommand.length != 0) {
             try {
                 log.info("Preanalyze command ran: \"" + Arrays.toString(preAnalyzeCommand) + "\"");
+                System.out.println("kaust: " + System.getProperty("user.dir"));
                 runCommand(new File(System.getProperty("user.dir")), preAnalyzeCommand);
                 log.info("Preanalyze command finished.");
             } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
