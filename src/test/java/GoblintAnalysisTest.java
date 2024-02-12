@@ -18,6 +18,7 @@ import uk.org.webcompere.systemstubs.stream.SystemOut;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -147,12 +148,10 @@ class GoblintAnalysisTest {
 
     /**
      * * Mock test to ensure @preAnalyse function
-     * <p>
-     * <p>
      * is functional and is called out in @analyze function
      */
     @Test
-    void preAnalyseEmptyString() {
+    void preAnalyseEmpty() {
         // Mock everything needed for creating preAnalysis
         MagpieServer magpieServer = mock(MagpieServer.class);
         GoblintService goblintService = mock(GoblintService.class);
@@ -165,12 +164,15 @@ class GoblintAnalysisTest {
         doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
+        // Mock that Goblint returns some messages
+        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
+
         // Mock that the command to execute is empty
-        String[] preAnalyzeCommand = new String[]{""};
+        String[] preAnalyzeCommand = new String[]{};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(null));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
@@ -183,6 +185,7 @@ class GoblintAnalysisTest {
         // Verify that preAnalysis was indeed called once
         verify(goblintServer).preAnalyse();
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
     }
 
     @Test
