@@ -1,5 +1,6 @@
 import analysis.GoblintAnalysis;
 import api.GoblintService;
+import api.messages.GoblintAnalysisResult;
 import api.messages.params.AnalyzeParams;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintConfWatcher;
@@ -43,8 +44,8 @@ class GoblintAnalysisTest {
         doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
-        // Mock that the analyses of Goblint have started but not completed (still run)
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
+        // Mock that the analyses of Goblint have started and completed
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(null));
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
@@ -81,7 +82,8 @@ class GoblintAnalysisTest {
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
         // Mock that the analyses of Goblint have started but not completed (still run)
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
+        CompletableFuture<GoblintAnalysisResult> runningProcess = new CompletableFuture<>();
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(runningProcess);
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
@@ -96,6 +98,7 @@ class GoblintAnalysisTest {
         // Verify that abortAnalysis was indeed called once
         verify(goblintServer).abortAnalysis();
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------- This analysis has been aborted -------------")));
+        runningProcess.complete(null);
     }
 
     /**
@@ -121,8 +124,8 @@ class GoblintAnalysisTest {
         String[] preAnalyzeCommand = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
-        // Mock that the analyses of Goblint have started but not completed (still run)
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
+        // Mock that the analyses of Goblint have started and completed
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(null));
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
@@ -162,8 +165,8 @@ class GoblintAnalysisTest {
         String[] preAnalyzeCommand = new String[]{""};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
-        // Mock that the analyses of goblint have started but not completed (still run)
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
+        // Mock that the analyses of Goblint have started and completed
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(null));
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
@@ -195,8 +198,8 @@ class GoblintAnalysisTest {
         // Mock that the command to execute is null
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(null);
 
-        // Mock that the analyses of goblint have started but not completed (still run)
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
+        // Mock that the analyses of Goblint have started and completed
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(null));
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
@@ -230,8 +233,8 @@ class GoblintAnalysisTest {
         String[] preAnalyzeCommand = new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
-        // Mock that the analyses of goblint have started but not completed (still run)
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(new CompletableFuture<>());
+        // Mock that the analyses of Goblint have started and completed
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(null));
         //.throw
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
