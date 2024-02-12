@@ -45,7 +45,7 @@ class GoblintAnalysisTest {
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
 
         // Mock that the analyses of Goblint have started and completed
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(null));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.failedFuture(new Throwable(" Testing failed analysis")));
 
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
@@ -58,7 +58,11 @@ class GoblintAnalysisTest {
 
         // Verify that Analysis has failed
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("---------------------- Analysis started ----------------------")));
-        //assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------------- Analysis failed  ----------------------")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------------- Analysis failed  ----------------------")));
+
+        // Verify that user is notified about the failed analysis
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "GobPie failed to analyze the code:\n Testing failed analysis"));
     }
 
 
