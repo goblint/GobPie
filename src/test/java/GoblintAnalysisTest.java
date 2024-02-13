@@ -46,10 +46,13 @@ class GoblintAnalysisTest {
 
     GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
 
-
     @SystemStub
     private SystemOut systemOut;
 
+    /**
+     * Mock test to ensure @analyze function
+     * messages user when analyzes fails
+     */
     @Test
     void analyzeFailed() {
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
@@ -76,7 +79,6 @@ class GoblintAnalysisTest {
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "GobPie failed to analyze the code:\n Testing failed analysis"));
     }
-
 
     /**
      * Mock test to ensure @analyze function
@@ -147,8 +149,8 @@ class GoblintAnalysisTest {
     }
 
     /**
-     * * Mock test to ensure @preAnalyse function
-     * is functional and is called out in @analyze function
+     * Mock test to ensure @preAnalyse function
+     * is functional when preAnalyzeCommand is empty
      */
     @Test
     void preAnalyseEmpty() {
@@ -180,6 +182,10 @@ class GoblintAnalysisTest {
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
     }
 
+    /*
+     * Mock test to ensure @preAnalyse function
+     * is functional when preAnalyzeCommand is null
+     */
     @Test
     void preAnalyseNull() {
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
@@ -209,6 +215,10 @@ class GoblintAnalysisTest {
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
     }
 
+    /*
+     * Mock test to ensure @preAnalyse function
+     * messages user when preAnalysis command fails
+     */
     @Test
     void preAnalyseError() {
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
