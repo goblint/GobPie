@@ -12,6 +12,8 @@ import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.Spy;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
@@ -29,19 +31,27 @@ import static org.mockito.Mockito.*;
 @ExtendWith(SystemStubsExtension.class)
 class GoblintAnalysisTest {
 
+    @Mock
+    MagpieServer magpieServer = mock(MagpieServer.class);
+    @Mock
+    GoblintService goblintService = mock(GoblintService.class);
+
+    @Mock
+    GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
+
+    @Spy
+    GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
+    @Mock
+    GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
+
+    GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
+
+
     @SystemStub
     private SystemOut systemOut;
 
     @Test
     void analyzeFailed() {
-        // Mock everything needed for creating GoblintAnalysis
-        MagpieServer magpieServer = mock(MagpieServer.class);
-        GoblintServer goblintServer = mock(GoblintServer.class);
-        GoblintService goblintService = mock(GoblintService.class);
-        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
-        GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
-        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
-
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
         doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
@@ -74,13 +84,8 @@ class GoblintAnalysisTest {
      */
     @Test
     void abortAnalysis() throws IOException {
-        // Mock everything needed for creating GoblintAnalysis
-        MagpieServer magpieServer = mock(MagpieServer.class);
+        // Mock server and change goblintAnalysis value
         GoblintServer goblintServer = mock(GoblintServer.class);
-        GoblintService goblintService = mock(GoblintService.class);
-        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
-        GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
-
         GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
 
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
@@ -114,14 +119,6 @@ class GoblintAnalysisTest {
 
     @Test
     void preAnalyseTest() {
-        // Mock everything needed for creating preAnalysis
-        MagpieServer magpieServer = mock(MagpieServer.class);
-        GoblintService goblintService = mock(GoblintService.class);
-        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
-        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
-        GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
-        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
-
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
         doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
@@ -155,14 +152,6 @@ class GoblintAnalysisTest {
      */
     @Test
     void preAnalyseEmpty() {
-        // Mock everything needed for creating preAnalysis
-        MagpieServer magpieServer = mock(MagpieServer.class);
-        GoblintService goblintService = mock(GoblintService.class);
-        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
-        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
-        GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
-        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
-
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
         doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
@@ -193,14 +182,6 @@ class GoblintAnalysisTest {
 
     @Test
     void preAnalyseNull() {
-        // Mock everything needed for creating preAnalysis
-        MagpieServer magpieServer = mock(MagpieServer.class);
-        GoblintService goblintService = mock(GoblintService.class);
-        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
-        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
-        GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
-        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
-
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
         doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
@@ -230,14 +211,6 @@ class GoblintAnalysisTest {
 
     @Test
     void preAnalyseError() {
-        // Mock everything needed for creating preAnalysis
-        MagpieServer magpieServer = mock(MagpieServer.class);
-        GoblintService goblintService = mock(GoblintService.class);
-        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
-        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
-        GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
-        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
-
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
         doReturn(true).when(goblintServer).isAlive();
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
