@@ -49,10 +49,10 @@ class GoblintAnalysisTest {
     @SystemStub
     private SystemOut systemOut;
 
-    /**
-     * Mock test to ensure @analyze function
-     * messages user when analyzes fails
-     */
+    /*
+     Mock test to ensure @analyze function
+     messages user when analyzes fails
+    */
     @Test
     void analyzeFailed() {
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
@@ -80,10 +80,10 @@ class GoblintAnalysisTest {
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "GobPie failed to analyze the code:\n Testing failed analysis"));
     }
 
-    /**
-     * Mock test to ensure @analyze function
-     * behaviour in abort situation
-     */
+    /*
+     Mock test to ensure @analyze function
+     behaviour in abort situation
+    */
     @Test
     void abortAnalysis() throws IOException {
         // Mock server and change goblintAnalysis value
@@ -114,10 +114,49 @@ class GoblintAnalysisTest {
         runningProcess.complete(null);
     }
 
-    /**
-     * Mock test to ensure @preAnalyse function
-     * is functional and is called out in @analyze function
-     */
+    /*
+     Mock test to ensure @analyze function
+     behaves correctly when abort fails
+    */
+    @Test
+    void abortAnalysisFails() throws IOException {
+        // Mock server and change goblintAnalysis value
+        GoblintServer goblintServer = mock(GoblintServer.class);
+        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
+
+        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
+        doReturn(true).when(goblintServer).isAlive();
+        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+
+        // Mock that the analyses of Goblint have started but not completed (still run)
+        CompletableFuture<GoblintAnalysisResult> runningProcess = new CompletableFuture<>();
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(runningProcess);
+
+        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
+        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
+
+        //Throwable IOException = new Throwable(java.io.IOException);
+        //when(goblintServer.abortAnalysis()).thenThrow(IOException);
+
+        doThrow(new IOException()).when(goblintServer).abortAnalysis();
+        // Mock the arguments for calling the goblintAnalyze.analyze method
+        // And call the method twice
+        Collection<? extends Module> files = new ArrayDeque<>();
+        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
+        goblintAnalysis.analyze(files, analysisConsumer, true);
+        goblintAnalysis.analyze(files, analysisConsumer, true);
+
+
+        // Verify that abortAnalysis was indeed called once
+        verify(goblintServer).abortAnalysis();
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Aborting analysis failed.")));
+        runningProcess.complete(null);
+    }
+
+    /*
+     Mock test to ensure @preAnalyse function
+     is functional and is called out in @analyze function
+    */
 
     @Test
     void preAnalyseTest() {
@@ -148,10 +187,10 @@ class GoblintAnalysisTest {
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains(processPrintout)));
     }
 
-    /**
-     * Mock test to ensure @preAnalyse function
-     * is functional when preAnalyzeCommand is empty
-     */
+    /*
+     Mock test to ensure @preAnalyse function
+     is functional when preAnalyzeCommand is empty
+    */
     @Test
     void preAnalyseEmpty() {
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
@@ -183,9 +222,9 @@ class GoblintAnalysisTest {
     }
 
     /*
-     * Mock test to ensure @preAnalyse function
-     * is functional when preAnalyzeCommand is null
-     */
+     Mock test to ensure @preAnalyse function
+     is functional when preAnalyzeCommand is null
+    */
     @Test
     void preAnalyseNull() {
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
@@ -216,9 +255,9 @@ class GoblintAnalysisTest {
     }
 
     /*
-     * Mock test to ensure @preAnalyse function
-     * messages user when preAnalysis command fails
-     */
+     Mock test to ensure @preAnalyse function
+     messages user when preAnalysis command fails
+    */
     @Test
     void preAnalyseError() {
         // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
