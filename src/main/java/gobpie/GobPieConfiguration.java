@@ -35,7 +35,6 @@ public class GobPieConfiguration {
     }
 
     public String[] getPreAnalyzeCommand() {
-        if (preAnalyzeCommand == null || preAnalyzeCommand.length == 0) return null;
         return this.preAnalyzeCommand;
     }
 
