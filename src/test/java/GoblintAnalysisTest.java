@@ -48,15 +48,22 @@ class GoblintAnalysisTest {
     @SystemStub
     private SystemOut systemOut;
 
+    /**
+     * A function to mock that GoblintServer is alive
+     * and Goblint's configuration file is ok.
+     */
+    private void mockGoblintServerIsAlive(GoblintServer goblintServer) {
+        doReturn(true).when(goblintServer).isAlive();
+        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+    }
+
     /*
      Mock test to ensure @analyze function
      messages user when analyzes fails
     */
     @Test
     void analyzeFailed() {
-        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
-        doReturn(true).when(goblintServer).isAlive();
-        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+        mockGoblintServerIsAlive(goblintServer);
 
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.failedFuture(new Throwable(" Testing failed analysis")));
@@ -85,9 +92,7 @@ class GoblintAnalysisTest {
         GoblintServer goblintServer = mock(GoblintServer.class);
         GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
 
-        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
-        doReturn(true).when(goblintServer).isAlive();
-        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+        mockGoblintServerIsAlive(goblintServer);
 
         // Mock that the analyses of Goblint have started but not completed (still run)
         CompletableFuture<GoblintAnalysisResult> runningProcess = new CompletableFuture<>();
@@ -116,9 +121,7 @@ class GoblintAnalysisTest {
         GoblintServer goblintServer = mock(GoblintServer.class);
         GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
 
-        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
-        doReturn(true).when(goblintServer).isAlive();
-        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+        mockGoblintServerIsAlive(goblintServer);
 
         // Mock that the analyses of Goblint have started but not completed (still run)
         CompletableFuture<GoblintAnalysisResult> runningProcess = new CompletableFuture<>();
@@ -147,9 +150,7 @@ class GoblintAnalysisTest {
 
     @Test
     void preAnalyseTest() {
-        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
-        doReturn(true).when(goblintServer).isAlive();
-        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+        mockGoblintServerIsAlive(goblintServer);
 
         // A process that must be run before analysis
         String processPrintout = "'Hello'";
@@ -177,9 +178,7 @@ class GoblintAnalysisTest {
     */
     @Test
     void preAnalyseEmpty() {
-        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
-        doReturn(true).when(goblintServer).isAlive();
-        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+        mockGoblintServerIsAlive(goblintServer);
 
         // Mock that Goblint returns some messages
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
@@ -208,9 +207,7 @@ class GoblintAnalysisTest {
     */
     @Test
     void preAnalyseNull() {
-        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
-        doReturn(true).when(goblintServer).isAlive();
-        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+        mockGoblintServerIsAlive(goblintServer);
 
         // Mock that Goblint returns some messages
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
@@ -238,9 +235,7 @@ class GoblintAnalysisTest {
     */
     @Test
     void preAnalyseError() {
-        // Mock that GoblintServer is alive and everything is fine with Goblint's configuration file
-        doReturn(true).when(goblintServer).isAlive();
-        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+        mockGoblintServerIsAlive(goblintServer);
 
         // Mock that Goblint returns some messages
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
