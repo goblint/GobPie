@@ -57,10 +57,10 @@ class GoblintAnalysisTest {
         when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
     }
 
-    /*
-     Mock test to ensure @analyze function
-     messages user when analyzes fails
-    */
+    /**
+     * Mock test to ensure @analyze function
+     * messages user when analyzes fails
+     */
     @Test
     void analyzeFailed() {
         mockGoblintServerIsAlive(goblintServer);
@@ -82,10 +82,10 @@ class GoblintAnalysisTest {
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "GobPie failed to analyze the code:\n Testing failed analysis"));
     }
 
-    /*
-     Mock test to ensure @analyze function
-     behaviour in abort situation
-    */
+    /**
+     * Mock test to ensure @analyze function
+     * behaviour in abort situation
+     */
     @Test
     void abortAnalysis() throws IOException {
         // Mock server and change goblintAnalysis value
@@ -111,10 +111,10 @@ class GoblintAnalysisTest {
         runningProcess.complete(null);
     }
 
-    /*
-     Mock test to ensure @analyze function
-     behaves correctly when abort fails
-    */
+    /**
+     * Mock test to ensure @analyze function
+     * behaves correctly when abort fails
+     */
     @Test
     void abortAnalysisFails() throws IOException {
         // Mock server and change goblintAnalysis value
@@ -143,11 +143,10 @@ class GoblintAnalysisTest {
         runningProcess.complete(null);
     }
 
-    /*
-     Mock test to ensure @preAnalyse function
-     is functional and is called out in @analyze function
-    */
-
+    /**
+     * Mock test to ensure @preAnalyse function
+     * is functional and is called out in @analyze function
+     */
     @Test
     void preAnalyseTest() {
         mockGoblintServerIsAlive(goblintServer);
@@ -172,10 +171,10 @@ class GoblintAnalysisTest {
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains(processPrintout)));
     }
 
-    /*
-     Mock test to ensure @preAnalyse function
-     is functional when preAnalyzeCommand is empty
-    */
+    /**
+     * Mock test to ensure @preAnalyse function
+     * is functional when preAnalyzeCommand is empty
+     */
     @Test
     void preAnalyseEmpty() {
         mockGoblintServerIsAlive(goblintServer);
@@ -201,10 +200,10 @@ class GoblintAnalysisTest {
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
     }
 
-    /*
-     Mock test to ensure @preAnalyse function
-     is functional when preAnalyzeCommand is null
-    */
+    /**
+     * Mock test to ensure @preAnalyse function
+     * is functional when preAnalyzeCommand is null
+     */
     @Test
     void preAnalyseNull() {
         mockGoblintServerIsAlive(goblintServer);
@@ -229,10 +228,10 @@ class GoblintAnalysisTest {
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
     }
 
-    /*
-     Mock test to ensure @preAnalyse function
-     messages user when preAnalysis command fails
-    */
+    /**
+     * Mock test to ensure @preAnalyse function
+     * messages user when preAnalysis command fails
+     */
     @Test
     void preAnalyseError() {
         mockGoblintServerIsAlive(goblintServer);
