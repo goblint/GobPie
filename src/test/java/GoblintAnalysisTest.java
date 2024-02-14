@@ -35,17 +35,13 @@ class GoblintAnalysisTest {
     MagpieServer magpieServer = mock(MagpieServer.class);
     @Mock
     GoblintService goblintService = mock(GoblintService.class);
-
     @Mock
     GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
-
     @Spy
     GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
     @Mock
     GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
-
     GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
-
     @SystemStub
     private SystemOut systemOut;
 
@@ -66,10 +62,9 @@ class GoblintAnalysisTest {
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
         // Mock the arguments for calling the goblintAnalyze.analyze method
-        // And call the method twice
         Collection<? extends Module> files = new ArrayDeque<>();
         AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
-        goblintAnalysis.analyze(files, null, true);
+        goblintAnalysis.analyze(files, analysisConsumer, true);
 
         // Verify that Analysis has failed
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("---------------------- Analysis started ----------------------")));
@@ -135,17 +130,15 @@ class GoblintAnalysisTest {
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
-        //Throwable IOException = new Throwable(java.io.IOException);
-        //when(goblintServer.abortAnalysis()).thenThrow(IOException);
-
+        // Mock that abortAnalysis throws an exception when called
         doThrow(new IOException()).when(goblintServer).abortAnalysis();
+        
         // Mock the arguments for calling the goblintAnalyze.analyze method
         // And call the method twice
         Collection<? extends Module> files = new ArrayDeque<>();
         AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
         goblintAnalysis.analyze(files, analysisConsumer, true);
         goblintAnalysis.analyze(files, analysisConsumer, true);
-
 
         // Verify that abortAnalysis was indeed called once
         verify(goblintServer).abortAnalysis();
