@@ -42,6 +42,9 @@ class GoblintAnalysisTest {
     @Mock
     GoblintConfWatcher goblintConfWatcher = mock(GoblintConfWatcher.class);
     GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
+    // Mock the arguments (files and analysisConsumer) for calling the GoblintAnalyze.analyze method
+    Collection<? extends Module> files = new ArrayDeque<>();
+    AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
     @SystemStub
     private SystemOut systemOut;
 
@@ -61,9 +64,6 @@ class GoblintAnalysisTest {
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
-        // Mock the arguments for calling the goblintAnalyze.analyze method
-        Collection<? extends Module> files = new ArrayDeque<>();
-        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         // Verify that Analysis has failed
@@ -96,10 +96,7 @@ class GoblintAnalysisTest {
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
-        // Mock the arguments for calling the goblintAnalyze.analyze method
-        // And call the method twice
-        Collection<? extends Module> files = new ArrayDeque<>();
-        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
+        // Call analyze method twice
         goblintAnalysis.analyze(files, analysisConsumer, true);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
@@ -132,11 +129,8 @@ class GoblintAnalysisTest {
 
         // Mock that abortAnalysis throws an exception when called
         doThrow(new IOException()).when(goblintServer).abortAnalysis();
-        
-        // Mock the arguments for calling the goblintAnalyze.analyze method
-        // And call the method twice
-        Collection<? extends Module> files = new ArrayDeque<>();
-        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
+
+        // Call analyze method twice
         goblintAnalysis.analyze(files, analysisConsumer, true);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
@@ -168,9 +162,6 @@ class GoblintAnalysisTest {
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
-        // Mock the arguments for calling the goblintAnalyze.analyze method
-        Collection<? extends Module> files = new ArrayDeque<>();
-        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         // Verify that preAnalysis was indeed called once
@@ -203,9 +194,6 @@ class GoblintAnalysisTest {
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
-        // Mock the arguments for calling the goblintAnalyze.analyze method
-        Collection<? extends Module> files = new ArrayDeque<>();
-        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         // Verify that preAnalysis was indeed called once
@@ -236,9 +224,6 @@ class GoblintAnalysisTest {
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
-        // Mock the arguments for calling the goblintAnalyze.analyze method
-        Collection<? extends Module> files = new ArrayDeque<>();
-        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         // Verify that preAnalysis was indeed called once
@@ -270,9 +255,6 @@ class GoblintAnalysisTest {
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
-        // Mock the arguments for calling the goblintAnalyze.analyze method
-        Collection<? extends Module> files = new ArrayDeque<>();
-        AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         // Verify that preAnalysis was indeed called once
