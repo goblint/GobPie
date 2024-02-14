@@ -1,5 +1,8 @@
 package gobpie;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * The Class GobPieConfiguration.
  * <p>
@@ -62,6 +65,34 @@ public class GobPieConfiguration {
 
     public boolean useIncrementalAnalysis() {
         return incrementalAnalysis;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GobPieConfiguration that = (GobPieConfiguration) o;
+        return abstractDebugging == that.abstractDebugging && showCfg == that.showCfg && explodeGroupWarnings == that.explodeGroupWarnings && incrementalAnalysis == that.incrementalAnalysis && Objects.equals(goblintExecutable, that.goblintExecutable) && Objects.equals(goblintConf, that.goblintConf) && Arrays.equals(preAnalyzeCommand, that.preAnalyzeCommand);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(goblintExecutable, goblintConf, abstractDebugging, showCfg, explodeGroupWarnings, incrementalAnalysis);
+        result = 31 * result + Arrays.hashCode(preAnalyzeCommand);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "GobPieConfiguration{" +
+                "goblintExecutable='" + goblintExecutable + '\'' +
+                ", goblintConf='" + goblintConf + '\'' +
+                ", preAnalyzeCommand=" + Arrays.toString(preAnalyzeCommand) +
+                ", abstractDebugging=" + abstractDebugging +
+                ", showCfg=" + showCfg +
+                ", explodeGroupWarnings=" + explodeGroupWarnings +
+                ", incrementalAnalysis=" + incrementalAnalysis +
+                '}';
     }
 
     public static class Builder {
