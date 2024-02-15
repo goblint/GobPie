@@ -4,6 +4,7 @@ import analysis.GoblintMessagesAnalysisResult;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
 import magpiebridge.core.AnalysisResult;
+import org.thymeleaf.context.IContext;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -58,6 +59,11 @@ public class GoblintMessagesResult {
     public static class Piece implements MultiPiece {
         private String text;
         private GoblintLocation loc;
+        private context context;
+
+        public static class context {
+            private Integer tag;
+        }
 
         /**
          * Converts the Single (Piece type of) Goblint messages from the
@@ -70,7 +76,8 @@ public class GoblintMessagesResult {
          */
         public List<AnalysisResult> convert(List<Tag> tags, String severity, boolean explode) {
             GoblintPosition pos = getLocation(loc);
-            String msg = joinTags(tags) + " " + text;
+            String ctx = context == null || context.tag == null ? "" : " in context " + context.tag;
+            String msg = joinTags(tags) + " " + text + ctx;
             GoblintMessagesAnalysisResult result = new GoblintMessagesAnalysisResult(pos, msg, severity);
             return List.of(result);
         }
