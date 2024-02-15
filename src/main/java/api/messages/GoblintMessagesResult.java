@@ -4,7 +4,6 @@ import analysis.GoblintMessagesAnalysisResult;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
 import com.ibm.wala.util.collections.Pair;
 import magpiebridge.core.AnalysisResult;
-import org.thymeleaf.context.IContext;
 
 import java.io.File;
 import java.net.MalformedURLException;
