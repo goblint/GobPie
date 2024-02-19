@@ -2,23 +2,19 @@ import com.google.gson.JsonSyntaxException;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
-import gobpie.GobPieExceptionType;
 import magpiebridge.core.MagpieServer;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.stubbing.Answer;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
 import util.FileWatcher;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -28,11 +24,6 @@ class GobPieConfTest {
 
     @SystemStub
     private SystemOut systemOut;
-
-    @TempDir
-    static Path tempDir;
-    static Path tempFile;
-
 
     @Test
     void testReadGobPieConfiguration() {
@@ -92,16 +83,12 @@ class GobPieConfTest {
         FileWatcher gobPieConfWatcher = mock(FileWatcher.class);
         String gobPieConfFileName =  GobPieConfTest.class.getResource("gobpie.json").getFile();
 
-        //tempFile = Files.createFile(tempDir.resolve("gobpie.json"));
-        //String gobPieConfFileName = String.valueOf(tempFile);
-
         GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
-        //when(Files.exists(any(Path.class))).thenReturn(false);
         doNothing().when(gobPieConfWatcher).waitForModified();
 
-
         GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
-
+        //.waitForModified() juurde jääb kinni
+        
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration file is not found in the project root.")));
     }
@@ -162,6 +149,31 @@ class GobPieConfTest {
 
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "goblintConf parameter missing from GobPie configuration file."));
+    }
+
+    @Test
+    void testGobPieConfigurationDefaultValues() {
+        // Mock everything needed for creating GobPieConfReader
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest7.json").getFile();
+        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
+
+        GobPieConfiguration expectedGobPieConfiguration =
+                new GobPieConfiguration.Builder()
+                        .setGoblintConf("goblint.json")
+                        .setGoblintExecutable("goblint")
+                        .setPreAnalyzeCommand(null)
+                        .setAbstractDebugging(false)
+                        .setShowCfg(false)
+                        .setIncrementalAnalysis(true)
+                        .setExplodeGroupWarnings(true)
+                        .createGobPieConfiguration();
+
+        GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
+
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
+        assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
     }
 
 
