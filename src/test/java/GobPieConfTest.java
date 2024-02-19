@@ -1,6 +1,11 @@
+import com.google.gson.JsonSyntaxException;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
+import gobpie.GobPieException;
+import gobpie.GobPieExceptionType;
 import magpiebridge.core.MagpieServer;
+import org.eclipse.lsp4j.MessageParams;
+import org.eclipse.lsp4j.MessageType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -15,8 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(SystemStubsExtension.class)
@@ -135,22 +139,16 @@ class GobPieConfTest {
         String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest5.json").getFile();
         GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
 
-        GobPieConfiguration expectedGobPieConfiguration =
-                new GobPieConfiguration.Builder()
-                        .setGoblintConf("goblint.json")
-                        .setGoblintExecutable("/home/user/goblint/analyzer/goblint")
-                        .setPreAnalyzeCommand(new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"})
-                        .setAbstractDebugging(false)
-                        .setShowCfg(false)
-                        .setIncrementalAnalysis(true)
-                        .setExplodeGroupWarnings(false)
-                        .createGobPieConfiguration();
-
-        GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
-
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
-        assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
+        assertThrows(GobPieException.class, ()-> {
+            try{
+                GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
+            }
+            catch (JsonSyntaxException e) {
+                assertEquals("GobPie configuration file syntax is wrong.", e.getMessage());
+            }
+        });
     }
+
+    
 
 }
