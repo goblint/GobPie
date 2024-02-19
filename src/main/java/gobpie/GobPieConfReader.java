@@ -28,7 +28,9 @@ public class GobPieConfReader {
 
     private final MagpieServer magpieServer;
     private final String gobPieConfFileName;
-    private static final Logger log = LogManager.getLogger(GobPieConfReader.class);
+    //private static final Logger log = LogManager.getLogger(GobPieConfReader.class);
+    //changed (erased static)
+    private final Logger log = LogManager.getLogger(GobPieConfReader.class);
 
     public GobPieConfReader(MagpieServer magpieServer, String gobPieConfFileName) {
         this.magpieServer = magpieServer;

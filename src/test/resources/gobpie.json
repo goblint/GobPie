@@ -1,8 +1,0 @@
-{
-  "goblintConf": "goblint.json",
-  "goblintExecutable": "/home/user/goblint/analyzer/goblint",
-  "preAnalyzeCommand": ["echo", "'hello'"],
-  "abstractDebugging": true,
-  "showCfg": true,
-  "incrementalAnalysis": false
-}
