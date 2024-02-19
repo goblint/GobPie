@@ -149,6 +149,20 @@ class GobPieConfTest {
         });
     }
 
-    
+
+    @Test
+    void testGobPieConfigurationWithoutGoblintConfField() {
+        // Mock everything needed for creating GobPieConfReader
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest6.json").getFile();
+        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
+
+        GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
+        //.waitForModified() juurde jääb kinni
+
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "goblintConf parameter missing from GobPie configuration file."));
+    }
+
 
 }
