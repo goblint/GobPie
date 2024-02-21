@@ -4,7 +4,6 @@
   "preAnalyzeCommand": ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"],
   "abstractDebugging": false,
   "showCfg": false,
-  "explodeGroupWarnings": false,
-  "incrementalAnalysis": true,
-  "extraField": false
+  "explodeGroupWarnings": false
+  "incrementalAnalysis": false
 }
