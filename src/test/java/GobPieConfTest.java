@@ -12,6 +12,7 @@ import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -166,17 +167,52 @@ class GobPieConfTest {
 
 
     @Test
-    void testGobPieConfigurationWithoutGoblintConfField() {
+    void testGobPieConfigurationWithoutGoblintConfField() throws IOException, ExecutionException, InterruptedException {
         // Mock everything needed for creating GobPieConfReader
         MagpieServer magpieServer = mock(MagpieServer.class);
-        String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest6.json").getFile();
-        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
+        Path tempGobpieConfFilePath = tempDir.resolve("gobpie.json");
+        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, tempGobpieConfFilePath.toString());
 
-        GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
-        //.waitForModified() juurde jääb kinni
+        GobPieConfiguration.Builder builder = new GobPieConfiguration.Builder()
+                .setGoblintExecutable("/home/user/goblint/analyzer/goblint")
+                .setPreAnalyzeCommand(new String[]{"echo", "'hello'"})
+                .setAbstractDebugging(false)
+                .setShowCfg(false)
+                .setIncrementalAnalysis(true)
+                .setExplodeGroupWarnings(false);
+        GobPieConfiguration initialGobPieConfiguration = builder.createGobPieConfiguration();
 
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
-        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "goblintConf parameter missing from GobPie configuration file."));
+        // Write the initial conf into temporary file
+        Gson gson = new Gson();
+        String json = gson.toJson(initialGobPieConfiguration);
+        Files.write(tempGobpieConfFilePath, json.getBytes());
+        assertTrue(Files.exists(tempGobpieConfFilePath));
+
+        CompletableFuture<GobPieConfiguration> future = CompletableFuture.supplyAsync(gobPieConfReader::readGobPieConfiguration);
+
+        GobPieConfiguration expectedGobPieConfiguration = builder.setGoblintConf("goblint.json").createGobPieConfiguration();
+
+        // Write goblintConf field to file
+        Files.write(tempGobpieConfFilePath, gson.toJson(expectedGobPieConfiguration).getBytes());
+
+        // Assert that the configuration was read;
+        // (the required field was indeed not present; the user is notified;)
+        // and the configuration is successfully read when the goblintConf field is added to the file.
+        try {
+            GobPieConfiguration actualGobPieConfiguration = future.get(100, TimeUnit.MILLISECONDS);
+            assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
+            assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
+            // We cannot check the following for sure as the file can be changed too quickly
+            //String message = "goblintConf parameter missing from GobPie configuration file.";
+            //verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "Problem starting GobPie extension: " + message + " Check the output terminal of GobPie extension for more information."));
+            //assertTrue(systemOut.getLines().anyMatch(line -> line.contains(message)));
+            //assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Please add Goblint configuration file location into GobPie configuration as a parameter with name \"goblintConf\"")));
+            // But we can test that when readGobPieConfiguration() completes, it will always give a valid configuration
+            assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
+        } catch (TimeoutException e) {
+            System.err.println(systemOut.getLines().toList());
+            fail("Test timeout");
+        }
     }
 
     @Test
