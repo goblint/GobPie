@@ -12,7 +12,6 @@ import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,12 +58,72 @@ class GobPieConfTest {
         assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
     }
 
-
     @Test
     void testReadCompleteGobPieConfiguration() {
         // Mock everything needed for creating GobPieConfReader
         MagpieServer magpieServer = mock(MagpieServer.class);
         String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest2.json").getFile();
+        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
+
+        GobPieConfiguration expectedGobPieConfiguration =
+                new GobPieConfiguration.Builder()
+                        .setGoblintConf("goblint.json")
+                        .setGoblintExecutable("/home/user/goblint/analyzer/goblint")
+                        .setPreAnalyzeCommand(new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"})
+                        .setAbstractDebugging(false)
+                        .setShowCfg(false)
+                        .setIncrementalAnalysis(true)
+                        .setExplodeGroupWarnings(false)
+                        .createGobPieConfiguration();
+
+        GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
+
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
+        assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
+    }
+
+    @Test
+    void testGobPieConfigurationDefaultValues() {
+        // Mock everything needed for creating GobPieConfReader
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest7.json").getFile();
+        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
+
+        GobPieConfiguration expectedGobPieConfiguration =
+                new GobPieConfiguration.Builder()
+                        .setGoblintConf("goblint.json")
+                        .setGoblintExecutable("goblint")
+                        .setPreAnalyzeCommand(null)
+                        .setAbstractDebugging(false)
+                        .setShowCfg(false)
+                        .setIncrementalAnalysis(true)
+                        .setExplodeGroupWarnings(true)
+                        .createGobPieConfiguration();
+
+        GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
+
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
+        assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
+    }
+
+    @Test
+    void testReadGobPieConfigurationWithWrongJSONSyntax() {
+        // Mock everything needed for creating GobPieConfReader
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest5.json").getFile();
+        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
+
+        GobPieException thrown = assertThrows(GobPieException.class, gobPieConfReader::readGobPieConfiguration);
+        assertEquals("GobPie configuration file syntax is wrong.", thrown.getMessage());
+    }
+
+    @Test
+    void testReadGobPieConfigurationWithExtraField() {
+        // Mock everything needed for creating GobPieConfReader
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest4.json").getFile();
         GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
 
         GobPieConfiguration expectedGobPieConfiguration =
@@ -128,44 +187,6 @@ class GobPieConfTest {
         }
     }
 
-
-    @Test
-    void testReadGobPieConfigurationWithExtraField() {
-        // Mock everything needed for creating GobPieConfReader
-        MagpieServer magpieServer = mock(MagpieServer.class);
-        String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest4.json").getFile();
-        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
-
-        GobPieConfiguration expectedGobPieConfiguration =
-                new GobPieConfiguration.Builder()
-                        .setGoblintConf("goblint.json")
-                        .setGoblintExecutable("/home/user/goblint/analyzer/goblint")
-                        .setPreAnalyzeCommand(new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"})
-                        .setAbstractDebugging(false)
-                        .setShowCfg(false)
-                        .setIncrementalAnalysis(true)
-                        .setExplodeGroupWarnings(false)
-                        .createGobPieConfiguration();
-
-        GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
-
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
-        assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
-    }
-
-    @Test
-    void testReadGobPieConfigurationWithWrongJSONSyntax() {
-        // Mock everything needed for creating GobPieConfReader
-        MagpieServer magpieServer = mock(MagpieServer.class);
-        String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest5.json").getFile();
-        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
-
-        GobPieException thrown = assertThrows(GobPieException.class, gobPieConfReader::readGobPieConfiguration);
-        assertEquals("GobPie configuration file syntax is wrong.", thrown.getMessage());
-    }
-
-
     @Test
     void testGobPieConfigurationWithoutGoblintConfField() throws IOException, ExecutionException, InterruptedException {
         // Mock everything needed for creating GobPieConfReader
@@ -215,7 +236,7 @@ class GobPieConfTest {
     }
 
     @Test
-    void testGobPieConfigurationWithoutGoblintConfField2() throws IOException, ExecutionException, InterruptedException {
+    void testGobPieConfigurationWithoutGoblintConfField2() throws ExecutionException, InterruptedException {
         // Mock everything needed for creating GobPieConfReader
         MagpieServer magpieServer = mock(MagpieServer.class);
         String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest6.json").getFile();
@@ -238,31 +259,5 @@ class GobPieConfTest {
             assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Please add Goblint configuration file location into GobPie configuration as a parameter with name \"goblintConf\"")));
         }
     }
-
-    @Test
-    void testGobPieConfigurationDefaultValues() {
-        // Mock everything needed for creating GobPieConfReader
-        MagpieServer magpieServer = mock(MagpieServer.class);
-        String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest7.json").getFile();
-        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
-
-        GobPieConfiguration expectedGobPieConfiguration =
-                new GobPieConfiguration.Builder()
-                        .setGoblintConf("goblint.json")
-                        .setGoblintExecutable("goblint")
-                        .setPreAnalyzeCommand(null)
-                        .setAbstractDebugging(false)
-                        .setShowCfg(false)
-                        .setIncrementalAnalysis(true)
-                        .setExplodeGroupWarnings(true)
-                        .createGobPieConfiguration();
-
-        GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
-
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
-        assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
-    }
-
 
 }
