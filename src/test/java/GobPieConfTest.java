@@ -28,7 +28,7 @@ import static org.mockito.Mockito.verify;
 class GobPieConfTest {
 
     @TempDir
-    static Path tempDir;
+    private Path tempDir;
 
     @SystemStub
     private SystemOut systemOut;
