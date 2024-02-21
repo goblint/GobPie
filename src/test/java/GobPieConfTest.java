@@ -126,15 +126,8 @@ class GobPieConfTest {
         String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest5.json").getFile();
         GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
 
-        assertThrows(GobPieException.class, ()-> {
-            try{
-                GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
-            }
-            catch (JsonSyntaxException e) {
-                assertEquals("GobPie configuration file syntax is wrong.", e.getMessage());
-            }
-        });
-    }
+        GobPieException thrown = assertThrows(GobPieException.class, gobPieConfReader::readGobPieConfiguration);
+        assertEquals("GobPie configuration file syntax is wrong.", thrown.getMessage());
 
 
     @Test
