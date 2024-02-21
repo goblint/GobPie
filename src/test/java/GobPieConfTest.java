@@ -1,4 +1,4 @@
-import com.google.gson.JsonSyntaxException;
+import com.google.gson.Gson;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
@@ -11,16 +11,24 @@ import org.junit.jupiter.api.io.TempDir;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
-import util.FileWatcher;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(SystemStubsExtension.class)
 class GobPieConfTest {
+
+    @TempDir
+    static Path tempDir;
 
     @SystemStub
     private SystemOut systemOut;
@@ -77,20 +85,46 @@ class GobPieConfTest {
     }
 
     @Test
-    void testGobPieConfigurationFailMissingInRoot() throws InterruptedException, IOException {
+    void testGobPieConfigurationFileMissingInRoot() throws IOException, ExecutionException, InterruptedException {
         // Mock everything needed for creating GobPieConfReader
         MagpieServer magpieServer = mock(MagpieServer.class);
-        FileWatcher gobPieConfWatcher = mock(FileWatcher.class);
-        String gobPieConfFileName =  GobPieConfTest.class.getResource("gobpie.json").getFile();
 
-        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
-        doNothing().when(gobPieConfWatcher).waitForModified();
+        Path tempGobpieConfFilePath = tempDir.resolve("gobpie.json");
+        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, tempGobpieConfFilePath.toString());
 
-        GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
-        //.waitForModified() juurde jääb kinni
-        
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration file is not found in the project root.")));
+        assertFalse(Files.exists(tempGobpieConfFilePath));
+
+        CompletableFuture<GobPieConfiguration> future = CompletableFuture.supplyAsync(gobPieConfReader::readGobPieConfiguration);
+
+        GobPieConfiguration expectedGobPieConfiguration =
+                new GobPieConfiguration.Builder()
+                        .setGoblintConf("goblint.json")
+                        .setGoblintExecutable("goblint")
+                        .setAbstractDebugging(false)
+                        .setShowCfg(false)
+                        .setIncrementalAnalysis(true)
+                        .setExplodeGroupWarnings(false)
+                        .createGobPieConfiguration();
+
+
+        // Write the expected conf into temporary file
+        Gson gson = new Gson();
+        String json = gson.toJson(expectedGobPieConfiguration);
+        Files.write(tempGobpieConfFilePath, json.getBytes());
+
+        // Assert that the file was indeed not present;
+        // the user is notified;
+        // and the configuration is successfully read when the configuration file is created
+        try {
+            GobPieConfiguration actualGobPieConfiguration = future.get(100, TimeUnit.MILLISECONDS);
+            String message = "GobPie configuration file is not found in the project root.";
+            verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "Problem starting GobPie extension: " + message + " Check the output terminal of GobPie extension for more information."));
+            assertTrue(systemOut.getLines().anyMatch(line -> line.contains(message)));
+            assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Please add GobPie configuration file into the project root.")));
+            assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
+        } catch (TimeoutException e) {
+            fail("Test timeout");
+        }
     }
 
 
@@ -128,6 +162,7 @@ class GobPieConfTest {
 
         GobPieException thrown = assertThrows(GobPieException.class, gobPieConfReader::readGobPieConfiguration);
         assertEquals("GobPie configuration file syntax is wrong.", thrown.getMessage());
+    }
 
 
     @Test
