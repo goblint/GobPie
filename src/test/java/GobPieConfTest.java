@@ -166,6 +166,7 @@ class GobPieConfTest {
                         .setExplodeGroupWarnings(false)
                         .createGobPieConfiguration();
 
+        Thread.sleep(10); // TODO: real sketchy hack
 
         // Write the expected conf into temporary file
         Gson gson = new Gson();
