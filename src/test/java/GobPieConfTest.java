@@ -210,8 +210,32 @@ class GobPieConfTest {
             // But we can test that when readGobPieConfiguration() completes, it will always give a valid configuration
             assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
         } catch (TimeoutException e) {
-            System.err.println(systemOut.getLines().toList());
             fail("Test timeout");
+        }
+    }
+
+    @Test
+    void testGobPieConfigurationWithoutGoblintConfField2() throws IOException, ExecutionException, InterruptedException {
+        // Mock everything needed for creating GobPieConfReader
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        String gobPieConfFileName = GobPieConfTest.class.getResource("gobpieTest6.json").getFile();
+        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
+
+        CompletableFuture<GobPieConfiguration> future = CompletableFuture.supplyAsync(gobPieConfReader::readGobPieConfiguration);
+
+        // Assert that the configuration was read;
+        // the required field was indeed not present;
+        // and the user is notified.
+        try {
+            future.get(100, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            // Only check for the user notification
+            assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
+            assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
+            String message = "goblintConf parameter missing from GobPie configuration file.";
+            verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "Problem starting GobPie extension: " + message + " Check the output terminal of GobPie extension for more information."));
+            assertTrue(systemOut.getLines().anyMatch(line -> line.contains(message)));
+            assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Please add Goblint configuration file location into GobPie configuration as a parameter with name \"goblintConf\"")));
         }
     }
 
