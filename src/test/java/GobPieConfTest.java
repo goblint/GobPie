@@ -69,6 +69,7 @@ class GobPieConfTest {
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
         assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
     }
+
     /*
      * Mock test to ensure @readGobPieConfiguration function
      * reads Complete GobPie configuration with different Boolean values
@@ -116,6 +117,7 @@ class GobPieConfTest {
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
         assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
     }
+
     /*
      * Mock test to ensure @readGobPieConfiguration function
      * throws an exception when there is a syntax error in the JSON
@@ -201,7 +203,7 @@ class GobPieConfTest {
 
     /*
      * Mock test to ensure @readGobPieConfiguration function
-     * 
+     *
      */
     @Test
     void testGobPieConfigurationWithoutGoblintConfField() throws IOException, ExecutionException, InterruptedException {
