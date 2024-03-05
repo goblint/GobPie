@@ -150,7 +150,8 @@ class GobPieConfTest {
 
         GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "There was an unknown option in the GobPie configuration. Please check for any typos."));
+        //assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
         assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
     }
 
