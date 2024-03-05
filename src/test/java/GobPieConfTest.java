@@ -203,8 +203,9 @@ class GobPieConfTest {
     }
 
     /**
-     * Mock test to ensure @readGobPieConfiguration function
-     *
+     * Mock test to ensure @readGobPieConfiguration function reads configuration
+     * when the required field is not present. After adding the required field to the
+     * configuration, verify that the function successfully reads the updated configuration.
      */
     @Test
     void testGobPieConfigurationWithoutGoblintConfField() throws IOException, ExecutionException, InterruptedException {
@@ -262,7 +263,6 @@ class GobPieConfTest {
     @Test
     void testGobPieConfigurationWithoutGoblintConfField2() throws ExecutionException, InterruptedException {
         GobPieConfReader gobPieConfReader = preFileSetup(6);
-
         CompletableFuture<GobPieConfiguration> future = CompletableFuture.supplyAsync(gobPieConfReader::readGobPieConfiguration);
 
         // Assert that the configuration was read;
