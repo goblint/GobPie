@@ -47,7 +47,7 @@ class GobPieConfTest {
         return new GobPieConfReader(magpieServer, gobPieConfFileName);
     }
 
-    /*
+    /**
      * Mock test to ensure @readGobPieConfiguration function
      * reads GobPie configuration
      */
@@ -71,7 +71,7 @@ class GobPieConfTest {
         assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
     }
 
-    /*
+    /**
      * Mock test to ensure @readGobPieConfiguration function
      * reads Complete GobPie configuration with different Boolean values
      */
@@ -95,7 +95,7 @@ class GobPieConfTest {
         assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
     }
 
-    /*
+    /**
      * Mock test to ensure @readGobPieConfiguration function
      * accurately retrieves default values
      */
@@ -119,7 +119,7 @@ class GobPieConfTest {
         assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
     }
 
-    /*
+    /**
      * Mock test to ensure @readGobPieConfiguration function
      * throws an exception when there is a syntax error in the JSON
      */
@@ -130,7 +130,7 @@ class GobPieConfTest {
         assertEquals("GobPie configuration file syntax is wrong.", thrown.getMessage());
     }
 
-    /*
+    /**
      * Mock test to ensure @readGobPieConfiguration function
      * checks for the presence of an unexpected field in the configuration
      */
@@ -202,7 +202,7 @@ class GobPieConfTest {
         }
     }
 
-    /*
+    /**
      * Mock test to ensure @readGobPieConfiguration function
      *
      */
@@ -254,7 +254,7 @@ class GobPieConfTest {
         }
     }
 
-    /*
+    /**
      * Mock test to ensure @readGobPieConfiguration function
      * messages user when goblintConf parameter is missing
      * from GobPie configuration file.
