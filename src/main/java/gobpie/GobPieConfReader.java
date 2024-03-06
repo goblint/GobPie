@@ -1,5 +1,6 @@
 package gobpie;
 
+import api.json.GobPieConfValidatorAdapterFactory;
 import com.google.gson.*;
 import magpiebridge.core.MagpieServer;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -93,21 +94,25 @@ public class GobPieConfReader {
     public GobPieConfiguration parseGobPieConf() {
         try {
             log.debug("Reading GobPie configuration from json");
-            Gson gson = new GsonBuilder().create();
+            Gson gson = new GsonBuilder()
+                    .registerTypeAdapterFactory(new GobPieConfValidatorAdapterFactory())
+                    .create();
             // Read json object
             JsonObject jsonObject = JsonParser.parseReader(new FileReader(gobPieConfFileName)).getAsJsonObject();
             // Convert json object to GobPieConfiguration object
             log.debug("GobPie configuration read from json");
             return gson.fromJson(jsonObject, GobPieConfiguration.class);
-        } catch (FileNotFoundException e) {
-            throw new GobPieException("Could not locate GobPie configuration file.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
         } catch (JsonSyntaxException e) {
             throw new GobPieException("GobPie configuration file syntax is wrong.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
+        } catch (JsonParseException e) {
+            throw new GobPieException("There was an unknown option \"" + e.getMessage() + "\" in the GobPie configuration. Please check for any typos.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
+        } catch (FileNotFoundException e) {
+            throw new GobPieException("Could not locate GobPie configuration file.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
         }
     }
 
 
-/**
+    /**
      * Method for forwarding Error messages to MagpieServer.
      *
      * @param popUpMessage    The message shown on the pop-up message.

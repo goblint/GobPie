@@ -137,22 +137,8 @@ class GobPieConfTest {
     @Test
     void testReadGobPieConfigurationWithExtraField() {
         GobPieConfReader gobPieConfReader = preFileSetup(5);
-        GobPieConfiguration expectedGobPieConfiguration =
-                new GobPieConfiguration.Builder()
-                        .setGoblintConf("goblint.json")
-                        .setGoblintExecutable("/home/user/goblint/analyzer/goblint")
-                        .setPreAnalyzeCommand(new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"})
-                        .setAbstractDebugging(false)
-                        .setShowCfg(false)
-                        .setIncrementalAnalysis(true)
-                        .setExplodeGroupWarnings(false)
-                        .createGobPieConfiguration();
-
-        GobPieConfiguration actualGobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Reading GobPie configuration from json")));
-        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "There was an unknown option in the GobPie configuration. Please check for any typos."));
-        //assertTrue(systemOut.getLines().anyMatch(line -> line.contains("GobPie configuration read from json")));
-        assertEquals(expectedGobPieConfiguration, actualGobPieConfiguration);
+        GobPieException thrown = assertThrows(GobPieException.class, gobPieConfReader::readGobPieConfiguration);
+        assertEquals("There was an unknown option \"extraField\" in the GobPie configuration. Please check for any typos.", thrown.getMessage());
     }
 
     /**
