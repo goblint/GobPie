@@ -31,6 +31,12 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.mock-server</groupId>
+            <artifactId>mockserver-netty</artifactId>
+            <version>5.14.0</version>
+        </dependency>
+
         <!-- junit -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
