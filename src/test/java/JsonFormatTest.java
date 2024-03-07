@@ -1,13 +1,9 @@
 import api.json.GoblintMessageJsonHandler;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.integration.ClientAndServer;
-import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
-
 import java.io.IOException;
-
 import static org.mockito.Mockito.mock;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
@@ -31,7 +27,7 @@ public class JsonFormatTest {
     @Test
     void TestConvertMessagesFromJson() throws IOException {
 
-        try(ClientAndServer mockServer = new ClientAndServer(1080)) {
+        try (ClientAndServer mockServer = new ClientAndServer(1080)) {
             var respond = new MockServerClient("localhost", 1080)
                     .when(
                             request()
@@ -42,12 +38,9 @@ public class JsonFormatTest {
                             response()
                                     .withStatusCode(302)
                     );
-        };
+        }
+        ;
     }
-
-
-
-
 
 
 }
