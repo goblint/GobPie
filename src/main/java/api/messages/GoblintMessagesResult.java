@@ -24,24 +24,10 @@ import java.util.stream.Collectors;
 @SuppressWarnings({"unused"})
 public class GoblintMessagesResult {
 
-    private final String type ;
-    //private final String type = getClass().getName();
-    private final List<Tag> tags;
-    //private final List<Tag> tags = new ArrayList<>();
+    private final String type = getClass().getName();
+    private final List<Tag> tags = new ArrayList<>();
     private String severity;
     private MultiPiece multipiece;
-
-    public GoblintMessagesResult() {
-        this.type = getClass().getName();
-        this.tags = new ArrayList<>();
-    }
-
-    public GoblintMessagesResult(String type, List<Tag> tags, String severity, MultiPiece multipiece) {
-        this.type = type;
-        this.tags = tags;
-        this.severity = severity;
-        this.multipiece = multipiece;
-    }
 
     public interface Tag {
         String toString();
@@ -168,42 +154,4 @@ public class GoblintMessagesResult {
         return multipiece.convert(tags, severity, explode);
     }
 
-
-    public static final class Builder {
-        private String type;
-        private List<Tag> tags;
-        private String severity;
-        private MultiPiece multipiece;
-
-        public Builder() {
-        }
-
-        public static Builder aGoblintMessagesResult() {
-            return new Builder();
-        }
-
-        public Builder withType(String type) {
-            this.type = type;
-            return this;
-        }
-
-        public Builder withTags(List<Tag> tags) {
-            this.tags = tags;
-            return this;
-        }
-
-        public Builder withSeverity(String severity) {
-            this.severity = severity;
-            return this;
-        }
-
-        public Builder withMultipiece(MultiPiece multipiece) {
-            this.multipiece = multipiece;
-            return this;
-        }
-
-        public GoblintMessagesResult build() {
-            return new GoblintMessagesResult(type, tags, severity, multipiece);
-        }
-    }
 }
