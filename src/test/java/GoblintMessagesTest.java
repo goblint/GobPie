@@ -105,6 +105,7 @@ public class GoblintMessagesTest {
 
         URL emptyUrl = new File("").toURI().toURL();
         GoblintPosition defaultPos = new GoblintPosition(1, 1, 1, 1, emptyUrl);
+        URL exampleUrl = new File("src/example.c").toURI().toURL();
 
         List<AnalysisResult> response = new ArrayList<>();
         response.add(
@@ -121,24 +122,24 @@ public class GoblintMessagesTest {
         );
         response.add(
                 new GoblintMessagesAnalysisResult(
-                        new GoblintPosition(4, 4, 4, 12, emptyUrl),
+                        new GoblintPosition(4, 4, 4, 12, exampleUrl),
                         "[Race] Memory location myglobal (race with conf. 110)",
                         "Warning",
                         List.of(
                                 Pair.make(
-                                        new GoblintPosition(10, 10, 2, 21, emptyUrl),
+                                        new GoblintPosition(10, 10, 2, 21, exampleUrl),
                                         "write with [mhp:{tid=[main, t_fun@src/example.c:17:3-17:40#top]}, lock:{mutex1}, thread:[main, t_fun@src/example.c:17:3-17:40#top]] (conf. 110)  (exp: & myglobal)"
                                 ),
                                 Pair.make(
-                                        new GoblintPosition(19, 19, 2, 21, emptyUrl),
+                                        new GoblintPosition(19, 19, 2, 21, exampleUrl),
                                         "write with [mhp:{tid=[main]; created={[main, t_fun@src/example.c:17:3-17:40#top]}}, lock:{mutex2}, thread:[main]] (conf. 110)  (exp: & myglobal)"
                                 ),
                                 Pair.make(
-                                        new GoblintPosition(10, 10, 2, 21, emptyUrl),
+                                        new GoblintPosition(10, 10, 2, 21, exampleUrl),
                                         "read with [mhp:{tid=[main, t_fun@src/example.c:17:3-17:40#top]}, lock:{mutex1}, thread:[main, t_fun@src/example.c:17:3-17:40#top]] (conf. 110)  (exp: & myglobal)"
                                 ),
                                 Pair.make(
-                                        new GoblintPosition(19, 19, 2, 21, emptyUrl),
+                                        new GoblintPosition(19, 19, 2, 21, exampleUrl),
                                         "read with [mhp:{tid=[main]; created={[main, t_fun@src/example.c:17:3-17:40#top]}}, lock:{mutex2}, thread:[main]] (conf. 110)  (exp: & myglobal)"
                                 )
                         )

@@ -83,18 +83,17 @@ public class GoblintPosition implements Position {
         return sourcefileURL;
     }
 
-    // TODO: omits sourcefileURL
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         GoblintPosition that = (GoblintPosition) o;
-        return columnStart == that.columnStart && columnEnd == that.columnEnd && lineStart == that.lineStart && lineEnd == that.lineEnd;
+        return columnStart == that.columnStart && columnEnd == that.columnEnd && lineStart == that.lineStart && lineEnd == that.lineEnd && Objects.equals(sourcefileURL, that.sourcefileURL);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(columnStart, columnEnd, lineStart, lineEnd);
+        return Objects.hash(columnStart, columnEnd, lineStart, lineEnd, sourcefileURL);
     }
 
     @Override
