@@ -97,7 +97,7 @@ public class Main {
      *
      * @throws GobPieException if running the server start command fails
      */
-    private static GoblintServer startGoblintServer(MagpieServer magpieServer, GobPieConfiguration gobpieConfiguration) {
+    public static GoblintServer startGoblintServer(MagpieServer magpieServer, GobPieConfiguration gobpieConfiguration) {
         GoblintServer goblintServer = new GoblintServer(magpieServer, gobpieConfiguration);
         if (log.isDebugEnabled()) {
             log.debug("Goblint version info:\n" + goblintServer.checkGoblintVersion());
