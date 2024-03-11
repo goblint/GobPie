@@ -90,7 +90,7 @@ public class GoblintMessagesTest {
 
     private List<GoblintFunctionsResult> readGoblintResponseJsonFunc() throws IOException {
         String functions = Files.readString(
-                Path.of(GoblintMessagesTest.class.getResource("messagesResponse.json").getPath())
+                Path.of(GoblintMessagesTest.class.getResource("functionsResponse.json").getPath())
         );
         return gson.fromJson(functions, new TypeToken<List<GoblintFunctionsResult>>() {}.getType());
     }
@@ -179,7 +179,8 @@ public class GoblintMessagesTest {
         List<GoblintFunctionsResult> goblintFunctionsResults = readGoblintResponseJsonFunc();
 
         when(goblintService.functions()).thenReturn(CompletableFuture.completedFuture(goblintFunctionsResults));
-        when(gobPieConfiguration.showCfg()).thenReturn(false);
+        when(gobPieConfiguration.showCfg()).thenReturn(true);
+        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(null));
 
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
@@ -193,8 +194,6 @@ public class GoblintMessagesTest {
                         defaultPos,
                         "2.0",
                         "t_fun"
-
-
                 )
         );
         response.add(
