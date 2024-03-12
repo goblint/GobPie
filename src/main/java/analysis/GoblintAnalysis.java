@@ -121,6 +121,9 @@ public class GoblintAnalysis implements ServerAnalysis {
         log.info("---------------------- Analysis started ----------------------");
 
         lastAnalysisTask = reanalyse().thenAccept(response -> {
+            for (AnalysisResult analysisResult : response) {
+                System.out.println(analysisResult.toString());
+            }
             consumer.consume(new ArrayList<>(response), source());
 
             log.info("--------------------- Analysis finished ----------------------");

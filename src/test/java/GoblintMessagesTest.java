@@ -180,7 +180,7 @@ public class GoblintMessagesTest {
 
         when(goblintService.functions()).thenReturn(CompletableFuture.completedFuture(goblintFunctionsResults));
         when(gobPieConfiguration.showCfg()).thenReturn(true);
-        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(null));
+        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
 
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
