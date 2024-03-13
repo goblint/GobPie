@@ -39,8 +39,6 @@ public class GoblintServer {
     private static final int SIGINT = 2;
     private final MagpieServer magpieServer;
     private final GobPieConfiguration configuration;
-    private final String[] goblintRunCommand;
-
     private StartedProcess goblintRunProcess;
 
     private final Logger log = LogManager.getLogger(GoblintServer.class);
@@ -49,7 +47,6 @@ public class GoblintServer {
     public GoblintServer(MagpieServer magpieServer, GobPieConfiguration configuration) {
         this.magpieServer = magpieServer;
         this.configuration = configuration;
-        this.goblintRunCommand = constructGoblintRunCommand();
     }
 
     /**
@@ -149,6 +146,7 @@ public class GoblintServer {
                     // TODO: throw an exception? where (and how) can it be caught to be handled though?
                 }
             };
+            String[] goblintRunCommand = constructGoblintRunCommand();
             log.info("Goblint run with command: " + String.join(" ", goblintRunCommand));
             goblintRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand, listener);
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
