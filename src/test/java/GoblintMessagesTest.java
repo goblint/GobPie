@@ -106,16 +106,13 @@ public class GoblintMessagesTest {
     @Test
     public void testConvertMessagesFromJson() throws IOException {
         List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson();
-
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
         when(gobPieConfiguration.showCfg()).thenReturn(false);
-
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         URL emptyUrl = new File("").toURI().toURL();
         GoblintPosition defaultPos = new GoblintPosition(1, 1, 1, 1, emptyUrl);
         URL exampleUrl = new File("src/example.c").toURI().toURL();
-
         List<AnalysisResult> response = new ArrayList<>();
         response.add(
                 new GoblintMessagesAnalysisResult(
@@ -177,49 +174,34 @@ public class GoblintMessagesTest {
     @Test
     public void testConvertFunctionsFromJson() throws IOException {
         List<GoblintFunctionsResult> goblintFunctionsResults = readGoblintResponseJsonFunc();
-
         when(goblintService.functions()).thenReturn(CompletableFuture.completedFuture(goblintFunctionsResults));
         when(gobPieConfiguration.showCfg()).thenReturn(true);
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
-
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         URL emptyUrl = new File("").toURI().toURL();
         GoblintPosition defaultPos = new GoblintPosition(1, 1, 1, 1, emptyUrl);
         URL exampleUrl = new File("src/example.c").toURI().toURL();
-
         List<AnalysisResult> response = new ArrayList<>();
         response.add(
                 new GoblintCFGAnalysisResult(
-                        defaultPos,
-                        "2.0",
+                        new GoblintPosition(8,13,0,0, exampleUrl),
+                        "show cfg",
                         "t_fun"
                 )
         );
         response.add(
-                new GoblintMessagesAnalysisResult(
-                        new GoblintPosition(4, 4, 4, 12, exampleUrl),
-                        "[Race] Memory location myglobal (race with conf. 110)",
-                        "Warning",
-                        List.of(
-                                Pair.make(
-                                        new GoblintPosition(10, 10, 2, 21, exampleUrl),
-                                        "write with [mhp:{tid=[main, t_fun@src/example.c:17:3-17:40#top]}, lock:{mutex1}, thread:[main, t_fun@src/example.c:17:3-17:40#top]] (conf. 110)  (exp: & myglobal)"
-                                )
-                        )
+                new GoblintCFGAnalysisResult(
+                        new GoblintPosition(15,23,0,0, exampleUrl),
+                        "show arg",
+                        "<arg>"
                 )
         );
         response.add(
-                new GoblintMessagesAnalysisResult(
-                        defaultPos,
-                        "[Race] Memory locations race summary",
-                        "Info",
-                        List.of(
-                                Pair.make(defaultPos, "safe: 0"),
-                                Pair.make(defaultPos, "vulnerable: 0"),
-                                Pair.make(defaultPos, "unsafe: 1"),
-                                Pair.make(defaultPos, "total memory locations: 1")
-                        )
+                new GoblintCFGAnalysisResult(
+                        new GoblintPosition(15,23,0,0, exampleUrl),
+                        "show cfg",
+                        "main"
                 )
         );
         verify(analysisConsumer).consume(response, "GobPie");
