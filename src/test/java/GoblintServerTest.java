@@ -31,6 +31,19 @@ public class GoblintServerTest {
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Goblint run with command: ")));
     }
 
+    @Test
+    public void testStartGoblintServerFailed() {
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
+        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
+
+        when(gobPieConfiguration.getGoblintExecutable()).thenReturn("goblint");
+        when(gobPieConfiguration.enableAbstractDebugging()).thenReturn(true);
+
+        GobPieException thrown = assertThrows(GobPieException.class, goblintServer::startGoblintServer);
+        assertEquals("Running Goblint failed.", thrown.getMessage());
+    }
+
 
     @Test
     public void testCheckGoblintVersion() {
