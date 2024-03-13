@@ -4,37 +4,31 @@ import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
+import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(SystemStubsExtension.class)
 public class GoblintServerTest {
 
     @SystemStub
     private SystemOut systemOut;
 
-
     @Test
     public void testStartGoblintServer() {
-        /**
-         GoblintServer goblintServer = mock(GoblintServer.class);
-         MagpieServer magpieServer =mock(MagpieServer.class);
-         //GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
+        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
 
-         String fileName = "gobpieTest7.json";
-         String gobPieConfFileName = GobPieConfTest.class.getResource(fileName).getFile();
-         GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
+        doReturn(new String[]{"sleep", "20s"}).when(goblintServer).constructGoblintRunCommand();
 
-         GobPieConfiguration gobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
+        goblintServer.startGoblintServer();
 
-
-         Main.startGoblintServer(magpieServer, gobPieConfiguration);
-
-         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Goblint run with command: ")));
-         **/
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Goblint run with command: ")));
     }
 
 

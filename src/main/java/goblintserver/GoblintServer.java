@@ -98,7 +98,7 @@ public class GoblintServer {
      * Method for constructing the command to run Goblint server.
      * Files to analyse must be defined in goblint conf.
      */
-    private String[] constructGoblintRunCommand() {
+    public String[] constructGoblintRunCommand() {
         String[] command = new String[]{
                 configuration.getGoblintExecutable(),
                 "--enable", "server.enabled",
