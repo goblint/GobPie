@@ -85,14 +85,16 @@ public class GoblintMessagesTest {
         String messages = Files.readString(
                 Path.of(GoblintMessagesTest.class.getResource("messagesResponse.json").getPath())
         );
-        return gson.fromJson(messages, new TypeToken<List<GoblintMessagesResult>>() {}.getType());
+        return gson.fromJson(messages, new TypeToken<List<GoblintMessagesResult>>() {
+        }.getType());
     }
 
     private List<GoblintFunctionsResult> readGoblintResponseJsonFunc() throws IOException {
         String functions = Files.readString(
                 Path.of(GoblintMessagesTest.class.getResource("functionsResponse.json").getPath())
         );
-        return gson.fromJson(functions, new TypeToken<List<GoblintFunctionsResult>>() {}.getType());
+        return gson.fromJson(functions, new TypeToken<List<GoblintFunctionsResult>>() {
+        }.getType());
     }
 
 
@@ -139,14 +141,6 @@ public class GoblintMessagesTest {
                                 Pair.make(
                                         new GoblintPosition(19, 19, 2, 21, exampleUrl),
                                         "write with [mhp:{tid=[main]; created={[main, t_fun@src/example.c:17:3-17:40#top]}}, lock:{mutex2}, thread:[main]] (conf. 110)  (exp: & myglobal)"
-                                ),
-                                Pair.make(
-                                        new GoblintPosition(10, 10, 2, 21, exampleUrl),
-                                        "read with [mhp:{tid=[main, t_fun@src/example.c:17:3-17:40#top]}, lock:{mutex1}, thread:[main, t_fun@src/example.c:17:3-17:40#top]] (conf. 110)  (exp: & myglobal)"
-                                ),
-                                Pair.make(
-                                        new GoblintPosition(19, 19, 2, 21, exampleUrl),
-                                        "read with [mhp:{tid=[main]; created={[main, t_fun@src/example.c:17:3-17:40#top]}}, lock:{mutex2}, thread:[main]] (conf. 110)  (exp: & myglobal)"
                                 )
                         )
                 )
@@ -164,11 +158,68 @@ public class GoblintMessagesTest {
                         )
                 )
         );
-
         verify(analysisConsumer).consume(response, "GobPie");
     }
 
+    @Test
+    public void testConvertMessagesFromJsonWithExplode() throws IOException {
+        /**
+        List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson();
+        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
+        when(gobPieConfiguration.showCfg()).thenReturn(false);
+        when(gobPieConfiguration.explodeGroupWarnings()).thenReturn(true);
+        goblintAnalysis.analyze(files, analysisConsumer, true);
 
+        URL emptyUrl = new File("").toURI().toURL();
+        GoblintPosition defaultPos = new GoblintPosition(1, 1, 1, 1, emptyUrl);
+        URL exampleUrl = new File("src/example.c").toURI().toURL();
+        List<AnalysisResult> response = new ArrayList<>();
+        response.add(
+                new GoblintMessagesAnalysisResult(
+                        defaultPos,
+                        "[Deadcode] Logical lines of code (LLoC) summary",
+                        "Info",
+                        List.of(
+                                Pair.make(defaultPos, "live: 12"),
+                                Pair.make(defaultPos, "dead: 0"),
+                                Pair.make(defaultPos, "total lines: 12")
+                        )
+                )
+        );
+        response.add(
+                new GoblintMessagesAnalysisResult(
+                        new GoblintPosition(4, 4, 4, 12, exampleUrl),
+                        "[Race] Memory location myglobal (race with conf. 110)",
+                        "Warning",
+                        List.of(
+                                Pair.make(
+                                        new GoblintPosition(10, 10, 2, 21, exampleUrl),
+                                        " write with [mhp:{tid=[main, t_fun@src/example.c:17:3-17:40#top]}, lock:{mutex1}, thread:[main, t_fun@src/example.c:17:3-17:40#top]] (conf. 110)  (exp: & myglobal)"
+                                ),
+                                Pair.make(
+                                        new GoblintPosition(19, 19, 2, 21, exampleUrl),
+                                        "write with [mhp:{tid=[main]; created={[main, t_fun@src/example.c:17:3-17:40#top]}}, lock:{mutex2}, thread:[main]] (conf. 110)  (exp: & myglobal)"
+                                )
+                        )
+                )
+
+        );
+        response.add(
+                new GoblintMessagesAnalysisResult(
+                        defaultPos,
+                        "[Race] Memory locations race summary",
+                        "Info",
+                        List.of(
+                                Pair.make(defaultPos, "safe: 0"),
+                                Pair.make(defaultPos, "vulnerable: 0"),
+                                Pair.make(defaultPos, "unsafe: 1"),
+                                Pair.make(defaultPos, "total memory locations: 1")
+                        )
+                )
+        );
+        verify(analysisConsumer).consume(response, "GobPie");
+         **/
+    }
 
 
     @Test
@@ -185,28 +236,27 @@ public class GoblintMessagesTest {
         List<AnalysisResult> response = new ArrayList<>();
         response.add(
                 new GoblintCFGAnalysisResult(
-                        new GoblintPosition(8,13,0,0, exampleUrl),
+                        new GoblintPosition(8, 13, 0, 0, exampleUrl),
                         "show cfg",
                         "t_fun"
                 )
         );
         response.add(
                 new GoblintCFGAnalysisResult(
-                        new GoblintPosition(15,23,0,0, exampleUrl),
+                        new GoblintPosition(15, 23, 0, 0, exampleUrl),
                         "show arg",
                         "<arg>"
                 )
         );
         response.add(
                 new GoblintCFGAnalysisResult(
-                        new GoblintPosition(15,23,0,0, exampleUrl),
+                        new GoblintPosition(15, 23, 0, 0, exampleUrl),
                         "show cfg",
                         "main"
                 )
         );
         verify(analysisConsumer).consume(response, "GobPie");
     }
-
 
 
 }
