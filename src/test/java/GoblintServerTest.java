@@ -5,6 +5,9 @@ import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.stubbing.Answer;
+import org.mockito.stubbing.OngoingStubbing;
+import org.zeroturnaround.exec.listener.ProcessListener;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
@@ -35,7 +38,7 @@ public class GoblintServerTest {
 
     /**
      * Mock test to ensure @startGoblintServer function
-     * throws GobPieException when
+     * throws GobPieException when TODO: ????
      */
     @Test
     public void testStartGoblintServerFailed() {
@@ -50,6 +53,33 @@ public class GoblintServerTest {
         assertEquals("Running Goblint failed.", thrown.getMessage());
     }
 
+    @Test
+    public void testStartGoblintServerStopped() throws InterruptedException {
+        /**
+        MagpieServer magpieServer = mock(MagpieServer.class);
+        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
+        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
+        Process processMock = spy(Process.class);
+        ProcessListener listener = spy(ProcessListener.class);
+
+        when(processMock.exitValue()).thenReturn(143);
+        goblintServer.startGoblintServer();
+
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Goblint server has stopped.")));
+         **/
+    }
+
+    @Test
+    public void testStartGoblintServerKilled() {
+
+    }
+
+    @Test
+    public void testStartGoblintServerExited() {
+
+
+    }
+
 
     /**
      * Mock test to ensure @checkGoblintVersion function
@@ -57,7 +87,7 @@ public class GoblintServerTest {
      */
     @Test
     public void testCheckGoblintVersion() {
-        /**
+    /**
         MagpieServer magpieServer = mock(MagpieServer.class);
         String fileName = "gobpieTest7.json";
         String gobPieConfFileName = GobPieConfTest.class.getResource(fileName).getFile();
@@ -69,8 +99,7 @@ public class GoblintServerTest {
 
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains(" Waiting for command: ")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Executing ")));
-
-**/
+        **/
     }
 
     /**
