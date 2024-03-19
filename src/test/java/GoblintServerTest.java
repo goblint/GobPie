@@ -18,19 +18,25 @@ public class GoblintServerTest {
     @SystemStub
     private SystemOut systemOut;
 
+    /**
+     * Mock test to ensure @startGoblintServer function
+     * runs given command
+     */
     @Test
     public void testStartGoblintServer() {
         MagpieServer magpieServer = mock(MagpieServer.class);
         GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
         GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
 
-        doReturn(new String[]{"sleep", "20s"}).when(goblintServer).constructGoblintRunCommand();
-
+        doReturn(new String[]{"sleep", "10s"}).when(goblintServer).constructGoblintRunCommand();
         goblintServer.startGoblintServer();
-
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Goblint run with command: ")));
     }
 
+    /**
+     * Mock test to ensure @startGoblintServer function
+     * throws GobPieException when
+     */
     @Test
     public void testStartGoblintServerFailed() {
         MagpieServer magpieServer = mock(MagpieServer.class);
@@ -45,6 +51,10 @@ public class GoblintServerTest {
     }
 
 
+    /**
+     * Mock test to ensure @checkGoblintVersion function
+     * checks Goblint version
+     */
     @Test
     public void testCheckGoblintVersion() {
         /**
@@ -63,7 +73,10 @@ public class GoblintServerTest {
 **/
     }
 
-
+    /**
+     * Mock test to ensure @checkGoblintVersion function
+     * throws GobPieException when fails
+     */
     @Test
     public void testCheckGoblintVersionFailed() {
         MagpieServer magpieServer = mock(MagpieServer.class);
