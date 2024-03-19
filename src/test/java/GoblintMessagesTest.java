@@ -10,8 +10,8 @@ import api.messages.GoblintPosition;
 import api.messages.params.AnalyzeParams;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.classLoader.Module;
+import com.ibm.wala.util.collections.Pair;
 import goblintserver.GoblintConfWatcher;
 import goblintserver.GoblintServer;
 import gobpie.GobPieConfiguration;
@@ -161,9 +161,15 @@ public class GoblintMessagesTest {
         verify(analysisConsumer).consume(response, "GobPie");
     }
 
+    /**
+     * Mock test to ensure that the Goblint warnings with Explode received from a response in JSON format
+     * are correctly converted to {@link AnalysisResult} objects
+     * and passed to {@link MagpieServer} via {@link AnalysisConsumer}.
+     *
+     * @throws IOException when reading messagesResponse.json from resources fails.
+     */
     @Test
     public void testConvertMessagesFromJsonWithExplode() throws IOException {
-        /**
         List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson();
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
         when(gobPieConfiguration.showCfg()).thenReturn(false);
@@ -188,15 +194,11 @@ public class GoblintMessagesTest {
         );
         response.add(
                 new GoblintMessagesAnalysisResult(
-                        new GoblintPosition(4, 4, 4, 12, exampleUrl),
-                        "[Race] Memory location myglobal (race with conf. 110)",
+                        new GoblintPosition(10, 10, 2, 21, exampleUrl),
+                        "[Race] Group: Memory location myglobal (race with conf. 110)\n" +
+                                "write with [mhp:{tid=[main, t_fun@src/example.c:17:3-17:40#top]}, lock:{mutex1}, thread:[main, t_fun@src/example.c:17:3-17:40#top]] (conf. 110)  (exp: & myglobal)",
                         "Warning",
-                        List.of(
-                                Pair.make(
-                                        new GoblintPosition(10, 10, 2, 21, exampleUrl),
-                                        " write with [mhp:{tid=[main, t_fun@src/example.c:17:3-17:40#top]}, lock:{mutex1}, thread:[main, t_fun@src/example.c:17:3-17:40#top]] (conf. 110)  (exp: & myglobal)"
-                                ),
-                                Pair.make(
+                        List.of(Pair.make(
                                         new GoblintPosition(19, 19, 2, 21, exampleUrl),
                                         "write with [mhp:{tid=[main]; created={[main, t_fun@src/example.c:17:3-17:40#top]}}, lock:{mutex2}, thread:[main]] (conf. 110)  (exp: & myglobal)"
                                 )
@@ -204,6 +206,20 @@ public class GoblintMessagesTest {
                 )
 
         );
+        response.add(
+                new GoblintMessagesAnalysisResult(
+                        new GoblintPosition(19, 19, 2, 21, exampleUrl),
+                        "[Race] Group: Memory location myglobal (race with conf. 110)\n" +
+                                "write with [mhp:{tid=[main]; created={[main, t_fun@src/example.c:17:3-17:40#top]}}, lock:{mutex2}, thread:[main]] (conf. 110)  (exp: & myglobal)",
+                        "Warning",
+                        List.of(Pair.make(
+                                        new GoblintPosition(10, 10, 2, 21, exampleUrl),
+                                        "write with [mhp:{tid=[main, t_fun@src/example.c:17:3-17:40#top]}, lock:{mutex1}, thread:[main, t_fun@src/example.c:17:3-17:40#top]] (conf. 110)  (exp: & myglobal)"
+                                )
+                        )
+                )
+        );
+
         response.add(
                 new GoblintMessagesAnalysisResult(
                         defaultPos,
@@ -218,10 +234,16 @@ public class GoblintMessagesTest {
                 )
         );
         verify(analysisConsumer).consume(response, "GobPie");
-         **/
+
     }
 
-
+    /**
+     * Mock test to ensure that the Goblint functions received from a response in JSON format
+     * are correctly converted to {@link GoblintCFGAnalysisResult} objects
+     * and passed to {@link MagpieServer} via {@link AnalysisConsumer}.
+     *
+     * @throws IOException when reading messagesResponse.json from resources fails.
+     */
     @Test
     public void testConvertFunctionsFromJson() throws IOException {
         List<GoblintFunctionsResult> goblintFunctionsResults = readGoblintResponseJsonFunc();
@@ -258,6 +280,4 @@ public class GoblintMessagesTest {
         verify(analysisConsumer).consume(response, "GobPie");
     }
 
-
 }
-

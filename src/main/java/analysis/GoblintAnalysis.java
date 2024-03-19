@@ -155,7 +155,6 @@ public class GoblintAnalysis implements ServerAnalysis {
     public CompletableFuture<Collection<AnalysisResult>> reanalyse() {
         //return goblintService.analyze(new AnalyzeParams(true))
         return goblintService.analyze(new AnalyzeParams(!gobpieConfiguration.useIncrementalAnalysis()))
-
                 .thenCompose(this::getComposedAnalysisResults);
     }
 
