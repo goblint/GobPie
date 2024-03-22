@@ -1,0 +1,9 @@
+{
+  "goblintConf": "goblint.json",
+  "goblintExecutable": "/home/user/goblint/analyzer/goblint",
+  "preAnalyzeCommand": ["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"],
+  "abstractDebugging": false,
+  "showCfg": false,
+  "explodeGroupWarnings": false
+  "incrementalAnalysis": false
+}

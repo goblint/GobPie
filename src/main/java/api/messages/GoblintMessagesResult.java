@@ -98,7 +98,7 @@ public class GoblintMessagesResult {
          * @return A collection of AnalysisResult objects.
          */
         public List<AnalysisResult> convert(List<Tag> tags, String severity, boolean explode) {
-            return explode
+            return explode && this.group_loc != null
                     ? convertGroupExplode(tags, severity)
                     : convertGroup(tags, severity);
         }
