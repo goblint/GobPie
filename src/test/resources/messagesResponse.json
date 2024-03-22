@@ -76,32 +76,6 @@
           },
           "text": "write with [mhp:{tid=[main]; created={[main, t_fun@src/example.c:17:3-17:40#top]}}, lock:{mutex2}, thread:[main]] (conf. 110)  (exp: & myglobal)",
           "context": null
-        },
-        {
-          "loc": {
-            "file": "src/example.c",
-            "line": 10,
-            "column": 3,
-            "byte": 52116,
-            "endLine": 10,
-            "endColumn": 22,
-            "endByte": 52135
-          },
-          "text": "read with [mhp:{tid=[main, t_fun@src/example.c:17:3-17:40#top]}, lock:{mutex1}, thread:[main, t_fun@src/example.c:17:3-17:40#top]] (conf. 110)  (exp: & myglobal)",
-          "context": null
-        },
-        {
-          "loc": {
-            "file": "src/example.c",
-            "line": 19,
-            "column": 3,
-            "byte": 52611,
-            "endLine": 19,
-            "endColumn": 22,
-            "endByte": 52630
-          },
-          "text": "read with [mhp:{tid=[main]; created={[main, t_fun@src/example.c:17:3-17:40#top]}}, lock:{mutex2}, thread:[main]] (conf. 110)  (exp: & myglobal)",
-          "context": null
         }
       ]
     }

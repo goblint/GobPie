@@ -3,7 +3,6 @@ package analysis;
 import api.GoblintService;
 import api.messages.*;
 import api.messages.params.AnalyzeParams;
-import api.messages.params.Params;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintConfWatcher;
 import goblintserver.GoblintServer;
@@ -121,6 +120,9 @@ public class GoblintAnalysis implements ServerAnalysis {
         log.info("---------------------- Analysis started ----------------------");
 
         lastAnalysisTask = reanalyse().thenAccept(response -> {
+            for (AnalysisResult analysisResult : response) {
+                System.out.println(analysisResult.toString());
+            }
             consumer.consume(new ArrayList<>(response), source());
 
             log.info("--------------------- Analysis finished ----------------------");
@@ -152,7 +154,6 @@ public class GoblintAnalysis implements ServerAnalysis {
     public CompletableFuture<Collection<AnalysisResult>> reanalyse() {
         //return goblintService.analyze(new AnalyzeParams(true))
         return goblintService.analyze(new AnalyzeParams(!gobpieConfiguration.useIncrementalAnalysis()))
-
                 .thenCompose(this::getComposedAnalysisResults);
     }
 
