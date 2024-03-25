@@ -237,6 +237,54 @@ public class GoblintMessagesTest {
     }
 
     /**
+     * Mock test to ensure that the Goblint warnings received from a response in JSON format
+     * are correctly converted to {@link AnalysisResult} objects
+     * and passed to {@link MagpieServer} via {@link AnalysisConsumer}.
+     *
+     * @throws IOException when reading messagesResponsePiece.json from resources fails.
+     */
+    @Test
+    public void testConvertMessagesPieceFromJson() throws IOException {
+        List<GoblintMessagesResult> goblintMessagesResults = readGoblintMessagesResponseJson("messagesResponsePiece.json");
+        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
+        when(gobPieConfiguration.showCfg()).thenReturn(false);
+        goblintAnalysis.analyze(files, analysisConsumer, true);
+
+        URL assertUrl = new File("src/01-assert.c").toURI().toURL();
+        URL npUrl = new File("src/10-nullpointer-dereference-simple.c").toURI().toURL();
+        List<AnalysisResult> response = new ArrayList<>();
+        response.add(
+                new GoblintMessagesAnalysisResult(
+                        new GoblintPosition(10, 10, 2, 26, assertUrl),
+                        "[Assert] Assertion \"success\" will succeed",
+                        "Success"
+                )
+        );
+        response.add(
+                new GoblintMessagesAnalysisResult(
+                        new GoblintPosition(11, 11, 2, 23, assertUrl),
+                        "[Assert] Assertion \"fail\" will fail.",
+                        "Error"
+                )
+        );
+        response.add(
+                new GoblintMessagesAnalysisResult(
+                        new GoblintPosition(12, 12, 2, 31, assertUrl),
+                        "[Assert] Assertion \"unknown == 4\" is unknown.",
+                        "Warning"
+                )
+        );
+        response.add(
+                new GoblintMessagesAnalysisResult(
+                        new GoblintPosition(7, 7, 8, 14, npUrl),
+                        "[Behavior > Undefined > NullPointerDereference][CWE-476] May dereference NULL pointer",
+                        "Warning"
+                )
+        );
+        verify(analysisConsumer).consume(response, "GobPie");
+    }
+
+    /**
      * Mock test to ensure that the Goblint functions received from a response in JSON format
      * are correctly converted to {@link GoblintCFGAnalysisResult} objects
      * and passed to {@link MagpieServer} via {@link AnalysisConsumer}.
