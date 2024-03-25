@@ -80,7 +80,7 @@ public class GoblintMessagesTest {
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
     }
     
-    private List<GoblintMessagesResult> readGoblintResponseJson(String resource) throws IOException {
+    private List<GoblintMessagesResult> readGoblintMessagesResponseJson(String resource) throws IOException {
         String messages = Files.readString(
                 Path.of(GoblintMessagesTest.class.getResource(resource).getPath())
         );
@@ -88,7 +88,7 @@ public class GoblintMessagesTest {
         }.getType());
     }
 
-    private List<GoblintFunctionsResult> readGoblintResponseJsonFunc() throws IOException {
+    private List<GoblintFunctionsResult> readGoblintFunctionsResponseJson() throws IOException {
         String functions = Files.readString(
                 Path.of(GoblintMessagesTest.class.getResource("functionsResponse.json").getPath())
         );
@@ -106,7 +106,7 @@ public class GoblintMessagesTest {
      */
     @Test
     public void testConvertMessagesFromJson() throws IOException {
-        List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson("messagesResponse.json");
+        List<GoblintMessagesResult> goblintMessagesResults = readGoblintMessagesResponseJson("messagesResponse.json");
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
         when(gobPieConfiguration.showCfg()).thenReturn(false);
         goblintAnalysis.analyze(files, analysisConsumer, true);
@@ -169,7 +169,7 @@ public class GoblintMessagesTest {
      */
     @Test
     public void testConvertMessagesFromJsonWithExplode() throws IOException {
-        List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson("messagesResponse.json");
+        List<GoblintMessagesResult> goblintMessagesResults = readGoblintMessagesResponseJson("messagesResponse.json");
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
         when(gobPieConfiguration.showCfg()).thenReturn(false);
         when(gobPieConfiguration.explodeGroupWarnings()).thenReturn(true);
@@ -245,7 +245,7 @@ public class GoblintMessagesTest {
      */
     @Test
     public void testConvertFunctionsFromJson() throws IOException {
-        List<GoblintFunctionsResult> goblintFunctionsResults = readGoblintResponseJsonFunc();
+        List<GoblintFunctionsResult> goblintFunctionsResults = readGoblintFunctionsResponseJson();
         when(goblintService.functions()).thenReturn(CompletableFuture.completedFuture(goblintFunctionsResults));
         when(gobPieConfiguration.showCfg()).thenReturn(true);
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
