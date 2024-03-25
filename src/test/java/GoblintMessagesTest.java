@@ -79,11 +79,10 @@ public class GoblintMessagesTest {
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
     }
-
-    // TODO: this can be generalized later to pass the file name as an argument
-    private List<GoblintMessagesResult> readGoblintResponseJson() throws IOException {
+    
+    private List<GoblintMessagesResult> readGoblintResponseJson(String resource) throws IOException {
         String messages = Files.readString(
-                Path.of(GoblintMessagesTest.class.getResource("messagesResponse.json").getPath())
+                Path.of(GoblintMessagesTest.class.getResource(resource).getPath())
         );
         return gson.fromJson(messages, new TypeToken<List<GoblintMessagesResult>>() {
         }.getType());
@@ -107,7 +106,7 @@ public class GoblintMessagesTest {
      */
     @Test
     public void testConvertMessagesFromJson() throws IOException {
-        List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson();
+        List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson("messagesResponse.json");
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
         when(gobPieConfiguration.showCfg()).thenReturn(false);
         goblintAnalysis.analyze(files, analysisConsumer, true);
@@ -170,7 +169,7 @@ public class GoblintMessagesTest {
      */
     @Test
     public void testConvertMessagesFromJsonWithExplode() throws IOException {
-        List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson();
+        List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson("messagesResponse.json");
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
         when(gobPieConfiguration.showCfg()).thenReturn(false);
         when(gobPieConfiguration.explodeGroupWarnings()).thenReturn(true);
