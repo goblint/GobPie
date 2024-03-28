@@ -2,7 +2,7 @@ import HTTPserver.GobPieHTTPServer;
 import abstractdebugging.AbstractDebuggingServerLauncher;
 import abstractdebugging.ResultsService;
 import analysis.GoblintAnalysis;
-import analysis.ShowCFGCommand;
+import magpiebridge.ShowCFGCommand;
 import api.GoblintService;
 import api.GoblintServiceLauncher;
 import api.messages.params.Params;
