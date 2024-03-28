@@ -1,8 +1,8 @@
 package api;
 
 import api.json.GoblintMessageJsonHandler;
-import api.json.GoblintSocketMessageConsumer;
-import api.json.GoblintSocketMessageProducer;
+import api.jsonrpc.GoblintSocketMessageConsumer;
+import api.jsonrpc.GoblintSocketMessageProducer;
 import api.jsonrpc.AutoClosingMessageProcessor;
 import api.jsonrpc.CloseableEndpoint;
 import gobpie.GobPieException;
