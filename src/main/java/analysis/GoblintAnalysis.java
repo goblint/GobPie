@@ -3,7 +3,6 @@ package analysis;
 import api.GoblintService;
 import api.messages.*;
 import api.messages.params.AnalyzeParams;
-import api.messages.params.Params;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintConfWatcher;
 import goblintserver.GoblintServer;
