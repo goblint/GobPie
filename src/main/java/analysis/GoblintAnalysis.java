@@ -56,8 +56,7 @@ public class GoblintAnalysis implements ServerAnalysis {
     private final GoblintConfWatcher goblintConfWatcher;
     private static Future<?> lastAnalysisTask = null;
 
-    //private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
-    private  Logger log = LogManager.getLogger(GoblintAnalysis.class);
+    private final Logger log = LogManager.getLogger(GoblintAnalysis.class);
 
 
 
@@ -121,9 +120,6 @@ public class GoblintAnalysis implements ServerAnalysis {
         log.info("---------------------- Analysis started ----------------------");
 
         lastAnalysisTask = reanalyse().thenAccept(response -> {
-            for (AnalysisResult analysisResult : response) {
-                System.out.println(analysisResult.toString());
-            }
             consumer.consume(new ArrayList<>(response), source());
 
             log.info("--------------------- Analysis finished ----------------------");
@@ -153,7 +149,6 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @throws GobPieException in case the analysis was aborted or returned a VerifyError.
      */
     public CompletableFuture<Collection<AnalysisResult>> reanalyse() {
-        //return goblintService.analyze(new AnalyzeParams(true))
         return goblintService.analyze(new AnalyzeParams(!gobpieConfiguration.useIncrementalAnalysis()))
                 .thenCompose(this::getComposedAnalysisResults);
     }
