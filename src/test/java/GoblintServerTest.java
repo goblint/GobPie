@@ -57,19 +57,17 @@ public class GoblintServerTest {
      */
     @Test
     public void testCheckGoblintVersion() {
-    /**
         MagpieServer magpieServer = mock(MagpieServer.class);
-        String fileName = "gobpieTest7.json";
-        String gobPieConfFileName = GobPieConfTest.class.getResource(fileName).getFile();
-        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
-        GobPieConfiguration gobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
+        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
         GoblintServer goblintServer = new GoblintServer(magpieServer, gobPieConfiguration);
 
-        goblintServer.checkGoblintVersion();
+        when(gobPieConfiguration.getGoblintExecutable()).thenReturn("echo");
 
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains(" Waiting for command: ")));
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Executing ")));
-        **/
+        String output = goblintServer.checkGoblintVersion();
+
+        assertTrue(output.contains("version"));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Waiting for command: [echo, --version] to run...")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Executing [echo, --version]")));
     }
 
     /**
