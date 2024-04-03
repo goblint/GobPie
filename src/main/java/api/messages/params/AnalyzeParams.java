@@ -18,8 +18,4 @@ public class AnalyzeParams {
         return reset == that.reset;
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(reset);
-    }
 }

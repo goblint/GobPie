@@ -117,19 +117,4 @@ public class GoblintMessagesAnalysisResult implements AnalysisResult {
         return Objects.equals(group_text, that.group_text) && Objects.equals(text, that.text) && Objects.equals(pos, that.pos) && Objects.equals(severity, that.severity) && Objects.equals(related, that.related);
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(group_text, text, pos, severity, related);
-    }
-
-    @Override
-    public String toString() {
-        return "GoblintMessagesAnalysisResult{" +
-                "group_text='" + group_text + '\'' +
-                ", text='" + text + '\'' +
-                ", pos=" + pos.toString() +
-                ", severity='" + severity + '\'' +
-                ", related=" + related +
-                '}';
-    }
 }

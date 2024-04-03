@@ -191,23 +191,4 @@ public class GoblintAnalysis implements ServerAnalysis {
         return response.stream().map(GoblintFunctionsResult::convert).flatMap(List::stream).toList();
     }
 
-
-    /**
-     * Method for running a command.
-     *
-     * @param dirPath The directory in which the command will run.
-     * @param command The command to run.
-     * @return Exit value and output of a finished process.
-     */
-
-    public ProcessResult runCommand(File dirPath, String[] command) throws IOException, InvalidExitValueException, InterruptedException, TimeoutException {
-        log.debug("Waiting for command: " + Arrays.toString(command) + " to run...");
-        return new ProcessExecutor()
-                .directory(dirPath)
-                .command(command)
-                .redirectOutput(System.err)
-                .redirectError(System.err)
-                .execute();
-    }
-
 }

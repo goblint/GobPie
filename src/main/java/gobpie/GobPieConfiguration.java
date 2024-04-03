@@ -75,26 +75,6 @@ public class GobPieConfiguration {
         return abstractDebugging == that.abstractDebugging && showCfg == that.showCfg && explodeGroupWarnings == that.explodeGroupWarnings && incrementalAnalysis == that.incrementalAnalysis && Objects.equals(goblintExecutable, that.goblintExecutable) && Objects.equals(goblintConf, that.goblintConf) && Arrays.equals(preAnalyzeCommand, that.preAnalyzeCommand);
     }
 
-    @Override
-    public int hashCode() {
-        int result = Objects.hash(goblintExecutable, goblintConf, abstractDebugging, showCfg, explodeGroupWarnings, incrementalAnalysis);
-        result = 31 * result + Arrays.hashCode(preAnalyzeCommand);
-        return result;
-    }
-
-    @Override
-    public String toString() {
-        return "GobPieConfiguration{" +
-                "goblintExecutable='" + goblintExecutable + '\'' +
-                ", goblintConf='" + goblintConf + '\'' +
-                ", preAnalyzeCommand=" + Arrays.toString(preAnalyzeCommand) +
-                ", abstractDebugging=" + abstractDebugging +
-                ", showCfg=" + showCfg +
-                ", explodeGroupWarnings=" + explodeGroupWarnings +
-                ", incrementalAnalysis=" + incrementalAnalysis +
-                '}';
-    }
-
     public static class Builder {
         private String goblintExecutable;
         private String goblintConf;

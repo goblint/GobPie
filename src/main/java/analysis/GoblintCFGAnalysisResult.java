@@ -83,18 +83,4 @@ public class GoblintCFGAnalysisResult implements AnalysisResult {
         return Objects.equals(pos, that.pos) && Objects.equals(title, that.title) && Objects.equals(funName, that.funName) && Objects.equals(related, that.related);
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(pos, title, funName, related);
-    }
-
-    @Override
-    public String toString() {
-        return "GoblintCFGAnalysisResult{" +
-                "pos=" + pos +
-                ", title='" + title + '\'' +
-                ", funName='" + funName + '\'' +
-                ", related=" + related +
-                '}';
-    }
 }

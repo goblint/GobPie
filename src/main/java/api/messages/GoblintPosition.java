@@ -91,19 +91,4 @@ public class GoblintPosition implements Position {
         return columnStart == that.columnStart && columnEnd == that.columnEnd && lineStart == that.lineStart && lineEnd == that.lineEnd && Objects.equals(sourcefileURL, that.sourcefileURL);
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(columnStart, columnEnd, lineStart, lineEnd, sourcefileURL);
-    }
-
-    @Override
-    public String toString() {
-        return "GoblintPosition{" +
-                "columnStart=" + columnStart +
-                ", columnEnd=" + columnEnd +
-                ", lineStart=" + lineStart +
-                ", lineEnd=" + lineEnd +
-                ", sourcefileURL=" + sourcefileURL +
-                '}';
-    }
 }
