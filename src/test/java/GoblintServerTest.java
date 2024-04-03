@@ -5,9 +5,6 @@ import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.stubbing.Answer;
-import org.mockito.stubbing.OngoingStubbing;
-import org.zeroturnaround.exec.listener.ProcessListener;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
@@ -38,7 +35,7 @@ public class GoblintServerTest {
 
     /**
      * Mock test to ensure @startGoblintServer function
-     * throws GobPieException when TODO: ????
+     * throws GobPieException when running Goblint fails.
      */
     @Test
     public void testStartGoblintServerFailed() {
@@ -51,33 +48,6 @@ public class GoblintServerTest {
 
         GobPieException thrown = assertThrows(GobPieException.class, goblintServer::startGoblintServer);
         assertEquals("Running Goblint failed.", thrown.getMessage());
-    }
-
-    @Test
-    public void testStartGoblintServerStopped() throws InterruptedException {
-        /**
-        MagpieServer magpieServer = mock(MagpieServer.class);
-        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
-        GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
-        Process processMock = spy(Process.class);
-        ProcessListener listener = spy(ProcessListener.class);
-
-        when(processMock.exitValue()).thenReturn(143);
-        goblintServer.startGoblintServer();
-
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Goblint server has stopped.")));
-         **/
-    }
-
-    @Test
-    public void testStartGoblintServerKilled() {
-
-    }
-
-    @Test
-    public void testStartGoblintServerExited() {
-
-
     }
 
 
@@ -104,7 +74,7 @@ public class GoblintServerTest {
 
     /**
      * Mock test to ensure @checkGoblintVersion function
-     * throws GobPieException when fails
+     * throws GobPieException when checking version fails.
      */
     @Test
     public void testCheckGoblintVersionFailed() {
@@ -117,7 +87,5 @@ public class GoblintServerTest {
         GobPieException thrown = assertThrows(GobPieException.class, goblintServer::checkGoblintVersion);
         assertEquals("Checking version failed.", thrown.getMessage());
     }
-
-
 
 }
