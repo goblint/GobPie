@@ -64,6 +64,10 @@ public class GoblintConfTest {
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         assertTrue(goblintConfWatcher.configValid);
+
+        // Check that if config is valid and not modified, refresh is not necessary and is skipped
+        goblintAnalysis.analyze(files, analysisConsumer, true);
+        assertTrue(goblintConfWatcher.configValid);
     }
 
     @Test
@@ -78,7 +82,10 @@ public class GoblintConfTest {
         when(goblintService.reset_config()).thenReturn(CompletableFuture.completedFuture(null));
         when(goblintService.read_config(new Params())).thenReturn(CompletableFuture.completedFuture(null));
 
-        GoblintConfWatcher goblintConfWatcher = new GoblintConfWatcher(magpieServer, goblintService, gobPieConfiguration, new FileWatcher(Path.of("")));
+        FileWatcher fileWatcher = spy(new FileWatcher(Path.of("")));
+        when(fileWatcher.checkModified()).thenReturn(true);
+
+        GoblintConfWatcher goblintConfWatcher = new GoblintConfWatcher(magpieServer, goblintService, gobPieConfiguration, fileWatcher);
         GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
