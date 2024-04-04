@@ -176,7 +176,7 @@ public class GoblintMessagesTest {
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         URL emptyUrl = new File("").toURI().toURL();
-        GoblintPosition defaultPos = new GoblintPosition(1, 1, 1, 1, emptyUrl);
+        GoblintPosition defaultPos = new GoblintPosition(1, 1, 1, emptyUrl);
         URL exampleUrl = new File("src/example.c").toURI().toURL();
         List<AnalysisResult> response = new ArrayList<>();
         response.add(
@@ -277,7 +277,14 @@ public class GoblintMessagesTest {
         response.add(
                 new GoblintMessagesAnalysisResult(
                         new GoblintPosition(7, 7, 8, 14, npUrl),
-                        "[Behavior > Undefined > NullPointerDereference][CWE-476] May dereference NULL pointer",
+                        "[Behavior > Undefined > NullPointerDereference][CWE-476] May dereference NULL pointer in context 13",
+                        "Warning"
+                )
+        );
+        response.add(
+                new GoblintMessagesAnalysisResult(
+                        new GoblintPosition(1, 1, 1, new File("").toURI().toURL()),
+                        "[Deadcode] Function 'main' does not return",
                         "Warning"
                 )
         );

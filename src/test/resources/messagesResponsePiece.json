@@ -93,7 +93,26 @@
         "endByte": 18428
       },
       "text": "May dereference NULL pointer",
-      "context": null
+      "context": {
+        "tag": 13
+      }
+    }
+  },
+  {
+    "tags": [
+      {
+        "Category": [
+          "Deadcode"
+        ]
+      }
+    ],
+    "severity": "Warning",
+    "multipiece": {
+      "loc": null,
+      "text": "Function 'main' does not return",
+      "context": {
+        "tag": null
+      }
     }
   }
 ]
