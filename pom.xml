@@ -186,7 +186,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <argLine>-Xshare:off</argLine>
                     <consoleOutputReporter>
                         <disable>true</disable>
                     </consoleOutputReporter>
@@ -198,6 +197,35 @@
                         <version>5.10.0</version>
                     </dependency>
                 </dependencies>
+            </plugin>
+
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <configuration>
+                    <excludes>
+                        <exclude>**/abstractdebugging/*</exclude>
+                        <exclude>**/HTTPserver/*</exclude>
+                        <exclude>**/api/jsonrpc/*</exclude>
+                        <exclude>**/magpiebridge/*</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>default-report</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
