@@ -63,7 +63,7 @@ public class GobPieConfReader {
 
             // Check if all required parameters have been set
             // If not, wait for change and reparse
-            while (gobpieConfiguration.getGoblintConf() == null || gobpieConfiguration.getGoblintConf().equals("")) {
+            while (gobpieConfiguration.goblintConf() == null || gobpieConfiguration.goblintConf().isEmpty()) {
                 String message = "goblintConf parameter missing from GobPie configuration file.";
                 String terminalMessage = message + "\nPlease add Goblint configuration file location into GobPie configuration as a parameter with name \"goblintConf\".";
                 forwardErrorMessageToClient(message, terminalMessage);

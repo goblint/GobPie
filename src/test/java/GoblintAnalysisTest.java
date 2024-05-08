@@ -22,8 +22,8 @@ import uk.org.webcompere.systemstubs.stream.SystemOut;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,7 +53,7 @@ class GoblintAnalysisTest extends TestHelper {
     void before() {
         mockGoblintServerIsAlive(goblintServer, goblintConfWatcher);
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
+        when(gobPieConfiguration.incrementalAnalysis()).thenReturn(true);
         // Mock that Goblint returns some messages (if applicable)
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
     }
@@ -149,8 +149,8 @@ class GoblintAnalysisTest extends TestHelper {
     void preAnalyseTest() {
         // A process that must be run before analysis
         String processPrintout = "'Hello'";
-        String[] preAnalyzeCommand = new String[]{"echo", processPrintout};
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
+        List<String> preAnalyzeCommand = List.of("echo", processPrintout);
+        when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
@@ -159,7 +159,7 @@ class GoblintAnalysisTest extends TestHelper {
 
         // Verify that preAnalysis was indeed called once
         verify(goblintServer).preAnalyse();
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("PreAnalysis command ran: '" + Arrays.toString(preAnalyzeCommand) + "'")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("PreAnalysis command ran: '" + preAnalyzeCommand + "'")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("PreAnalysis command finished.")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains(processPrintout)));
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
@@ -173,8 +173,8 @@ class GoblintAnalysisTest extends TestHelper {
     @Test
     void preAnalyseEmpty() {
         // Mock that the command to execute is empty
-        String[] preAnalyzeCommand = new String[]{};
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
+        List<String> preAnalyzeCommand = new ArrayList<>();
+        when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
@@ -194,7 +194,7 @@ class GoblintAnalysisTest extends TestHelper {
     @Test
     void preAnalyseNull() {
         // Mock that the command to execute is null
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(null);
+        when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(null);
 
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
@@ -214,8 +214,8 @@ class GoblintAnalysisTest extends TestHelper {
     @Test
     void preAnalyseError() {
         // Mock that the command to execute is not empty and is something that is not a valid command
-        String[] preAnalyzeCommand = new String[]{"asdf"};
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
+        List<String> preAnalyzeCommand = List.of("asdf");
+        when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
@@ -223,10 +223,9 @@ class GoblintAnalysisTest extends TestHelper {
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
         // Verify that preAnalysis was indeed called once
-        String preAnalyzeCommandString = Arrays.toString(preAnalyzeCommand);
         verify(goblintServer).preAnalyse();
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("PreAnalysis command ran: '" + preAnalyzeCommandString + "'")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("PreAnalysis command ran: '" + preAnalyzeCommand + "'")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Running preAnalysis command failed. ")));
         //verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Warning, "Running preAnalysis command failed. ")); // TODO?
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));

@@ -39,7 +39,7 @@ public class GoblintConfWatcher {
         if (fileWatcher.checkModified() || !configValid) {
             configValid = goblintService.reset_config()
                     .thenCompose(_res ->
-                            goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath())))
+                            goblintService.read_config(new Params(new File(gobpieConfiguration.goblintConf()).getAbsolutePath())))
                     .handle((_res, ex) -> {
                         if (ex != null) {
                             Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;

@@ -9,6 +9,8 @@ import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -28,7 +30,7 @@ public class GoblintServerTest {
         GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
         GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
 
-        doReturn(new String[]{"sleep", "10s"}).when(goblintServer).constructGoblintRunCommand();
+        doReturn(List.of("sleep", "10s")).when(goblintServer).constructGoblintRunCommand();
         goblintServer.startGoblintServer();
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("Goblint run with command: ")));
     }
@@ -43,8 +45,8 @@ public class GoblintServerTest {
         GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
         GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
 
-        when(gobPieConfiguration.getGoblintExecutable()).thenReturn("goblint");
-        when(gobPieConfiguration.enableAbstractDebugging()).thenReturn(true);
+        when(gobPieConfiguration.goblintExecutable()).thenReturn("goblint");
+        when(gobPieConfiguration.abstractDebugging()).thenReturn(true);
 
         GobPieException thrown = assertThrows(GobPieException.class, goblintServer::startGoblintServer);
         assertEquals("Running Goblint failed.", thrown.getMessage());
@@ -61,7 +63,7 @@ public class GoblintServerTest {
         GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
         GoblintServer goblintServer = new GoblintServer(magpieServer, gobPieConfiguration);
 
-        when(gobPieConfiguration.getGoblintExecutable()).thenReturn("echo");
+        when(gobPieConfiguration.goblintExecutable()).thenReturn("echo");
 
         String output = goblintServer.checkGoblintVersion();
 

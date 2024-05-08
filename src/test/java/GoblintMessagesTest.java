@@ -62,11 +62,11 @@ public class GoblintMessagesTest extends TestHelper {
     public void before() {
         mockGoblintServerIsAlive(goblintServer, goblintConfWatcher);
         // Mock that the command to execute is empty
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(new String[]{});
+        when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(new ArrayList<>());
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
+        when(gobPieConfiguration.incrementalAnalysis()).thenReturn(true);
     }
 
     private <T> List<T> readGoblintResponseJson(String resource, Type typeToken) throws IOException {

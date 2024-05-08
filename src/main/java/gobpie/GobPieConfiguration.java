@@ -23,38 +23,10 @@ public record GobPieConfiguration(
         this.goblintExecutable = (goblintExecutable == null) ? "goblint" : goblintExecutable;
         this.goblintConf = goblintConf;
         this.preAnalyzeCommand = preAnalyzeCommand;
-        this.abstractDebugging = abstractDebugging != null && abstractDebugging;
-        this.showCfg = showCfg != null && showCfg;
-        this.explodeGroupWarnings = explodeGroupWarnings == null || explodeGroupWarnings;
-        this.incrementalAnalysis = incrementalAnalysis == null || incrementalAnalysis;
-    }
-
-    public String getGoblintExecutable() {
-        return this.goblintExecutable;
-    }
-
-    public String getGoblintConf() {
-        return this.goblintConf;
-    }
-
-    public String[] getPreAnalyzeCommand() {
-        return this.preAnalyzeCommand.toArray(new String[0]);
-    }
-
-    public boolean enableAbstractDebugging() {
-        return abstractDebugging;
-    }
-
-    public Boolean showCfg() {
-        return this.showCfg;
-    }
-
-    public Boolean explodeGroupWarnings() {
-        return explodeGroupWarnings;
-    }
-
-    public boolean useIncrementalAnalysis() {
-        return incrementalAnalysis;
+        this.abstractDebugging = abstractDebugging != null && abstractDebugging; // default: false
+        this.showCfg = showCfg != null && showCfg; // default: false
+        this.explodeGroupWarnings = explodeGroupWarnings == null || explodeGroupWarnings; // default: true
+        this.incrementalAnalysis = incrementalAnalysis == null || incrementalAnalysis; // default: true
     }
 
     public static class Builder {

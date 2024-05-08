@@ -21,6 +21,7 @@ import util.FileWatcher;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -50,9 +51,9 @@ public class GoblintConfTest {
     void refreshGoblintConfigSucceeds() {
         doReturn(true).when(goblintServer).isAlive();
 
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(new String[]{});
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
-        when(gobPieConfiguration.getGoblintConf()).thenReturn("goblint.json");
+        when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(new ArrayList<>());
+        when(gobPieConfiguration.incrementalAnalysis()).thenReturn(true);
+        when(gobPieConfiguration.goblintConf()).thenReturn("goblint.json");
 
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
         when(goblintService.reset_config()).thenReturn(CompletableFuture.completedFuture(null));
@@ -73,9 +74,9 @@ public class GoblintConfTest {
     void refreshGoblintConfigFails() {
         doReturn(true).when(goblintServer).isAlive();
 
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(new String[]{});
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
-        when(gobPieConfiguration.getGoblintConf()).thenReturn("goblint.json");
+        when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(new ArrayList<>());
+        when(gobPieConfiguration.incrementalAnalysis()).thenReturn(true);
+        when(gobPieConfiguration.goblintConf()).thenReturn("goblint.json");
 
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
         when(goblintService.reset_config()).thenReturn(CompletableFuture.completedFuture(null));
