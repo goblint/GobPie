@@ -2,7 +2,6 @@ import HTTPserver.GobPieHTTPServer;
 import abstractdebugging.AbstractDebuggingServerLauncher;
 import abstractdebugging.ResultsService;
 import analysis.GoblintAnalysis;
-import magpiebridge.ShowCFGCommand;
 import api.GoblintService;
 import api.GoblintServiceLauncher;
 import api.messages.params.Params;
@@ -11,11 +10,12 @@ import goblintserver.GoblintServer;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
-import magpiebridge.core.MagpieServer;
-import magpiebridge.core.ServerAnalysis;
 import magpiebridge.GoblintLanguageExtensionHandler;
 import magpiebridge.GoblintMagpieServer;
 import magpiebridge.GoblintServerConfiguration;
+import magpiebridge.ShowCFGCommand;
+import magpiebridge.core.MagpieServer;
+import magpiebridge.core.ServerAnalysis;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
@@ -57,7 +57,7 @@ public class Main {
             magpieServer.configurationDone();
             log.info("MagpieBridge server launched.");
 
-            if (args.length > 0 && gobpieConfiguration.enableAbstractDebugging()) {
+            if (args.length > 0 && gobpieConfiguration.abstractDebugging()) {
                 // Launch abstract debugging server
                 String socketAddress = args[0];
                 launchAbstractDebuggingServer(socketAddress, goblintService);
@@ -121,7 +121,7 @@ public class Main {
         GoblintService goblintService = launcher.connect(goblintServer.getGoblintSocket());
 
         // Read Goblint configurations
-        goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath()))
+        goblintService.read_config(new Params(new File(gobpieConfiguration.goblintConf()).getAbsolutePath()))
                 .exceptionally(ex -> {
                     String msg = "Goblint was unable to successfully read the configuration: " + ex.getMessage();
                     magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, msg));
@@ -134,7 +134,7 @@ public class Main {
     }
 
     private static GoblintConfWatcher getGoblintConfWatcher(GoblintMagpieServer magpieServer, GoblintService goblintService, GobPieConfiguration gobpieConfiguration) {
-        FileWatcher fileWatcher = new FileWatcher(Path.of(gobpieConfiguration.getGoblintConf()));
+        FileWatcher fileWatcher = new FileWatcher(Path.of(gobpieConfiguration.goblintConf()));
         return new GoblintConfWatcher(magpieServer, goblintService, gobpieConfiguration, fileWatcher);
     }
 

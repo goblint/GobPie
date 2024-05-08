@@ -1,6 +1,5 @@
 package api.jsonrpc;
 
-import api.jsonrpc.GoblintSocketMessageConsumer;
 import org.apache.logging.log4j.LogManager;
 import org.eclipse.lsp4j.jsonrpc.*;
 import org.eclipse.lsp4j.jsonrpc.json.MessageConstants;

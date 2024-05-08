@@ -11,7 +11,6 @@ import org.eclipse.lsp4j.MessageType;
 import util.FileWatcher;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.concurrent.CompletionException;
 
 public class GoblintConfWatcher {
