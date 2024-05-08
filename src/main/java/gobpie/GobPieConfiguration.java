@@ -1,7 +1,8 @@
 package gobpie;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Objects;
+import java.util.List;
 
 /**
  * The Class GobPieConfiguration.
@@ -11,32 +12,17 @@ import java.util.Objects;
  * @author Karoliine Holter
  * @since 0.0.2
  */
-public class GobPieConfiguration {
-
-    private final String goblintExecutable;
-    private String goblintConf;
-    private String[] preAnalyzeCommand;
-    private final boolean abstractDebugging;
-    private final boolean showCfg;
-    private final boolean explodeGroupWarnings;
-    private final boolean incrementalAnalysis;
+public record GobPieConfiguration(
+        String goblintExecutable,
+        String goblintConf,
+        List<String> preAnalyzeCommand,
+        boolean abstractDebugging,
+        boolean showCfg,
+        boolean explodeGroupWarnings,
+        boolean incrementalAnalysis) {
 
     private GobPieConfiguration() {
-        goblintExecutable = "goblint";
-        abstractDebugging = false;
-        showCfg = false;
-        explodeGroupWarnings = true;
-        incrementalAnalysis = true;
-    }
-
-    private GobPieConfiguration(String goblintExecutable, String goblintConf, String[] preAnalyzeCommand, boolean abstractDebugging, boolean showCfg, boolean explodeGroupWarnings, boolean incrementalAnalysis) {
-        this.goblintExecutable = goblintExecutable;
-        this.goblintConf = goblintConf;
-        this.preAnalyzeCommand = preAnalyzeCommand;
-        this.abstractDebugging = abstractDebugging;
-        this.showCfg = showCfg;
-        this.explodeGroupWarnings = explodeGroupWarnings;
-        this.incrementalAnalysis = incrementalAnalysis;
+        this("goblint", null, null, false, false, true, true);
     }
 
     public String getGoblintExecutable() {
@@ -48,7 +34,7 @@ public class GobPieConfiguration {
     }
 
     public String[] getPreAnalyzeCommand() {
-        return this.preAnalyzeCommand;
+        return this.preAnalyzeCommand.toArray(new String[0]);
     }
 
     public boolean enableAbstractDebugging() {
@@ -67,18 +53,10 @@ public class GobPieConfiguration {
         return incrementalAnalysis;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        GobPieConfiguration that = (GobPieConfiguration) o;
-        return abstractDebugging == that.abstractDebugging && showCfg == that.showCfg && explodeGroupWarnings == that.explodeGroupWarnings && incrementalAnalysis == that.incrementalAnalysis && Objects.equals(goblintExecutable, that.goblintExecutable) && Objects.equals(goblintConf, that.goblintConf) && Arrays.equals(preAnalyzeCommand, that.preAnalyzeCommand);
-    }
-
     public static class Builder {
         private String goblintExecutable;
         private String goblintConf;
-        private String[] preAnalyzeCommand;
+        private List<String> preAnalyzeCommand;
         private boolean abstractDebugging;
         private boolean showCfg;
         private boolean explodeGroupWarnings;
@@ -94,7 +72,7 @@ public class GobPieConfiguration {
             return this;
         }
 
-        public Builder setPreAnalyzeCommand(String[] preAnalyzeCommand) {
+        public Builder setPreAnalyzeCommand(List<String> preAnalyzeCommand) {
             this.preAnalyzeCommand = preAnalyzeCommand;
             return this;
         }
