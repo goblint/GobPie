@@ -10,6 +10,7 @@ import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.MagpieServer;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -29,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(SystemStubsExtension.class)
-class GoblintAnalysisTest {
+class GoblintAnalysisTest extends TestHelper {
 
     @Mock
     MagpieServer magpieServer = mock(MagpieServer.class);
@@ -48,13 +49,13 @@ class GoblintAnalysisTest {
     @SystemStub
     private SystemOut systemOut;
 
-    /**
-     * A function to mock that GoblintServer is alive
-     * and Goblint's configuration file is ok.
-     */
-    private void mockGoblintServerIsAlive(GoblintServer goblintServer) {
-        doReturn(true).when(goblintServer).isAlive();
-        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
+    @BeforeEach
+    void before() {
+        mockGoblintServerIsAlive(goblintServer, goblintConfWatcher);
+        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
+        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
+        // Mock that Goblint returns some messages (if applicable)
+        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
     }
 
     /**
@@ -63,17 +64,12 @@ class GoblintAnalysisTest {
      */
     @Test
     void analyzeFailed() {
-        mockGoblintServerIsAlive(goblintServer);
-
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.failedFuture(new Throwable(" Testing failed analysis")));
 
-        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
-
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
-        // Verify that Analysis has failed
+        // Verify that failed analysis has been logged
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("---------------------- Analysis started ----------------------")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------------- Analysis failed  ----------------------")));
 
@@ -88,27 +84,38 @@ class GoblintAnalysisTest {
      */
     @Test
     void abortAnalysis() throws IOException {
-        // Mock server and change goblintAnalysis value
-        GoblintServer goblintServer = mock(GoblintServer.class);
-        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
-
-        mockGoblintServerIsAlive(goblintServer);
-
         // Mock that the analyses of Goblint have started but not completed (still run)
-        CompletableFuture<GoblintAnalysisResult> runningProcess = new CompletableFuture<>();
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(runningProcess);
+        CompletableFuture<GoblintAnalysisResult> runningProcess1 = new CompletableFuture<>();
+        CompletableFuture<GoblintAnalysisResult> runningProcess2 = new CompletableFuture<>();
 
-        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
+        // Mock that goblintServer.abortAnalysis completes normally when called
+        doNothing().when(goblintServer).abortAnalysis();
 
         // Call analyze method twice
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(runningProcess1);
         goblintAnalysis.analyze(files, analysisConsumer, true);
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("---------------------- Analysis started ----------------------")));
+        systemOut.clear();
+
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(runningProcess2);
         goblintAnalysis.analyze(files, analysisConsumer, true);
+
+        // Verify that aborted analysis has been properly logged and new one started
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------- This analysis has been aborted -------------")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("---------------------- Analysis started ----------------------")));
+
+        // Verify that the user has been notified about starting an analysis twice and about finishing once
+        verify(magpieServer, times(2)).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
+        verify(magpieServer, times(0)).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
 
         // Verify that abortAnalysis was indeed called once
         verify(goblintServer).abortAnalysis();
-        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------- This analysis has been aborted -------------")));
-        runningProcess.complete(null);
+
+        // Finish the running analysis properly
+        systemOut.clear();
+        runningProcess2.complete(new GoblintAnalysisResult());
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------------- Analysis finished ----------------------")));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
     }
 
     /**
@@ -117,20 +124,11 @@ class GoblintAnalysisTest {
      */
     @Test
     void abortAnalysisFails() throws IOException {
-        // Mock server and change goblintAnalysis value
-        GoblintServer goblintServer = mock(GoblintServer.class);
-        GoblintAnalysis goblintAnalysis = new GoblintAnalysis(magpieServer, goblintServer, goblintService, gobPieConfiguration, goblintConfWatcher);
-
-        mockGoblintServerIsAlive(goblintServer);
-
         // Mock that the analyses of Goblint have started but not completed (still run)
         CompletableFuture<GoblintAnalysisResult> runningProcess = new CompletableFuture<>();
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(runningProcess);
 
-        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
-
-        // Mock that abortAnalysis throws an exception when called
+        // Mock that goblintServer.abortAnalysis throws an exception when called
         doThrow(new IOException()).when(goblintServer).abortAnalysis();
 
         // Call analyze method twice
@@ -149,18 +147,13 @@ class GoblintAnalysisTest {
      */
     @Test
     void preAnalyseTest() {
-        mockGoblintServerIsAlive(goblintServer);
-
         // A process that must be run before analysis
         String processPrintout = "'Hello'";
         String[] preAnalyzeCommand = new String[]{"echo", processPrintout};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(null));
-
-        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
 
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
@@ -169,6 +162,8 @@ class GoblintAnalysisTest {
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("PreAnalysis command ran: '" + Arrays.toString(preAnalyzeCommand) + "'")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("PreAnalysis command finished.")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains(processPrintout)));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
     }
 
     /**
@@ -177,20 +172,12 @@ class GoblintAnalysisTest {
      */
     @Test
     void preAnalyseEmpty() {
-        mockGoblintServerIsAlive(goblintServer);
-
-        // Mock that Goblint returns some messages
-        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
-
         // Mock that the command to execute is empty
         String[] preAnalyzeCommand = new String[]{};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
-
-        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
@@ -206,19 +193,11 @@ class GoblintAnalysisTest {
      */
     @Test
     void preAnalyseNull() {
-        mockGoblintServerIsAlive(goblintServer);
-
-        // Mock that Goblint returns some messages
-        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
-
         // Mock that the command to execute is null
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(null);
 
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
-
-        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
@@ -234,20 +213,12 @@ class GoblintAnalysisTest {
      */
     @Test
     void preAnalyseError() {
-        mockGoblintServerIsAlive(goblintServer);
-
-        // Mock that Goblint returns some messages
-        when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
-
         // Mock that the command to execute is not empty and is something that is not a valid command
         String[] preAnalyzeCommand = new String[]{"asdf"};
         when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
-
-        // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
 
         goblintAnalysis.analyze(files, analysisConsumer, true);
 

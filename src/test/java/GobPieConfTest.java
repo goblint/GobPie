@@ -16,6 +16,7 @@ import uk.org.webcompere.systemstubs.stream.SystemOut;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -43,7 +44,7 @@ class GobPieConfTest {
     GobPieConfReader preFileSetup(Integer fileNumber) {
         // Mock everything needed for creating GobPieConfReader
         String fileName = "gobpieTest" + fileNumber + ".json";
-        String gobPieConfFileName = GobPieConfTest.class.getResource(fileName).getFile();
+        String gobPieConfFileName = Objects.requireNonNull(GobPieConfTest.class.getResource(fileName)).getFile();
         return new GobPieConfReader(magpieServer, gobPieConfFileName);
     }
 
