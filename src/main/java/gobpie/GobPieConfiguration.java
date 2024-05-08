@@ -1,7 +1,5 @@
 package gobpie;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -16,13 +14,19 @@ public record GobPieConfiguration(
         String goblintExecutable,
         String goblintConf,
         List<String> preAnalyzeCommand,
-        boolean abstractDebugging,
-        boolean showCfg,
-        boolean explodeGroupWarnings,
-        boolean incrementalAnalysis) {
+        Boolean abstractDebugging,
+        Boolean showCfg,
+        Boolean explodeGroupWarnings,
+        Boolean incrementalAnalysis) {
 
-    private GobPieConfiguration() {
-        this("goblint", null, null, false, false, true, true);
+    public GobPieConfiguration(String goblintExecutable, String goblintConf, List<String> preAnalyzeCommand, Boolean abstractDebugging, Boolean showCfg, Boolean explodeGroupWarnings, Boolean incrementalAnalysis) {
+        this.goblintExecutable = (goblintExecutable == null) ? "goblint" : goblintExecutable;
+        this.goblintConf = goblintConf;
+        this.preAnalyzeCommand = preAnalyzeCommand;
+        this.abstractDebugging = abstractDebugging != null && abstractDebugging;
+        this.showCfg = showCfg != null && showCfg;
+        this.explodeGroupWarnings = explodeGroupWarnings == null || explodeGroupWarnings;
+        this.incrementalAnalysis = incrementalAnalysis == null || incrementalAnalysis;
     }
 
     public String getGoblintExecutable() {
@@ -41,11 +45,11 @@ public record GobPieConfiguration(
         return abstractDebugging;
     }
 
-    public boolean showCfg() {
+    public Boolean showCfg() {
         return this.showCfg;
     }
 
-    public boolean explodeGroupWarnings() {
+    public Boolean explodeGroupWarnings() {
         return explodeGroupWarnings;
     }
 
