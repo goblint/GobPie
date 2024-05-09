@@ -64,7 +64,7 @@ public class GoblintMessagesTest extends TestHelper {
         // Mock that the command to execute is empty
         when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(new ArrayList<>());
         // Mock that the analyses of Goblint have started and completed
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
         when(gobPieConfiguration.incrementalAnalysis()).thenReturn(true);
     }

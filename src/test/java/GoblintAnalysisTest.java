@@ -60,10 +60,10 @@ class GoblintAnalysisTest extends TestHelper {
 
     /**
      * Mock test to ensure @analyze function
-     * messages user when analyzes fails
+     * messages user when analysis fails due to future throwing an exception
      */
     @Test
-    void analyzeFailed() {
+    void analyzeFailedWithFailedFuture() {
         // Mock that the analyses of Goblint have started and completed
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.failedFuture(new Throwable(" Testing failed analysis")));
 
@@ -76,6 +76,46 @@ class GoblintAnalysisTest extends TestHelper {
         // Verify that user is notified about the failed analysis
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "GobPie failed to analyze the code:\n Testing failed analysis"));
+    }
+
+    /**
+     * Mock test to ensure @analyze function
+     * messages user when analysis fails due to Goblint aborting
+     */
+    @Test
+    void analyzeFailedWithGoblintAborted() {
+        // Mock that the analyses of Goblint have started and completed
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Aborted"))));
+
+        goblintAnalysis.analyze(files, analysisConsumer, true);
+
+        // Verify that failed analysis has been logged
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("---------------------- Analysis started ----------------------")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------------- Analysis failed  ----------------------")));
+
+        // Verify that user is notified about the failed analysis
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "GobPie failed to analyze the code:\nThe running analysis has been aborted."));
+    }
+
+    /**
+     * Mock test to ensure @analyze function
+     * messages user when analysis fails due to Goblint responding with VerifyError
+     */
+    @Test
+    void analyzeFailedWithGoblintVerifyError() {
+        // Mock that the analyses of Goblint have started and completed
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("VerifyError"))));
+
+        goblintAnalysis.analyze(files, analysisConsumer, true);
+
+        // Verify that failed analysis has been logged
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("---------------------- Analysis started ----------------------")));
+        assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------------- Analysis failed  ----------------------")));
+
+        // Verify that user is notified about the failed analysis
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie started analyzing the code."));
+        verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Error, "GobPie failed to analyze the code:\nAnalysis returned VerifyError."));
     }
 
     /**
@@ -113,7 +153,7 @@ class GoblintAnalysisTest extends TestHelper {
 
         // Finish the running analysis properly
         systemOut.clear();
-        runningProcess2.complete(new GoblintAnalysisResult());
+        runningProcess2.complete(new GoblintAnalysisResult(List.of("Success")));
         assertTrue(systemOut.getLines().anyMatch(line -> line.contains("--------------------- Analysis finished ----------------------")));
         verify(magpieServer).forwardMessageToClient(new MessageParams(MessageType.Info, "GobPie finished analyzing the code."));
     }
@@ -153,7 +193,7 @@ class GoblintAnalysisTest extends TestHelper {
         when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
 
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
@@ -177,7 +217,7 @@ class GoblintAnalysisTest extends TestHelper {
         when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
 
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
@@ -197,7 +237,7 @@ class GoblintAnalysisTest extends TestHelper {
         when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(null);
 
         // Mock that the analyses of Goblint have started and completed
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
 
         goblintAnalysis.analyze(files, analysisConsumer, true);
 
@@ -218,7 +258,7 @@ class GoblintAnalysisTest extends TestHelper {
         when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(preAnalyzeCommand);
 
         // Mock that the analyses of Goblint have started and completed
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
 
         goblintAnalysis.analyze(files, analysisConsumer, true);
 

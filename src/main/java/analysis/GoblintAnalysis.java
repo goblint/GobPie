@@ -149,9 +149,9 @@ public class GoblintAnalysis implements ServerAnalysis {
     }
 
     private void didAnalysisNotSucceed(GoblintAnalysisResult analysisResult) {
-        if (analysisResult.getStatus().contains("Aborted"))
+        if (analysisResult.status().contains("Aborted"))
             throw new GobPieException("The running analysis has been aborted.", GobPieExceptionType.GOBLINT_EXCEPTION);
-        else if (analysisResult.getStatus().contains("VerifyError"))
+        else if (analysisResult.status().contains("VerifyError"))
             throw new GobPieException("Analysis returned VerifyError.", GobPieExceptionType.GOBLINT_EXCEPTION);
     }
 

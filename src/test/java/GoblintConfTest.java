@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -55,7 +56,7 @@ public class GoblintConfTest {
         when(gobPieConfiguration.incrementalAnalysis()).thenReturn(true);
         when(gobPieConfiguration.goblintConf()).thenReturn("goblint.json");
 
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
         when(goblintService.reset_config()).thenReturn(CompletableFuture.completedFuture(null));
         when(goblintService.read_config(new Params(new File("goblint.json").getAbsolutePath()))).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -78,7 +79,7 @@ public class GoblintConfTest {
         when(gobPieConfiguration.incrementalAnalysis()).thenReturn(true);
         when(gobPieConfiguration.goblintConf()).thenReturn("goblint.json");
 
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
         when(goblintService.reset_config()).thenReturn(CompletableFuture.completedFuture(null));
         when(goblintService.read_config(new Params())).thenReturn(CompletableFuture.completedFuture(null));
 
