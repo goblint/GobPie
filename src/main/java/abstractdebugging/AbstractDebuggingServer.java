@@ -1011,8 +1011,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             JsonObject state = resultsService.lookupState(currentNode.nodeId());
             JsonElement globalState = resultsService.lookupGlobalState();
             Map<String, GoblintVarinfo> varinfos = resultsService.getVarinfos().stream()
-                    .filter(v -> (v.getFunction() == null || v.getFunction().equals(currentNode.function())) && !"function".equals(v.getRole()))
-                    .collect(Collectors.toMap(GoblintVarinfo::getName, v -> v));
+                    .filter(v -> (v.function() == null || v.function().equals(currentNode.function())) && !"function".equals(v.role()))
+                    .collect(Collectors.toMap(GoblintVarinfo::name, v -> v));
 
             List<Variable> localVariables = new ArrayList<>();
             List<Variable> globalVariables = new ArrayList<>();
@@ -1043,29 +1043,29 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
             // Add variables.
             for (var varinfo : varinfos.values()) {
-                if (varinfo.getOriginalName() == null || (varinfo.getFunction() == null && STD_VARIABLES.contains(varinfo.getOriginalName()))) {
+                if (varinfo.original_name() == null || (varinfo.function() == null && STD_VARIABLES.contains(varinfo.original_name()))) {
                     // Hide synthetic variables because they are impossible to interpret without looking at the CFG.
                     // Hide global built-in and standard library variables because they are generally irrelevant and not used in the analysis.
                     continue;
                 }
 
-                String name = varinfo.getName().equals(varinfo.getOriginalName())
-                        ? varinfo.getName()
-                        : varinfo.getOriginalName() + " (" + varinfo.getName() + ")";
-                JsonElement value = domainValues.get(varinfo.getName());
+                String name = varinfo.name().equals(varinfo.original_name())
+                        ? varinfo.name()
+                        : varinfo.original_name() + " (" + varinfo.name() + ")";
+                JsonElement value = domainValues.get(varinfo.name());
                 if (value == null) {
-                    if (varinfo.getFunction() != null) {
+                    if (varinfo.function() != null) {
                         // Skip local variables that are not present in base domain, because this generally means we are on a special ARG node where local variables are not tracked.
                         continue;
                     }
                     // If domain does not contain variable value use Goblint to evaluate the value.
                     // This generally happens for global variables in multithreaded mode.
-                    value = resultsService.evaluateExpression(currentNode.nodeId(), varinfo.getName());
+                    value = resultsService.evaluateExpression(currentNode.nodeId(), varinfo.name());
                 }
 
-                List<Variable> scope = varinfo.getFunction() == null ? globalVariables : localVariables;
+                List<Variable> scope = varinfo.function() == null ? globalVariables : localVariables;
 
-                scope.add(domainValueToVariable(name, varinfo.getType(), value));
+                scope.add(domainValueToVariable(name, varinfo.type(), value));
             }
 
             List<Variable> rawVariables = new ArrayList<>();
