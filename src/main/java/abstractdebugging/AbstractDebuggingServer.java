@@ -713,7 +713,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             String stopReason;
             GoblintLocation targetLocation;
             List<NodeInfo> targetNodes;
-            if (breakpoints.size() == 0) {
+            if (breakpoints.isEmpty()) {
                 stopReason = "entry";
                 targetLocation = null;
                 targetNodes = resultsService.lookupNodes(LookupParams.entryPoint());
