@@ -17,10 +17,6 @@ public record GoblintLocation(
         int column,
         Integer endLine,
         Integer endColumn) {
-    // Byte offsets from start of file.
-    // This duplicates information from line and column fields, but needs to exist when using the location as a parameter.
-    @SerializedName("byte")
-    private static int startByte = -1;
 
     public GoblintPosition toPosition() {
         try {
