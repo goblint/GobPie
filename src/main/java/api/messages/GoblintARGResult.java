@@ -9,10 +9,5 @@ package api.messages;
  * @since 0.0.4
  */
 
-public class GoblintARGResult {
-    private String arg;
-
-    public String getArg() {
-        return arg;
-    }
+public record GoblintARGResult(String arg) {
 }

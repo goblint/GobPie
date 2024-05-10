@@ -9,10 +9,5 @@ package api.messages;
  * @since 0.0.3
  */
 
-public class GoblintCFGResult {
-    private String cfg;
-
-    public String getCfg() {
-        return cfg;
-    }
+public record GoblintCFGResult(String cfg) {
 }
