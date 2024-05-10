@@ -142,7 +142,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 continue;
             }
 
-            var targetLocation = new GoblintLocation(goblintSourcePath, breakpoint.getLine(), breakpoint.getColumn() == null ? 0 : breakpoint.getColumn());
+            var targetLocation = new GoblintLocation(goblintSourcePath, breakpoint.getLine(), breakpoint.getColumn() == null ? 0 : breakpoint.getColumn(), null, null);
             CFGNodeInfo cfgNode;
             try {
                 cfgNode = resultsService.lookupCFGNode(targetLocation);
@@ -152,8 +152,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 continue;
             }
             breakpointStatus.setSource(args.getSource());
-            breakpointStatus.setLine(cfgNode.location().getLine());
-            breakpointStatus.setColumn(cfgNode.location().getColumn());
+            breakpointStatus.setLine(cfgNode.location().line());
+            breakpointStatus.setColumn(cfgNode.location().column());
 
             ConditionalExpression condition;
             if (breakpoint.getCondition() == null) {
@@ -193,11 +193,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
         int startIndex;
         for (startIndex = 0; startIndex < breakpoints.size(); startIndex++) {
-            if (breakpoints.get(startIndex).cfgNode().location().getFile().equals(goblintSourcePath)) {
+            if (breakpoints.get(startIndex).cfgNode().location().file().equals(goblintSourcePath)) {
                 break;
             }
         }
-        breakpoints.removeIf(b -> b.cfgNode().location().getFile().equals(goblintSourcePath));
+        breakpoints.removeIf(b -> b.cfgNode().location().file().equals(goblintSourcePath));
         breakpoints.addAll(startIndex, newBreakpoints);
 
         var response = new SetBreakpointsResponse();
@@ -428,10 +428,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         var target = new StepInTarget();
         target.setId(id);
         target.setLabel(label);
-        target.setLine(location.getLine());
-        target.setColumn(location.getColumn());
-        target.setEndLine(location.getEndLine());
-        target.setEndColumn(location.getEndColumn());
+        target.setLine(location.line());
+        target.setColumn(location.column());
+        target.setEndLine(location.endLine());
+        target.setEndColumn(location.endColumn());
         return target;
     }
 
@@ -975,13 +975,13 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             if (frame.getNode() != null) {
                 stackFrame.setName((frame.isAmbiguousFrame() ? "? " : "") + (frame.getLocalThreadIndex() != currentThreadId ? "^" : "") + frame.getNode().function() + " " + frame.getNode().nodeId());
                 var location = frame.getNode().location();
-                stackFrame.setLine(location.getLine());
-                stackFrame.setColumn(location.getColumn());
-                stackFrame.setEndLine(location.getEndLine());
-                stackFrame.setEndColumn(location.getEndColumn());
+                stackFrame.setLine(location.line());
+                stackFrame.setColumn(location.column());
+                stackFrame.setEndLine(location.endLine());
+                stackFrame.setEndColumn(location.endColumn());
                 var source = new Source();
-                source.setName(location.getFile());
-                source.setPath(new File(location.getFile()).getAbsolutePath());
+                source.setName(location.file());
+                source.setPath(new File(location.file()).getAbsolutePath());
                 stackFrame.setSource(source);
             } else {
                 stackFrame.setName("No matching path");
