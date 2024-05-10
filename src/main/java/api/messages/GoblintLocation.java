@@ -1,7 +1,5 @@
 package api.messages;
 
-import com.google.gson.annotations.SerializedName;
-
 import java.io.File;
 import java.net.MalformedURLException;
 
