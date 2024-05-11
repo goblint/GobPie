@@ -1,7 +1,9 @@
 package analysis;
 
 import api.GoblintService;
-import api.messages.*;
+import api.messages.GoblintAnalysisResult;
+import api.messages.GoblintFunctionsResult;
+import api.messages.GoblintMessagesResult;
 import api.messages.params.AnalyzeParams;
 import com.ibm.wala.classLoader.Module;
 import goblintserver.GoblintConfWatcher;
@@ -17,20 +19,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
-import org.zeroturnaround.exec.InvalidExitValueException;
-import org.zeroturnaround.exec.ProcessExecutor;
-import org.zeroturnaround.exec.ProcessResult;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 /**
@@ -148,14 +144,14 @@ public class GoblintAnalysis implements ServerAnalysis {
      * @throws GobPieException in case the analysis was aborted or returned a VerifyError.
      */
     public CompletableFuture<Collection<AnalysisResult>> reanalyse() {
-        return goblintService.analyze(new AnalyzeParams(!gobpieConfiguration.useIncrementalAnalysis()))
+        return goblintService.analyze(new AnalyzeParams(!gobpieConfiguration.incrementalAnalysis()))
                 .thenCompose(this::getComposedAnalysisResults);
     }
 
     private void didAnalysisNotSucceed(GoblintAnalysisResult analysisResult) {
-        if (analysisResult.getStatus().contains("Aborted"))
+        if (analysisResult.status().contains("Aborted"))
             throw new GobPieException("The running analysis has been aborted.", GobPieExceptionType.GOBLINT_EXCEPTION);
-        else if (analysisResult.getStatus().contains("VerifyError"))
+        else if (analysisResult.status().contains("VerifyError"))
             throw new GobPieException("Analysis returned VerifyError.", GobPieExceptionType.GOBLINT_EXCEPTION);
     }
 

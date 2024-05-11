@@ -16,6 +16,8 @@ import uk.org.webcompere.systemstubs.stream.SystemOut;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -43,7 +45,7 @@ class GobPieConfTest {
     GobPieConfReader preFileSetup(Integer fileNumber) {
         // Mock everything needed for creating GobPieConfReader
         String fileName = "gobpieTest" + fileNumber + ".json";
-        String gobPieConfFileName = GobPieConfTest.class.getResource(fileName).getFile();
+        String gobPieConfFileName = Objects.requireNonNull(GobPieConfTest.class.getResource(fileName)).getFile();
         return new GobPieConfReader(magpieServer, gobPieConfFileName);
     }
 
@@ -58,7 +60,7 @@ class GobPieConfTest {
                 new GobPieConfiguration.Builder()
                         .setGoblintConf("goblint.json")
                         .setGoblintExecutable("/home/user/goblint/analyzer/goblint")
-                        .setPreAnalyzeCommand(new String[]{"echo", "'hello'"})
+                        .setPreAnalyzeCommand(List.of("echo", "'hello'"))
                         .setAbstractDebugging(true)
                         .setShowCfg(true)
                         .setIncrementalAnalysis(false)
@@ -82,7 +84,7 @@ class GobPieConfTest {
                 new GobPieConfiguration.Builder()
                         .setGoblintConf("goblint.json")
                         .setGoblintExecutable("/home/user/goblint/analyzer/goblint")
-                        .setPreAnalyzeCommand(new String[]{"cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"})
+                        .setPreAnalyzeCommand(List.of("cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-B", "build"))
                         .setAbstractDebugging(false)
                         .setShowCfg(false)
                         .setIncrementalAnalysis(true)
@@ -203,7 +205,7 @@ class GobPieConfTest {
 
         GobPieConfiguration.Builder builder = new GobPieConfiguration.Builder()
                 .setGoblintExecutable("/home/user/goblint/analyzer/goblint")
-                .setPreAnalyzeCommand(new String[]{"echo", "'hello'"})
+                .setPreAnalyzeCommand(List.of("echo", "'hello'"))
                 .setAbstractDebugging(false)
                 .setShowCfg(false)
                 .setIncrementalAnalysis(true)

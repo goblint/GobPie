@@ -159,9 +159,9 @@ public class GobPieHttpHandler implements HttpHandler {
         try {
             String cfg;
             if (funName.equals("<arg>")) {
-                cfg = goblintService.arg_dot().get().getArg();
+                cfg = goblintService.arg_dot().get().arg();
             } else {
-                cfg = goblintService.cfg_dot(params).get().getCfg();
+                cfg = goblintService.cfg_dot(params).get().cfg();
             }
             return cfg2svg(cfg);
         } catch (ExecutionException | InterruptedException e) {

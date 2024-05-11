@@ -142,7 +142,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 continue;
             }
 
-            var targetLocation = new GoblintLocation(goblintSourcePath, breakpoint.getLine(), breakpoint.getColumn() == null ? 0 : breakpoint.getColumn());
+            var targetLocation = new GoblintLocation(goblintSourcePath, breakpoint.getLine(), breakpoint.getColumn() == null ? 0 : breakpoint.getColumn(), null, null);
             CFGNodeInfo cfgNode;
             try {
                 cfgNode = resultsService.lookupCFGNode(targetLocation);
@@ -152,8 +152,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 continue;
             }
             breakpointStatus.setSource(args.getSource());
-            breakpointStatus.setLine(cfgNode.location().getLine());
-            breakpointStatus.setColumn(cfgNode.location().getColumn());
+            breakpointStatus.setLine(cfgNode.location().line());
+            breakpointStatus.setColumn(cfgNode.location().column());
 
             ConditionalExpression condition;
             if (breakpoint.getCondition() == null) {
@@ -193,11 +193,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
         int startIndex;
         for (startIndex = 0; startIndex < breakpoints.size(); startIndex++) {
-            if (breakpoints.get(startIndex).cfgNode().location().getFile().equals(goblintSourcePath)) {
+            if (breakpoints.get(startIndex).cfgNode().location().file().equals(goblintSourcePath)) {
                 break;
             }
         }
-        breakpoints.removeIf(b -> b.cfgNode().location().getFile().equals(goblintSourcePath));
+        breakpoints.removeIf(b -> b.cfgNode().location().file().equals(goblintSourcePath));
         breakpoints.addAll(startIndex, newBreakpoints);
 
         var response = new SetBreakpointsResponse();
@@ -428,10 +428,10 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         var target = new StepInTarget();
         target.setId(id);
         target.setLabel(label);
-        target.setLine(location.getLine());
-        target.setColumn(location.getColumn());
-        target.setEndLine(location.getEndLine());
-        target.setEndColumn(location.getEndColumn());
+        target.setLine(location.line());
+        target.setColumn(location.column());
+        target.setEndLine(location.endLine());
+        target.setEndColumn(location.endColumn());
         return target;
     }
 
@@ -713,7 +713,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             String stopReason;
             GoblintLocation targetLocation;
             List<NodeInfo> targetNodes;
-            if (breakpoints.size() == 0) {
+            if (breakpoints.isEmpty()) {
                 stopReason = "entry";
                 targetLocation = null;
                 targetNodes = resultsService.lookupNodes(LookupParams.entryPoint());
@@ -975,13 +975,13 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             if (frame.getNode() != null) {
                 stackFrame.setName((frame.isAmbiguousFrame() ? "? " : "") + (frame.getLocalThreadIndex() != currentThreadId ? "^" : "") + frame.getNode().function() + " " + frame.getNode().nodeId());
                 var location = frame.getNode().location();
-                stackFrame.setLine(location.getLine());
-                stackFrame.setColumn(location.getColumn());
-                stackFrame.setEndLine(location.getEndLine());
-                stackFrame.setEndColumn(location.getEndColumn());
+                stackFrame.setLine(location.line());
+                stackFrame.setColumn(location.column());
+                stackFrame.setEndLine(location.endLine());
+                stackFrame.setEndColumn(location.endColumn());
                 var source = new Source();
-                source.setName(location.getFile());
-                source.setPath(new File(location.getFile()).getAbsolutePath());
+                source.setName(location.file());
+                source.setPath(new File(location.file()).getAbsolutePath());
                 stackFrame.setSource(source);
             } else {
                 stackFrame.setName("No matching path");
@@ -1011,8 +1011,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
             JsonObject state = resultsService.lookupState(currentNode.nodeId());
             JsonElement globalState = resultsService.lookupGlobalState();
             Map<String, GoblintVarinfo> varinfos = resultsService.getVarinfos().stream()
-                    .filter(v -> (v.getFunction() == null || v.getFunction().equals(currentNode.function())) && !"function".equals(v.getRole()))
-                    .collect(Collectors.toMap(GoblintVarinfo::getName, v -> v));
+                    .filter(v -> (v.function() == null || v.function().equals(currentNode.function())) && !"function".equals(v.role()))
+                    .collect(Collectors.toMap(GoblintVarinfo::name, v -> v));
 
             List<Variable> localVariables = new ArrayList<>();
             List<Variable> globalVariables = new ArrayList<>();
@@ -1043,29 +1043,29 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
 
             // Add variables.
             for (var varinfo : varinfos.values()) {
-                if (varinfo.getOriginalName() == null || (varinfo.getFunction() == null && STD_VARIABLES.contains(varinfo.getOriginalName()))) {
+                if (varinfo.original_name() == null || (varinfo.function() == null && STD_VARIABLES.contains(varinfo.original_name()))) {
                     // Hide synthetic variables because they are impossible to interpret without looking at the CFG.
                     // Hide global built-in and standard library variables because they are generally irrelevant and not used in the analysis.
                     continue;
                 }
 
-                String name = varinfo.getName().equals(varinfo.getOriginalName())
-                        ? varinfo.getName()
-                        : varinfo.getOriginalName() + " (" + varinfo.getName() + ")";
-                JsonElement value = domainValues.get(varinfo.getName());
+                String name = varinfo.name().equals(varinfo.original_name())
+                        ? varinfo.name()
+                        : varinfo.original_name() + " (" + varinfo.name() + ")";
+                JsonElement value = domainValues.get(varinfo.name());
                 if (value == null) {
-                    if (varinfo.getFunction() != null) {
+                    if (varinfo.function() != null) {
                         // Skip local variables that are not present in base domain, because this generally means we are on a special ARG node where local variables are not tracked.
                         continue;
                     }
                     // If domain does not contain variable value use Goblint to evaluate the value.
                     // This generally happens for global variables in multithreaded mode.
-                    value = resultsService.evaluateExpression(currentNode.nodeId(), varinfo.getName());
+                    value = resultsService.evaluateExpression(currentNode.nodeId(), varinfo.name());
                 }
 
-                List<Variable> scope = varinfo.getFunction() == null ? globalVariables : localVariables;
+                List<Variable> scope = varinfo.function() == null ? globalVariables : localVariables;
 
-                scope.add(domainValueToVariable(name, varinfo.getType(), value));
+                scope.add(domainValueToVariable(name, varinfo.type(), value));
             }
 
             List<Variable> rawVariables = new ArrayList<>();

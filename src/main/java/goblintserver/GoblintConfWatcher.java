@@ -11,7 +11,6 @@ import org.eclipse.lsp4j.MessageType;
 import util.FileWatcher;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.concurrent.CompletionException;
 
 public class GoblintConfWatcher {
@@ -39,7 +38,7 @@ public class GoblintConfWatcher {
         if (fileWatcher.checkModified() || !configValid) {
             configValid = goblintService.reset_config()
                     .thenCompose(_res ->
-                            goblintService.read_config(new Params(new File(gobpieConfiguration.getGoblintConf()).getAbsolutePath())))
+                            goblintService.read_config(new Params(new File(gobpieConfiguration.goblintConf()).getAbsolutePath())))
                     .handle((_res, ex) -> {
                         if (ex != null) {
                             Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;

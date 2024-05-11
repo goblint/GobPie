@@ -3,7 +3,6 @@ package goblintserver;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
@@ -18,6 +17,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import static gobpie.GobPieExceptionType.GOBLINT_EXCEPTION;
@@ -67,12 +67,12 @@ public class GoblintServer {
      * Can be used for automating the compilation database generation.
      */
     public void preAnalyse() {
-        String[] preAnalyzeCommand = configuration.getPreAnalyzeCommand();
-        if (preAnalyzeCommand != null && preAnalyzeCommand.length != 0) {
+        List<String> preAnalyzeCommand = configuration.preAnalyzeCommand();
+        if ((preAnalyzeCommand != null) && (!preAnalyzeCommand.isEmpty())) {
             try {
-                String preAnalyzeCommandString = Arrays.toString(preAnalyzeCommand);
-                log.info("PreAnalysis command ran: '" + preAnalyzeCommandString + "'");
-                ProcessListener processListener = new ProcessListener() {};
+                log.info("PreAnalysis command ran: '" + preAnalyzeCommand + "'");
+                ProcessListener processListener = new ProcessListener() {
+                };
                 StartedProcess preAnalysisProcess = runCommand(new File(System.getProperty("user.dir")), preAnalyzeCommand, processListener);
                 switch (preAnalysisProcess.getProcess().waitFor()) {
                     case 0 -> log.info("PreAnalysis command finished.");
@@ -98,16 +98,17 @@ public class GoblintServer {
      * Method for constructing the command to run Goblint server.
      * Files to analyse must be defined in goblint conf.
      */
-    public String[] constructGoblintRunCommand() {
-        String[] command = new String[]{
-                configuration.getGoblintExecutable(),
+    public List<String> constructGoblintRunCommand() {
+        List<String> command = new java.util.ArrayList<>(List.of(
+                configuration.goblintExecutable(),
                 "--enable", "server.enabled",
                 "--enable", "server.reparse",
                 "--set", "server.mode", "unix",
                 "--set", "server.unix-socket", new File(getGoblintSocket()).getAbsolutePath()
-        };
-        if (configuration.enableAbstractDebugging()) {
-            command = ArrayUtils.addAll(command, "--enable", "exp.arg");
+        ));
+        if (configuration.abstractDebugging()) {
+            command.add("--enable");
+            command.add("exp.arg");
         }
         return command;
     }
@@ -115,7 +116,7 @@ public class GoblintServer {
 
     private String[] constructGoblintVersionCheckCommand() {
         return new String[]{
-                configuration.getGoblintExecutable(),
+                configuration.goblintExecutable(),
                 "--version"
         };
     }
@@ -146,7 +147,7 @@ public class GoblintServer {
                     // TODO: throw an exception? where (and how) can it be caught to be handled though?
                 }
             };
-            String[] goblintRunCommand = constructGoblintRunCommand();
+            List<String> goblintRunCommand = constructGoblintRunCommand();
             log.info("Goblint run with command: " + String.join(" ", goblintRunCommand));
             goblintRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand, listener);
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
@@ -193,8 +194,8 @@ public class GoblintServer {
      * @param command The command to run.
      * @return An object that represents a process that has started. It may or may not have finished.
      */
-    private StartedProcess runCommand(File dirPath, String[] command, ProcessListener listener) throws IOException, InterruptedException, TimeoutException {
-        log.debug("Waiting for command: " + Arrays.toString(command) + " to run...");
+    private StartedProcess runCommand(File dirPath, List<String> command, ProcessListener listener) throws IOException, InterruptedException, TimeoutException {
+        log.debug("Waiting for command: " + command + " to run...");
         return new ProcessExecutor()
                 .directory(dirPath)
                 .command(command)

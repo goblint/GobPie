@@ -11,7 +11,6 @@ import magpiebridge.core.AnalysisConsumer;
 import magpiebridge.core.MagpieServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
@@ -22,7 +21,9 @@ import util.FileWatcher;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -51,11 +52,11 @@ public class GoblintConfTest {
     void refreshGoblintConfigSucceeds() {
         doReturn(true).when(goblintServer).isAlive();
 
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(new String[]{});
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
-        when(gobPieConfiguration.getGoblintConf()).thenReturn("goblint.json");
+        when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(new ArrayList<>());
+        when(gobPieConfiguration.incrementalAnalysis()).thenReturn(true);
+        when(gobPieConfiguration.goblintConf()).thenReturn("goblint.json");
 
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
         when(goblintService.reset_config()).thenReturn(CompletableFuture.completedFuture(null));
         when(goblintService.read_config(new Params(new File("goblint.json").getAbsolutePath()))).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -74,11 +75,11 @@ public class GoblintConfTest {
     void refreshGoblintConfigFails() {
         doReturn(true).when(goblintServer).isAlive();
 
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(new String[]{});
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
-        when(gobPieConfiguration.getGoblintConf()).thenReturn("goblint.json");
+        when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(new ArrayList<>());
+        when(gobPieConfiguration.incrementalAnalysis()).thenReturn(true);
+        when(gobPieConfiguration.goblintConf()).thenReturn("goblint.json");
 
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
+        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
         when(goblintService.reset_config()).thenReturn(CompletableFuture.completedFuture(null));
         when(goblintService.read_config(new Params())).thenReturn(CompletableFuture.completedFuture(null));
 

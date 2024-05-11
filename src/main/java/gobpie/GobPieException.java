@@ -21,8 +21,4 @@ public class GobPieException extends RuntimeException {
         this.type = type;
     }
 
-    public GobPieExceptionType getType() {
-        return type;
-    }
-
 }

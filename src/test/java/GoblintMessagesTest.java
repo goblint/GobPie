@@ -25,6 +25,7 @@ import org.mockito.Spy;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,9 +34,9 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Mockito.*;
 
-public class GoblintMessagesTest {
+public class GoblintMessagesTest extends TestHelper {
 
-    private Gson gson;
+    private Gson gson = new GoblintMessageJsonHandler(new HashMap<>()).getDefaultGsonBuilder().create();
     @Mock
     MagpieServer magpieServer = mock(MagpieServer.class);
     @Mock
@@ -51,49 +52,28 @@ public class GoblintMessagesTest {
     Collection<? extends Module> files = new ArrayDeque<>();
     AnalysisConsumer analysisConsumer = mock(AnalysisConsumer.class);
 
-    /**
-     * Method to initialize gson to parse Goblint warnings from JSON.
-     */
-    private void createGsonBuilder() {
-        GoblintMessageJsonHandler goblintMessageJsonHandler = new GoblintMessageJsonHandler(new HashMap<>());
-        gson = goblintMessageJsonHandler.getDefaultGsonBuilder().create();
-    }
+    Type messagesTypeToken = new TypeToken<List<GoblintMessagesResult>>() {
+    }.getType();
 
-    /**
-     * A function to mock that GoblintServer is alive
-     * and Goblint's configuration file is ok.
-     */
-    private void mockGoblintServerIsAlive(GoblintServer goblintServer) {
-        doReturn(true).when(goblintServer).isAlive();
-        when(goblintConfWatcher.refreshGoblintConfig()).thenReturn(true);
-    }
+    Type functionsTypeToken = new TypeToken<List<GoblintFunctionsResult>>() {
+    }.getType();
 
     @BeforeEach
     public void before() {
-        createGsonBuilder();
-        mockGoblintServerIsAlive(goblintServer);
+        mockGoblintServerIsAlive(goblintServer, goblintConfWatcher);
         // Mock that the command to execute is empty
-        when(gobPieConfiguration.getPreAnalyzeCommand()).thenReturn(new String[]{});
+        when(gobPieConfiguration.preAnalyzeCommand()).thenReturn(new ArrayList<>());
         // Mock that the analyses of Goblint have started and completed
-        when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult()));
+        when(goblintService.analyze(new AnalyzeParams(true))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
         // Mock that the incremental analysis is turned off (TODO: not sure why this is checked in reanalyze?)
-        when(gobPieConfiguration.useIncrementalAnalysis()).thenReturn(true);
-    }
-    
-    private List<GoblintMessagesResult> readGoblintMessagesResponseJson(String resource) throws IOException {
-        String messages = Files.readString(
-                Path.of(GoblintMessagesTest.class.getResource(resource).getPath())
-        );
-        return gson.fromJson(messages, new TypeToken<List<GoblintMessagesResult>>() {
-        }.getType());
+        when(gobPieConfiguration.incrementalAnalysis()).thenReturn(false);
     }
 
-    private List<GoblintFunctionsResult> readGoblintFunctionsResponseJson() throws IOException {
-        String functions = Files.readString(
-                Path.of(GoblintMessagesTest.class.getResource("functionsResponse.json").getPath())
+    private <T> List<T> readGoblintResponseJson(String resource, Type typeToken) throws IOException {
+        String messages = Files.readString(
+                Path.of(Objects.requireNonNull(GoblintMessagesTest.class.getResource(resource)).getPath())
         );
-        return gson.fromJson(functions, new TypeToken<List<GoblintFunctionsResult>>() {
-        }.getType());
+        return gson.fromJson(messages, typeToken);
     }
 
 
@@ -106,7 +86,7 @@ public class GoblintMessagesTest {
      */
     @Test
     public void testConvertMessagesFromJson() throws IOException {
-        List<GoblintMessagesResult> goblintMessagesResults = readGoblintMessagesResponseJson("messagesResponse.json");
+        List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson("messagesResponse.json", messagesTypeToken);
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
         when(gobPieConfiguration.showCfg()).thenReturn(false);
         goblintAnalysis.analyze(files, analysisConsumer, true);
@@ -159,7 +139,7 @@ public class GoblintMessagesTest {
         );
         verify(analysisConsumer).consume(response, "GobPie");
     }
-    
+
     /**
      * Mock test to ensure that the Goblint warnings with Explode received from a response in JSON format
      * are correctly converted to {@link AnalysisResult} objects
@@ -169,7 +149,7 @@ public class GoblintMessagesTest {
      */
     @Test
     public void testConvertMessagesFromJsonWithExplode() throws IOException {
-        List<GoblintMessagesResult> goblintMessagesResults = readGoblintMessagesResponseJson("messagesResponse.json");
+        List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson("messagesResponse.json", messagesTypeToken);
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
         when(gobPieConfiguration.showCfg()).thenReturn(false);
         when(gobPieConfiguration.explodeGroupWarnings()).thenReturn(true);
@@ -245,7 +225,7 @@ public class GoblintMessagesTest {
      */
     @Test
     public void testConvertMessagesPieceFromJson() throws IOException {
-        List<GoblintMessagesResult> goblintMessagesResults = readGoblintMessagesResponseJson("messagesResponsePiece.json");
+        List<GoblintMessagesResult> goblintMessagesResults = readGoblintResponseJson("messagesResponsePiece.json", messagesTypeToken);
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(goblintMessagesResults));
         when(gobPieConfiguration.showCfg()).thenReturn(false);
         goblintAnalysis.analyze(files, analysisConsumer, true);
@@ -300,7 +280,7 @@ public class GoblintMessagesTest {
      */
     @Test
     public void testConvertFunctionsFromJson() throws IOException {
-        List<GoblintFunctionsResult> goblintFunctionsResults = readGoblintFunctionsResponseJson();
+        List<GoblintFunctionsResult> goblintFunctionsResults = readGoblintResponseJson("functionsResponse.json", functionsTypeToken);
         when(goblintService.functions()).thenReturn(CompletableFuture.completedFuture(goblintFunctionsResults));
         when(gobPieConfiguration.showCfg()).thenReturn(true);
         when(goblintService.messages()).thenReturn(CompletableFuture.completedFuture(new ArrayList<>()));
