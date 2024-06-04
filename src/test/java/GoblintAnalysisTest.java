@@ -29,6 +29,15 @@ import java.util.concurrent.CompletableFuture;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
+/**
+ * Goblint analysis test.
+ * <p>
+ * The class is responsible for testing analyzing
+ * when an analysis event is triggered.
+ *
+ * @author Anette Taivere
+ * @author Karoliine Holter
+ */
 @ExtendWith(SystemStubsExtension.class)
 class GoblintAnalysisTest extends TestHelper {
 
@@ -49,6 +58,10 @@ class GoblintAnalysisTest extends TestHelper {
     @SystemStub
     private SystemOut systemOut;
 
+    /**
+     * BeforeEach method configures mock behaviors
+     * and expectations to create a controlled testing environment.
+     */
     @BeforeEach
     void before() {
         mockGoblintServerIsAlive(goblintServer, goblintConfWatcher);
@@ -99,8 +112,8 @@ class GoblintAnalysisTest extends TestHelper {
     }
 
     /**
-     * Mock test to ensure @analyze function
-     * messages user when analysis fails due to Goblint responding with VerifyError
+     * Mock test to ensure @analyze function messages user
+     * when analysis fails due to Goblint responding with VerifyError
      */
     @Test
     void analyzeFailedWithGoblintVerifyError() {
