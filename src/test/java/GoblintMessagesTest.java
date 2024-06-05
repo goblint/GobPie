@@ -34,6 +34,17 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Mockito.*;
 
+/**
+ * Goblint messages test.
+ * <p>
+ * This class is responsible for testing the functionality
+ * that ensures Goblint warnings received in a JSON response
+ * are converted correctly.
+ *
+ * @author Anette Taivere
+ * @author Karoliine Holter
+ */
+
 public class GoblintMessagesTest extends TestHelper {
 
     private Gson gson = new GoblintMessageJsonHandler(new HashMap<>()).getDefaultGsonBuilder().create();

@@ -27,6 +27,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+/**
+ * GobPie Conf test.
+ * <p>
+ * The class is responsible for testing functions that
+ * read and process GobPie configuration
+ *
+ * @author Anette Taivere
+ * @author Karoliine Holter
+ */
+
 @ExtendWith(SystemStubsExtension.class)
 class GobPieConfTest {
 
@@ -34,11 +44,10 @@ class GobPieConfTest {
     private Path tempDir;
     @SystemStub
     private SystemOut systemOut;
-
     @Mock
     MagpieServer magpieServer = mock(MagpieServer.class);
 
-    /*
+    /**
      * A function that mocks MagpieServer, gets absolute
      * file path and returns new GobPieConfReader.
      */

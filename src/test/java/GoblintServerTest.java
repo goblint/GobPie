@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
  * @author Anette Taivere
  * @author Karoliine Holter
  */
+
 @ExtendWith(SystemStubsExtension.class)
 public class GoblintServerTest {
 
