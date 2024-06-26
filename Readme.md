@@ -1,6 +1,7 @@
 # GobPie
 
 [![build workflow status](https://github.com/goblint/GobPie/actions/workflows/build.yml/badge.svg)](https://github.com/goblint/GobPie/actions/workflows/build.yml)
+[![Coverage Status](https://coveralls.io/repos/github/goblint/GobPie/badge.svg?branch=master)](https://coveralls.io/github/goblint/GobPie?branch=master)
 
 The Integration of the static analyzer [Goblint](https://github.com/goblint/analyzer) into IDEs with [MagpieBridge](https://github.com/MagpieBridge/MagpieBridge).
 
