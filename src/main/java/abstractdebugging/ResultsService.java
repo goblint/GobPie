@@ -36,9 +36,9 @@ public class ResultsService {
                                 // That looks strange, so we patch it to be only the end of the last line of the function.
                                 // TODO: Maybe it would be better to adjust location when returning stack so the node info retains the original location
                                 return nodeInfo.withLocation(new GoblintLocation(
-                                        nodeInfo.location().getFile(),
-                                        nodeInfo.location().getEndLine(), nodeInfo.location().getEndColumn(),
-                                        nodeInfo.location().getEndLine(), nodeInfo.location().getEndColumn()
+                                        nodeInfo.location().file(),
+                                        nodeInfo.location().endLine(), nodeInfo.location().endColumn(),
+                                        nodeInfo.location().endLine(), nodeInfo.location().endColumn()
                                 ));
                             } else {
                                 return nodeInfo;

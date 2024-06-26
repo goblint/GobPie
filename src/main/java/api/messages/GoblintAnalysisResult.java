@@ -1,6 +1,5 @@
 package api.messages;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -12,12 +11,5 @@ import java.util.List;
  * @since 0.0.3
  */
 
-public class GoblintAnalysisResult {
-
-    private final List<String> status = new ArrayList<>();
-
-    public List<String> getStatus() {
-        return status;
-    }
-
+public record GoblintAnalysisResult(List<String> status) {
 }

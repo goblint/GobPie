@@ -1,0 +1,118 @@
+[
+  {
+    "tags": [
+      {
+        "Category": [
+          "Assert"
+        ]
+      }
+    ],
+    "severity": "Success",
+    "multipiece": {
+      "loc": {
+        "file": "src/01-assert.c",
+        "line": 10,
+        "column": 3,
+        "byte": 842,
+        "endLine": 10,
+        "endColumn": 27,
+        "endByte": 866
+      },
+      "text": "Assertion \"success\" will succeed",
+      "context": null
+    }
+  },
+  {
+    "tags": [
+      {
+        "Category": [
+          "Assert"
+        ]
+      }
+    ],
+    "severity": "Error",
+    "multipiece": {
+      "loc": {
+        "file": "src/01-assert.c",
+        "line": 11,
+        "column": 3,
+        "byte": 870,
+        "endLine": 11,
+        "endColumn": 24,
+        "endByte": 891
+      },
+      "text": "Assertion \"fail\" will fail.",
+      "context": null
+    }
+  },
+  {
+    "tags": [
+      {
+        "Category": [
+          "Assert"
+        ]
+      }
+    ],
+    "severity": "Warning",
+    "multipiece": {
+      "loc": {
+        "file": "src/01-assert.c",
+        "line": 12,
+        "column": 3,
+        "byte": 895,
+        "endLine": 12,
+        "endColumn": 32,
+        "endByte": 924
+      },
+      "text": "Assertion \"unknown == 4\" is unknown.",
+      "context": null
+    }
+  },
+  {
+    "tags": [
+      {
+        "Category": [
+          "Behavior",
+          "Undefined",
+          "NullPointerDereference"
+        ]
+      },
+      {
+        "CWE": 476
+      }
+    ],
+    "severity": "Warning",
+    "multipiece": {
+      "loc": {
+        "file": "src/10-nullpointer-dereference-simple.c",
+        "line": 7,
+        "column": 9,
+        "byte": 18422,
+        "endLine": 7,
+        "endColumn": 15,
+        "endByte": 18428
+      },
+      "text": "May dereference NULL pointer",
+      "context": {
+        "tag": 13
+      }
+    }
+  },
+  {
+    "tags": [
+      {
+        "Category": [
+          "Deadcode"
+        ]
+      }
+    ],
+    "severity": "Warning",
+    "multipiece": {
+      "loc": null,
+      "text": "Function 'main' does not return",
+      "context": {
+        "tag": null
+      }
+    }
+  }
+]

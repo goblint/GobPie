@@ -9,6 +9,7 @@ import org.eclipse.lsp4j.DiagnosticSeverity;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Objects;
 
 /**
  * The Class GoblintCFGAnalysisResult.
@@ -72,4 +73,14 @@ public class GoblintCFGAnalysisResult implements AnalysisResult {
     public String code() {
         return null;
     }
+
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GoblintCFGAnalysisResult that = (GoblintCFGAnalysisResult) o;
+        return Objects.equals(pos, that.pos) && Objects.equals(title, that.title) && Objects.equals(funName, that.funName) && Objects.equals(related, that.related);
+    }
+
 }

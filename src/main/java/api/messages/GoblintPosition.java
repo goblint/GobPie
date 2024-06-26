@@ -5,6 +5,7 @@ import com.ibm.wala.classLoader.IMethod;
 
 import java.io.Reader;
 import java.net.URL;
+import java.util.Objects;
 
 /**
  * The Class GoblintPosition.
@@ -81,4 +82,13 @@ public class GoblintPosition implements Position {
     public URL getURL() {
         return sourcefileURL;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GoblintPosition that = (GoblintPosition) o;
+        return columnStart == that.columnStart && columnEnd == that.columnEnd && lineStart == that.lineStart && lineEnd == that.lineEnd && Objects.equals(sourcefileURL, that.sourcefileURL);
+    }
+
 }

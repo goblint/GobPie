@@ -1,5 +1,6 @@
 package gobpie;
 
+import api.json.GobPieConfValidatorAdapterFactory;
 import com.google.gson.*;
 import magpiebridge.core.MagpieServer;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -28,7 +29,7 @@ public class GobPieConfReader {
 
     private final MagpieServer magpieServer;
     private final String gobPieConfFileName;
-    private static final Logger log = LogManager.getLogger(GobPieConfReader.class);
+    private final Logger log = LogManager.getLogger(GobPieConfReader.class);
 
     public GobPieConfReader(MagpieServer magpieServer, String gobPieConfFileName) {
         this.magpieServer = magpieServer;
@@ -62,7 +63,7 @@ public class GobPieConfReader {
 
             // Check if all required parameters have been set
             // If not, wait for change and reparse
-            while (gobpieConfiguration.getGoblintConf() == null || gobpieConfiguration.getGoblintConf().equals("")) {
+            while (gobpieConfiguration.goblintConf() == null || gobpieConfiguration.goblintConf().isEmpty()) {
                 String message = "goblintConf parameter missing from GobPie configuration file.";
                 String terminalMessage = message + "\nPlease add Goblint configuration file location into GobPie configuration as a parameter with name \"goblintConf\".";
                 forwardErrorMessageToClient(message, terminalMessage);
@@ -90,19 +91,23 @@ public class GobPieConfReader {
      *                         </ul>
      */
 
-    private GobPieConfiguration parseGobPieConf() {
+    public GobPieConfiguration parseGobPieConf() {
         try {
             log.debug("Reading GobPie configuration from json");
-            Gson gson = new GsonBuilder().create();
+            Gson gson = new GsonBuilder()
+                    .registerTypeAdapterFactory(new GobPieConfValidatorAdapterFactory())
+                    .create();
             // Read json object
             JsonObject jsonObject = JsonParser.parseReader(new FileReader(gobPieConfFileName)).getAsJsonObject();
             // Convert json object to GobPieConfiguration object
             log.debug("GobPie configuration read from json");
             return gson.fromJson(jsonObject, GobPieConfiguration.class);
-        } catch (FileNotFoundException e) {
-            throw new GobPieException("Could not locate GobPie configuration file.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
         } catch (JsonSyntaxException e) {
             throw new GobPieException("GobPie configuration file syntax is wrong.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
+        } catch (JsonParseException e) {
+            throw new GobPieException("There was an unknown option \"" + e.getMessage() + "\" in the GobPie configuration. Please check for any typos.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
+        } catch (FileNotFoundException e) {
+            throw new GobPieException("Could not locate GobPie configuration file.", e, GobPieExceptionType.GOBPIE_CONF_EXCEPTION);
         }
     }
 

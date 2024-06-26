@@ -15,16 +15,7 @@ import java.util.List;
  * @since 0.0.3
  */
 
-public class GoblintFunctionsResult {
-
-    String type = getClass().getName();
-
-    private String funName;
-    private GoblintLocation location;
-
-    public String getType() {
-        return type;
-    }
+public record GoblintFunctionsResult(String type, String funName, GoblintLocation location) {
 
     public List<AnalysisResult> convert() {
         var cfgResult = new GoblintCFGAnalysisResult(location.toPosition(), "show cfg", funName);

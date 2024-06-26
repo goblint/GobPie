@@ -38,16 +38,16 @@ public class GoblintMessagesResult {
 
         @Override
         public String toString() {
-            return (Category.size() > 0) ? "[" + String.join(" > ", Category) + "]" : "";
+            return String.join(" > ", Category);
         }
     }
 
     public static class CWE implements Tag {
-        private Integer CWE;
+        private int CWE;
 
         @Override
         public String toString() {
-            return (CWE != null) ? "[CWE-" + CWE + "]" : "";
+            return "CWE-" + CWE;
         }
     }
 
@@ -98,7 +98,7 @@ public class GoblintMessagesResult {
          * @return A collection of AnalysisResult objects.
          */
         public List<AnalysisResult> convert(List<Tag> tags, String severity, boolean explode) {
-            return explode
+            return explode && this.group_loc != null
                     ? convertGroupExplode(tags, severity)
                     : convertGroup(tags, severity);
         }
@@ -143,7 +143,7 @@ public class GoblintMessagesResult {
     }
 
     private static String joinTags(List<Tag> tags) {
-        return tags.stream().map(Tag::toString).collect(Collectors.joining(""));
+        return tags.stream().map(tag -> "[" + tag.toString() + "]").collect(Collectors.joining(""));
     }
 
     private static GoblintPosition getLocation(GoblintLocation loc) {

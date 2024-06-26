@@ -8,6 +8,7 @@ import magpiebridge.core.Kind;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
 import java.util.ArrayList;
+import java.util.Objects;
 
 /**
  * The Class GoblintMessagesAnalysisResult.
@@ -106,6 +107,14 @@ public class GoblintMessagesAnalysisResult implements AnalysisResult {
         // }
         // return code;
         return null;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GoblintMessagesAnalysisResult that = (GoblintMessagesAnalysisResult) o;
+        return Objects.equals(group_text, that.group_text) && Objects.equals(text, that.text) && Objects.equals(pos, that.pos) && Objects.equals(severity, that.severity) && Objects.equals(related, that.related);
     }
 
 }

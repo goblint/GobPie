@@ -3,7 +3,6 @@ package goblintserver;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
 import magpiebridge.core.MagpieServer;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.lsp4j.MessageParams;
@@ -12,11 +11,13 @@ import org.zeroturnaround.exec.InvalidExitValueException;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.StartedProcess;
 import org.zeroturnaround.exec.listener.ProcessListener;
+import org.zeroturnaround.process.UnixProcess;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Collections;
 import java.util.concurrent.TimeoutException;
 
@@ -36,11 +37,9 @@ import static gobpie.GobPieExceptionType.GOBLINT_EXCEPTION;
 public class GoblintServer {
 
     private static final String GOBLINT_SOCKET = "goblint.sock";
-
+    private static final int SIGINT = 2;
     private final MagpieServer magpieServer;
     private final GobPieConfiguration configuration;
-    private final String[] goblintRunCommand;
-
     private StartedProcess goblintRunProcess;
 
     private final Logger log = LogManager.getLogger(GoblintServer.class);
@@ -49,12 +48,47 @@ public class GoblintServer {
     public GoblintServer(MagpieServer magpieServer, GobPieConfiguration configuration) {
         this.magpieServer = magpieServer;
         this.configuration = configuration;
-        this.goblintRunCommand = constructGoblintRunCommand();
     }
 
-    public StartedProcess getGoblintRunProcess() {
-        return goblintRunProcess;
+    /**
+     * Aborts the previous running analysis by sending a SIGINT signal to Goblint.
+     */
+    public void abortAnalysis() throws IOException {
+        Process goblintProcess = goblintRunProcess.getProcess();
+        int pid = Math.toIntExact(goblintProcess.pid());
+        UnixProcess unixProcess = new UnixProcess(pid);
+        unixProcess.kill(SIGINT);
     }
+
+
+    /**
+     * The method that is triggered before each analysis.
+     * <p>
+     * preAnalyzeCommand is read from the GobPie configuration file.
+     * Can be used for automating the compilation database generation.
+     */
+    public void preAnalyse() {
+        List<String> preAnalyzeCommand = configuration.preAnalyzeCommand();
+        if ((preAnalyzeCommand != null) && (!preAnalyzeCommand.isEmpty())) {
+            try {
+                log.info("PreAnalysis command ran: '" + preAnalyzeCommand + "'");
+                ProcessListener processListener = new ProcessListener() {
+                };
+                StartedProcess preAnalysisProcess = runCommand(new File(System.getProperty("user.dir")), preAnalyzeCommand, processListener);
+                switch (preAnalysisProcess.getProcess().waitFor()) {
+                    case 0 -> log.info("PreAnalysis command finished.");
+                    default -> {
+                        log.warn("Running preAnalysis command failed. (code: " + preAnalysisProcess.getProcess().exitValue() + ")");
+                        magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, "Running preAnalysis command failed."));
+                    }
+                }
+            } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
+                log.warn("Running preAnalysis command failed. " + e.getMessage());
+                this.magpieServer.forwardMessageToClient(new MessageParams(MessageType.Warning, "Running preAnalysis command failed. " + e.getMessage()));
+            }
+        }
+    }
+
 
     public String getGoblintSocket() {
         return GOBLINT_SOCKET;
@@ -65,16 +99,16 @@ public class GoblintServer {
      * Method for constructing the command to run Goblint server.
      * Files to analyse must be defined in goblint conf.
      */
-    private String[] constructGoblintRunCommand() {
-        String[] command = new String[]{
-                configuration.getGoblintExecutable(),
+    public List<String> constructGoblintRunCommand() {
+        List<String> command = new java.util.ArrayList<>(List.of(
+                configuration.goblintExecutable(),
                 "--enable", "server.enabled",
                 "--enable", "server.reparse",
                 "--set", "server.mode", "unix",
                 "--set", "server.unix-socket", new File(getGoblintSocket()).getAbsolutePath()
-        };
-        if (configuration.enableAbstractDebugging()) {
-            command = ArrayUtils.addAll(command, "--enable", "exp.arg.enabled");
+        ));
+        if (configuration.abstractDebugging()) {
+            Collections.addAll(command, "--enable", "exp.arg.enabled");
         }
         return command;
     }
@@ -82,7 +116,7 @@ public class GoblintServer {
 
     private String[] constructGoblintVersionCheckCommand() {
         return new String[]{
-                configuration.getGoblintExecutable(),
+                configuration.goblintExecutable(),
                 "--version"
         };
     }
@@ -95,12 +129,34 @@ public class GoblintServer {
      */
     public void startGoblintServer() {
         try {
-            // run command to start goblint
+            // run command to start Goblint
+            ProcessListener listener = new ProcessListener() {
+                public void afterStop(Process process) {
+                    switch (process.exitValue()) {
+                        case 0 -> log.info("Goblint server has stopped.");
+                        case 143 -> {
+                            log.info("Goblint server has been killed.");
+                            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server has been killed. Please check the output terminal of GobPie extension for more information."));
+                        }
+                        default -> {
+                            log.error("Goblint server exited due to an error (code: " + process.exitValue() + "). Please fix the issue reported above and rerun the analysis to restart the extension.");
+                            magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error. Please check the output terminal of GobPie extension for more information."));
+                        }
+                    }
+                    magpieServer.cleanUp();
+                    // TODO: throw an exception? where (and how) can it be caught to be handled though?
+                }
+            };
+            List<String> goblintRunCommand = constructGoblintRunCommand();
             log.info("Goblint run with command: " + String.join(" ", goblintRunCommand));
-            goblintRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand);
+            goblintRunProcess = runCommand(new File(System.getProperty("user.dir")), goblintRunCommand, listener);
         } catch (IOException | InvalidExitValueException | InterruptedException | TimeoutException e) {
             throw new GobPieException("Running Goblint failed.", e, GOBLINT_EXCEPTION);
         }
+    }
+
+    public boolean isAlive() {
+        return goblintRunProcess.getProcess().isAlive();
     }
 
 
@@ -138,24 +194,8 @@ public class GoblintServer {
      * @param command The command to run.
      * @return An object that represents a process that has started. It may or may not have finished.
      */
-    private StartedProcess runCommand(File dirPath, String[] command) throws IOException, InterruptedException, TimeoutException {
-        ProcessListener listener = new ProcessListener() {
-
-            public void afterStop(Process process) {
-                if (process.exitValue() == 0) {
-                    log.info("Goblint server has stopped.");
-                } else if (process.exitValue() == 143) {
-                    log.info("Goblint server has been killed.");
-                } else {
-                    magpieServer.forwardMessageToClient(new MessageParams(MessageType.Error, "Goblint server exited due to an error. Please check the output terminal of GobPie extension for more information."));
-                    log.error("Goblint server exited due to an error (code: " + process.exitValue() + "). Please fix the issue reported above and rerun the analysis to restart the extension.");
-                }
-                magpieServer.cleanUp();
-                // TODO: throw an exception? where (and how) can it be caught to be handled though?
-            }
-        };
-
-        log.debug("Waiting for command: " + Arrays.toString(command) + " to run...");
+    private StartedProcess runCommand(File dirPath, List<String> command, ProcessListener listener) throws IOException, InterruptedException, TimeoutException {
+        log.debug("Waiting for command: " + command + " to run...");
         return new ProcessExecutor()
                 .directory(dirPath)
                 .command(command)

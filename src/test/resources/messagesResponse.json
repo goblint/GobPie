@@ -1,0 +1,119 @@
+[
+  {
+    "tags": [
+      {
+        "Category": [
+          "Deadcode"
+        ]
+      }
+    ],
+    "severity": "Info",
+    "multipiece": {
+      "group_text": "Logical lines of code (LLoC) summary",
+      "group_loc": null,
+      "pieces": [
+        {
+          "loc": null,
+          "text": "live: 12",
+          "context": null
+        },
+        {
+          "loc": null,
+          "text": "dead: 0",
+          "context": null
+        },
+        {
+          "loc": null,
+          "text": "total lines: 12",
+          "context": null
+        }
+      ]
+    }
+  },
+  {
+    "tags": [
+      {
+        "Category": [
+          "Race"
+        ]
+      }
+    ],
+    "severity": "Warning",
+    "multipiece": {
+      "group_text": "Memory location myglobal (race with conf. 110)",
+      "group_loc": {
+        "file": "src/example.c",
+        "line": 4,
+        "column": 5,
+        "byte": 51631,
+        "endLine": 4,
+        "endColumn": 13,
+        "endByte": 51639
+      },
+      "pieces": [
+        {
+          "loc": {
+            "file": "src/example.c",
+            "line": 10,
+            "column": 3,
+            "byte": 52116,
+            "endLine": 10,
+            "endColumn": 22,
+            "endByte": 52135
+          },
+          "text": "write with [mhp:{tid=[main, t_fun@src/example.c:17:3-17:40#top]}, lock:{mutex1}, thread:[main, t_fun@src/example.c:17:3-17:40#top]] (conf. 110)  (exp: & myglobal)",
+          "context": null
+        },
+        {
+          "loc": {
+            "file": "src/example.c",
+            "line": 19,
+            "column": 3,
+            "byte": 52611,
+            "endLine": 19,
+            "endColumn": 22,
+            "endByte": 52630
+          },
+          "text": "write with [mhp:{tid=[main]; created={[main, t_fun@src/example.c:17:3-17:40#top]}}, lock:{mutex2}, thread:[main]] (conf. 110)  (exp: & myglobal)",
+          "context": null
+        }
+      ]
+    }
+  },
+  {
+    "tags": [
+      {
+        "Category": [
+          "Race"
+        ]
+      }
+    ],
+    "severity": "Info",
+    "multipiece": {
+      "group_text": "Memory locations race summary",
+      "group_loc": null,
+      "pieces": [
+        {
+          "loc": null,
+          "text": "safe: 0",
+          "context": null
+        },
+        {
+          "loc": null,
+          "text": "vulnerable: 0",
+          "context": null
+        },
+        {
+          "loc": null,
+          "text": "unsafe: 1",
+          "context": null
+        },
+        {
+          "loc": null,
+          "text": "total memory locations: 1",
+          "context": null
+        }
+      ]
+    }
+  }
+]

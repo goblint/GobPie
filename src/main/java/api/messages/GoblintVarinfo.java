@@ -6,44 +6,12 @@ import javax.annotation.Nullable;
  * @since 0.0.4
  */
 
-public class GoblintVarinfo {
-
-    private long vid;
-    private String name;
-    private String original_name;
-    private String role;
-    private String function;
-    private String type;
-    private GoblintLocation location;
-
-    public long getVid() {
-        return vid;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    @Nullable
-    public String getOriginalName() {
-        return original_name;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    @Nullable
-    public String getFunction() {
-        return function;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public GoblintLocation getLocation() {
-        return location;
-    }
-
+public record GoblintVarinfo(
+        long vid,
+        String name,
+        @Nullable String original_name,
+        String role,
+        @Nullable String function,
+        String type,
+        GoblintLocation location) {
 }
