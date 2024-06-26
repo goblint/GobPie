@@ -107,7 +107,7 @@ public class GoblintServer {
                 "--set", "server.unix-socket", new File(getGoblintSocket()).getAbsolutePath()
         ));
         if (configuration.abstractDebugging()) {
-            command = ArrayUtils.addAll(command, "--enable", "exp.arg.enabled");
+            Collections.addAll(command, "--enable", "exp.arg.enabled");
         }
         return command;
     }
