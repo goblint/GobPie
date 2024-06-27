@@ -32,7 +32,7 @@ export function activate(context: ExtensionContext) {
     const adbSocketPath = `${os.tmpdir()}/gobpie_adb_${crypto.randomBytes(6).toString('base64url')}.sock`
 
     const script = 'java';
-    const args = ['-jar', context.asAbsolutePath('gobpie-0.0.4-SNAPSHOT.jar'), adbSocketPath];
+    const args = ['-jar', context.asAbsolutePath('gobpie-0.0.5-SNAPSHOT.jar'), adbSocketPath];
 
     // Use this for communicating on stdio 
     let serverOptions: ServerOptions = {

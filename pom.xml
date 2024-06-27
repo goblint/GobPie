@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>goblint</groupId>
     <artifactId>gobpie</artifactId>
-    <version>0.0.4-SNAPSHOT</version>
+    <version>0.0.5-SNAPSHOT</version>
     <dependencies>
 
         <!-- https://mvnrepository.com/artifact/ch.qos.logback/logback-classic -->
