@@ -3,26 +3,23 @@
 This folder contains the materials for the demo presentation of Abstract Debugging
 with GobPie at the [Second Workshop on Future Debugging Techniques (DEBT'24)](https://conf.researchr.org/details/issta-ecoop-2024/debt-2024-papers/4/Abstract-Debugging-with-GobPie).
 
-### :movie_camera:
+:movie_camera: There is a pre-recorded [video](https://youtu.be/KtLFdxMAdD8) of using the abstract debugger on the source code of SMTP Relay Checker, showcasing how to debug and fix a data race warning using the abstract debugger.
 
-There is a pre-recorded [video](https://youtu.be/KtLFdxMAdD8) of using the abstract debugger on the source code of SMTP Relay Checker, showcasing how to debug and fix a data race warning using the abstract debugger.
-
-### :page_facing_up:
-
-Cite with:
+:page_facing_up: Cite with:
 ```
 @inproceedings{10.1145/3678720.3685320,
-  author    = {Karoliine Holter and Juhan Oskar Hennoste and Simmo Saan and Patrick Lam and Vesal Vojdani},
+  author    = {Holter, Karoliine and Hennoste, Juhan Oskar and Saan, Simmo and Lam, Patrick and Vojdani, Vesal},
   title     = {Abstract Debugging with GobPie},
   year      = {2024},
-  isbn      = {979-8-4007-1110-7/24/09},
+  isbn      = {9798400711107},
   publisher = {Association for Computing Machinery},
   address   = {New York, NY, USA},
   url       = {https://doi.org/10.1145/3678720.3685320},
   doi       = {10.1145/3678720.3685320},
   booktitle = {Proceedings of the 2nd ACM International Workshop on Future Debugging Techniques},
+  pages     = {32–33},
   numpages  = {2},
-  keywords  = {Automated Software Verification, Abstract Interpretation, Explainability, Visualization, Data Race Detection},
+  keywords  = {Abstract Interpretation, Automated Software Verification, Data Race Detection, Explainability, Visualization},
   location  = {Vienna, Austria},
   series    = {DEBT 2024}
 }
