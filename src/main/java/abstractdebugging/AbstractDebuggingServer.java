@@ -370,9 +370,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 for (int i = 0; i < cfgEdges.size(); i++) {
                     var edge = cfgEdges.get(i);
                     var node = resultsService.lookupNode(edge.nodeId());
+                    var lval = edge.lval();
+                    lval = lval == null ? "" : " " + domainValueToString(resultsService.evaluateExpression(edge.nodeId(), edge.lval()));
                     forwardTargets.add(target(
                             STEP_OVER_OFFSET + i,
-                            "Step: " + edge.statementDisplayString(),
+                            "Step: " + edge.statementDisplayString() + lval,
                             node.location()
                     ));
                 }
