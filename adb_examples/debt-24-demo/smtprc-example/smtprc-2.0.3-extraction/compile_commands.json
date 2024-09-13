@@ -1,0 +1,158 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-o",
+      "smtprc.o",
+      "smtprc.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/smtprc.c",
+    "output": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/smtprc.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-o",
+      "scan_engine.o",
+      "scan_engine.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/scan_engine.c",
+    "output": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/scan_engine.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-o",
+      "options.o",
+      "options.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/options.c",
+    "output": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/options.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-o",
+      "utils.o",
+      "utils.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/utils.c",
+    "output": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/utils.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-o",
+      "parse_config_files.o",
+      "parse_config_files.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/parse_config_files.c",
+    "output": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/parse_config_files.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-o",
+      "parse_args.o",
+      "parse_args.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/parse_args.c",
+    "output": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/parse_args.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "smtprc.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/smtprc.c"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "scan_engine.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/scan_engine.c"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "options.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/options.c"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "utils.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/utils.c"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "parse_config_files.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/parse_config_files.c"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "parse_args.c"
+    ],
+    "directory": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3",
+    "file": "/home/ubuntu/goblint/gobpie-demo-debt-24/smtprc-example/smtprc-2.0.3/parse_args.c"
+  }
+]

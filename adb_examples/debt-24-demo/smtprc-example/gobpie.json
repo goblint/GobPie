@@ -1,0 +1,6 @@
+{
+    "goblintConf" : "smtprc.json",
+    "abstractDebugging": true,
+    "incrementalAnalysis": false,
+    "showCfg": true
+}
