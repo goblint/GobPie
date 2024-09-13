@@ -819,8 +819,8 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         onThreadsStopped("step", primaryThreadId);
     }
 
-    private EdgeInfo findTargetEdge(EdgeInfo primaryTargetEdge, List<? extends EdgeInfo> candidateEdges, String threadName) throws IllegalStepException {
-        // This is will throw if there are multiple distinct target edges with the same target CFG node.
+    private EdgeInfo findTargetEdge(EdgeInfo primaryTargetEdge, List<? extends EdgeInfo> candidateEdges, String threadName) {
+        // This is will make ambiguous threads unavailable if there are multiple distinct target edges with the same target CFG node.
         // TODO: Somehow ensure this can never happen.
         //  Options:
         //  * Throw error (current approach) (problem: might make it impossible to step at all in some cases. it is difficult to provide meaningful error messages for all cases)
@@ -838,7 +838,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 .filter(e -> e.cfgNodeId().equals(primaryTargetEdge.cfgNodeId()))
                 .toList();
         if (targetEdgesByCFGNode.size() > 1) {
-            throw new IllegalStepException("Path is ambiguous for " + threadName + ".");
+            log.warn("Disabling synchronous stepping in the debugging thread \"" + threadName + "\", as the path there is ambiguous.");
         }
         return targetEdgesByCFGNode.size() == 1 ? targetEdgesByCFGNode.get(0) : null;
     }
