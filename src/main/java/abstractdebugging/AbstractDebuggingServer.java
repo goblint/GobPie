@@ -817,7 +817,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         onThreadsStopped("step", primaryThreadId);
     }
 
-    private EdgeInfo findTargetEdge(EdgeInfo primaryTargetEdge, List<? extends EdgeInfo> candidateEdges, String threadName) throws IllegalStepException {
+    private EdgeInfo findTargetEdge(EdgeInfo primaryTargetEdge, List<? extends EdgeInfo> candidateEdges, String threadName) {
         // This is will make ambiguous threads unavailable if there are multiple distinct target edges with the same target CFG node.
         // TODO: Somehow ensure this can never happen.
         //  Options:
