@@ -63,8 +63,9 @@ public class GoblintARGLookupResult {
         for (var edge : edges) {
             if (edge.edge.cfg != null || edge.edge.inlined != null) {
                 var properties = edge.edge.cfg != null ? edge.edge.cfg : edge.edge.inlined;
+                var lval = properties.get("lval");
                 CFGEdgeInfo edgeInfo = new CFGEdgeInfo(edge.node, edge.cfg_node, edge.context, edge.path,
-                        properties.get("string").getAsString());
+                        properties.get("string").getAsString(), lval == null || lval.isJsonNull() ? null : lval.getAsString());
                 cfgEdges.add(edgeInfo);
             } else if (edge.edge.ret != null) {
                 var properties = edge.edge.ret;
