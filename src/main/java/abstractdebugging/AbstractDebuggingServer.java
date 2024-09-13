@@ -836,7 +836,7 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
                 .filter(e -> e.cfgNodeId().equals(primaryTargetEdge.cfgNodeId()))
                 .toList();
         if (targetEdgesByCFGNode.size() > 1) {
-            log.info("Disabling synchronous stepping in the debugging thread \"" + threadName + "\", as the path there is ambiguous.");
+            log.warn("Disabling synchronous stepping in the debugging thread \"" + threadName + "\", as the path there is ambiguous.");
         }
         return targetEdgesByCFGNode.size() == 1 ? targetEdgesByCFGNode.get(0) : null;
     }
