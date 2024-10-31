@@ -1,0 +1,25 @@
+{
+  "files": [
+    "context-sensitivity.c"
+  ],
+  "ana": {
+    "int": {
+      "def_exc" : false,
+      "interval": true
+    },
+    "activated": ["expRelation", "base", "threadid", "threadflag", "threadreturn",
+            "escape", "mutexEvents", "mutex", "access", "race", "mallocWrapper", "mhp",
+            "assert", "pthreadMutexType", "apron"]
+  },
+  "sem": {
+    "lock": {
+      "fail": true
+    }
+  },
+  "warn": {
+    "imprecise": false,
+    "deadcode": false,
+    "info": false
+  },
+  "allglobs": true
+}

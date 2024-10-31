@@ -82,19 +82,6 @@ void start_scan(void) {
 	}
 	flag = 0;
 	pthread_mutex_lock(&main_thread_count_mutex);
-	while(o.cur_threads>0) {
-		pthread_mutex_unlock(&main_thread_count_mutex);
-		flag++;
-		if(f.debug||f.verbose>1) {
-			if(flag>1) {
-				fprintf(stderr, "O.cur_childs(%d) id greater than zero...... sleepingz\n",o.cur_threads);
-				flag = 0;
-			}
-		}
-		nanosleep(&tv, NULL);
-	}
-	pthread_mutex_unlock(&main_thread_count_mutex);
-	//pthread_attr_destroy(&attr);
 
 	return;
 
