@@ -11,7 +11,6 @@ int f(ThreadAction action) {
         case CACHE:
             printf("Store in local cache!\n");
             cache = 42;
-            break; // remove for flawed version
         case PUBLISH:
             printf("Publish work!\n");
             global = 42;
@@ -19,7 +18,7 @@ int f(ThreadAction action) {
 }
 
 void *t(void *arg) {
-    if (pthread_mutex_lock(&mutex)) {
+    if (pthread_mutex_trylock(&mutex)) {
         f(CACHE);
     } else {
         f(PUBLISH);
