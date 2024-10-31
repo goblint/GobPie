@@ -811,9 +811,11 @@ public class AbstractDebuggingServer implements IDebugProtocolServer {
         for (var step : steps) {
             ThreadState thread = step.getLeft();
             EdgeInfo targetEdge = step.getRight();
-            NodeInfo targetNode = resultsService.lookupNode(targetEdge.nodeId());
-            boolean isNewThread = targetEdge instanceof FunctionCallEdgeInfo fce && fce.createsNewThread();
-            thread.pushFrame(new StackFrameState(targetNode, false, thread.getCurrentFrame().getLocalThreadIndex() - (isNewThread ? 1 : 0)));
+            if (targetEdge != null) {
+                NodeInfo targetNode = resultsService.lookupNode(targetEdge.nodeId());
+                boolean isNewThread = targetEdge instanceof FunctionCallEdgeInfo fce && fce.createsNewThread();
+                thread.pushFrame(new StackFrameState(targetNode, false, thread.getCurrentFrame().getLocalThreadIndex() - (isNewThread ? 1 : 0)));
+            }
         }
 
         onThreadsStopped("step", primaryThreadId);
