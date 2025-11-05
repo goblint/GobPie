@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '31 1 1 * *' # Monthly: 01:31 UTC on day 1 of each month
+    # GitHub Actions load is high at minute 0, so avoid that
 
 jobs:
   build:
