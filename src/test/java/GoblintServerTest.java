@@ -2,13 +2,20 @@ import goblintserver.GoblintServer;
 import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
+import guru.nidi.graphviz.service.CommandRunner;
 import magpiebridge.core.MagpieServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.MockedConstruction;
+import org.zeroturnaround.exec.ProcessExecutor;
+import org.zeroturnaround.exec.ProcessOutput;
+import org.zeroturnaround.exec.ProcessResult;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -64,7 +71,7 @@ public class GoblintServerTest {
         GoblintServer goblintServer = spy(new GoblintServer(magpieServer, gobPieConfiguration));
 
         // Mock behavior to return the executable command and abstract debugging
-        when(gobPieConfiguration.goblintExecutable()).thenReturn("goblint");
+        when(gobPieConfiguration.goblintExecutable()).thenReturn("/definitely/not/a/real/binary");
         when(gobPieConfiguration.abstractDebugging()).thenReturn(true);
 
         // Assert that starting Goblint server throws GobPieException
@@ -104,15 +111,11 @@ public class GoblintServerTest {
     @Test
     public void testCheckGoblintVersionFailed() {
         MagpieServer magpieServer = mock(MagpieServer.class);
-
-        // Prepare test data
-        String fileName = "gobpieTest7.json";
-        String gobPieConfFileName = GobPieConfTest.class.getResource(fileName).getFile();
-
-        // Mock everything needed for creating goblintServer
-        GobPieConfReader gobPieConfReader = new GobPieConfReader(magpieServer, gobPieConfFileName);
-        GobPieConfiguration gobPieConfiguration = gobPieConfReader.readGobPieConfiguration();
+        GobPieConfiguration gobPieConfiguration = mock(GobPieConfiguration.class);
         GoblintServer goblintServer = new GoblintServer(magpieServer, gobPieConfiguration);
+
+        // Mock behavior to return the executable command
+        when(gobPieConfiguration.goblintExecutable()).thenReturn("/definitely/not/a/real/binary");
 
         // Assert that checking the Goblint version throws GobPieException
         GobPieException thrown = assertThrows(GobPieException.class, goblintServer::checkGoblintVersion);
