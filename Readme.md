@@ -90,7 +90,7 @@ When a step is made in one thread, an equivalent step is made in all other threa
 
 ## Developing
 
-Make sure the following are installed: `JDK 17`, `mvn`, `npm`, `nodejs`, `@vscode/vsce`.
+Make sure the following are installed: `JDK 17`, `mvn`, Node.js 20.18+, `npm`.
 
 To build this extension, run the commands:
 
@@ -98,8 +98,7 @@ To build this extension, run the commands:
 mvn install
 cd vscode
 npm install
-npm install -g vsce
-vsce package
+npx --yes @vscode/vsce package
 ~~~
 
 
