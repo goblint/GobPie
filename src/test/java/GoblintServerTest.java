@@ -1,21 +1,13 @@
 import goblintserver.GoblintServer;
-import gobpie.GobPieConfReader;
 import gobpie.GobPieConfiguration;
 import gobpie.GobPieException;
-import guru.nidi.graphviz.service.CommandRunner;
 import magpiebridge.core.MagpieServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.MockedConstruction;
-import org.zeroturnaround.exec.ProcessExecutor;
-import org.zeroturnaround.exec.ProcessOutput;
-import org.zeroturnaround.exec.ProcessResult;
 import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 import uk.org.webcompere.systemstubs.stream.SystemOut;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
