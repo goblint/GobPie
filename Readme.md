@@ -7,20 +7,36 @@ The Integration of the static analyzer [Goblint](https://github.com/goblint/anal
 
 ## Installing
 
-1. Install [Goblint](https://github.com/goblint/analyzer#installing).
-2. Download [GobPie plugin](https://nightly.link/goblint/GobPie/workflows/build/master/gobpie-plugin.zip) and unzip the archive.
-3. Install the extension into VSCode with `code --install-extension gobpie-0.0.5.vsix`.
+### Prerequisites
 
-When installing goblint locally (as recommended), **make sure that GobPie can find the correct version of Goblint**.
+Make sure the following tools are installed:
+
+- **Java 17** (required to run GobPie)
+- Goblint (see its [installation instructions](https://github.com/goblint/analyzer#installing))
+- VS Code
+
+### Install the GobPie extension
+
+1. Download the [GobPie plugin](https://nightly.link/goblint/GobPie/workflows/build/master/gobpie-plugin.zip).
+2. Unzip the archive.
+3. Install the extension into VSCode with: 
+
+```shell
+code --install-extension gobpie-0.0.5.vsix
+```
+
+### Make GobPie find Goblint
+
+If Goblint is installed locally (as recommended), **make sure that GobPie can find the correct version of Goblint**.
 This can be done in two ways:
 
-* Setting the location of the Goblint executable used by GobPie in `gobpie.json`:
+* **Option 1:** set the location of the Goblint executable used by GobPie in `gobpie.json`:
   ```yaml
   "goblintExecutable": "<installation path>/goblint"
   ```
   The *installation path* is the path to your Goblint installation.
 
-* Activating the right opam switch before starting VS Code:
+* **Option 2:** activate the right opam switch before starting VS Code:
   ```shell
   eval $(opam env --switch=<switch name> --set-switch)
   code .
