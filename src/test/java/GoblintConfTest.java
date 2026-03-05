@@ -109,7 +109,7 @@ public class GoblintConfTest {
         // Mock GoblintService methods to return successful analysis results and config operations
         when(goblintService.analyze(new AnalyzeParams(false))).thenReturn(CompletableFuture.completedFuture(new GoblintAnalysisResult(List.of("Success"))));
         when(goblintService.reset_config()).thenReturn(CompletableFuture.completedFuture(null));
-        when(goblintService.read_config(new Params())).thenReturn(CompletableFuture.completedFuture(null));
+        when(goblintService.read_config(any(Params.class))).thenReturn(CompletableFuture.failedFuture(new RuntimeException("Fail")));
 
         // Mock FileWatcher to simulate modification in the file
         FileWatcher fileWatcher = spy(new FileWatcher(Path.of("")));
