@@ -1,0 +1,6 @@
+{
+    "goblintConf" : "smtprc-extraction.json",
+    "abstractDebugging": true,
+    "incrementalAnalysis": false,
+    "showCfg": true
+}

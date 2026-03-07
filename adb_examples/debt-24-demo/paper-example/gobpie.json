@@ -1,0 +1,6 @@
+{
+    "goblintConf" : "goblint.json",
+    "abstractDebugging": true,
+    "showCfg": true,
+    "incrementalAnalysis": false
+}

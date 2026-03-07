@@ -1,0 +1,22 @@
+{
+  "files": [
+    "example.c"
+  ],
+  "ana": {
+    "int": {
+      "def_exc" : false,
+      "interval": true
+    }
+  },
+  "sem": {
+    "lock": {
+      "fail": true
+    }
+  },
+  "warn": {
+    "imprecise": false,
+    "deadcode": false,
+    "info": false
+  },
+  "allglobs": true
+}

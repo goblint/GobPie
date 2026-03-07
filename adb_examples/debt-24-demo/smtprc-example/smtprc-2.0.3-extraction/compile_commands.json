@@ -1,0 +1,88 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-o",
+      "scan_engine.o",
+      "scan_engine.c"
+    ],
+    "directory": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction",
+    "file": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction/scan_engine.c",
+    "output": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction/scan_engine.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "smtprc.c"
+    ],
+    "directory": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction",
+    "file": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction/smtprc.c"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "scan_engine.c"
+    ],
+    "directory": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction",
+    "file": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction/scan_engine.c"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "options.c"
+    ],
+    "directory": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction",
+    "file": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction/options.c"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "utils.c"
+    ],
+    "directory": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction",
+    "file": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction/utils.c"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "parse_config_files.c"
+    ],
+    "directory": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction",
+    "file": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction/parse_config_files.c"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-c",
+      "-pthread",
+      "parse_args.c"
+    ],
+    "directory": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction",
+    "file": "/home/ubuntu/GobPie/adb_examples/debt-24-demo/smtprc-example/smtprc-2.0.3-extraction/parse_args.c"
+  }
+]
